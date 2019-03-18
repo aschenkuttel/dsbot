@@ -37,14 +37,14 @@ class DSBot(commands.Bot):
 
     # -------- Global Checks --------#
     async def global_world(self, ctx):
+        cmd = ctx.invoked_with.lower()
         if ctx.guild is None:
-            cmd = ctx.invoked_with.lower()
             if cmd in self.white:
                 return True
             if str(ctx.command).startswith("help"):
                 return True
             raise commands.NoPrivateMessage
-        if ctx.invoked_with == "world":
+        if cmd in ["world", "help"]:
             return True
         if self.load.get_guild_world(ctx.guild):
             return True

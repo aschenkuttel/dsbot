@@ -34,7 +34,7 @@ class Listen(commands.Cog):
             pre = load.pre_fix(message.guild.id)
             if message.content.lower().startswith(pre.lower()):
                 return
-            found, lost = await load.coordverter(result, message.guild.id)
+            found, lost = await load.coordverter(result, message.channel)
             em = discord.Embed(description=f"{found}\n{lost}")
             await message.channel.send(embed=em)
 
@@ -52,8 +52,7 @@ class Listen(commands.Cog):
 
     @listener()
     async def on_command_error(self, ctx, error):
-        print(f"MAIN LISTENER: {error}")
-        print(type(error))
+        print(f"{ctx.invoked_with}: {error}")
         if isinstance(error, commands.CommandNotFound):
             if ctx.guild:
                 pre = load.pre_fix(ctx.guild.id)

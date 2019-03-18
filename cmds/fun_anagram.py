@@ -11,8 +11,8 @@ class Anagram(commands.Cog):
         self.bot = bot
         self.data = {}
 
-    def get_word(self, guild_id, sol=0):
-        if sol:
+    def get_word(self, guild_id, solution=False):
+        if solution:
             return self.data[guild_id]["win"]
         else:
             return self.data[guild_id]["word"]
@@ -21,72 +21,65 @@ class Anagram(commands.Cog):
     @game_channel_only(load)
     async def anagram_(self, ctx):
 
-        if ctx.guild.id in self.data:
-            if self.data[ctx.guild.id] == 0:
-                return
-            else:
-                ag_time = self.data[ctx.guild.id]["time"]
-                now = (datetime.datetime.now() - ag_time).seconds
-                try:
-                    hint = self.data[ctx.guild.id]["hint"]
-                    msg = f"`{self.get_word(ctx.guild.id)}` | `{hint}` *(noch {60 - now}s)*"
-                    return await ctx.send(msg)
-                except KeyError:
-                    msg = f"`{self.get_word(ctx.guild.id)}` *(noch {60 - now}s)*"
-                    return await ctx.send(msg)
+        game_data = self.data.get(ctx.guild.id)
+        if game_data is False:
+            return
+        if game_data:
+            ag_time = self.data[ctx.guild.id]["time"]
+            now = (datetime.datetime.now() - ag_time).seconds
+            hint = self.data[ctx.guild.id].get('hint')
+            comment = f"| `{hint}` " if hint else ""
+            msg = f"`{self.get_word(ctx.guild.id)}` {comment}*(noch {60 - now}s)*"
+            return await ctx.send(msg)
 
-        word = random.choice(load.msg["hangman"])
-        while len(word.split(" ")) > 1:
-            word = random.choice(load.msg["hangman"])
-        if word.endswith("\n"):
-            word = word[:-1]
-        show = list(word)
-        while ''.join(show).lower() == word.lower():
-            random.shuffle(show)
-        show = ' '.join(show).upper()
+        word = None
+        while not word:
+            cache = random.choice(load.msg["hangman"])
+            if len(cache.split()) == 1:
+                word = cache.strip()
+
+        word_list = list(word)
+        while ''.join(word_list) == word:
+            random.shuffle(word_list)
+
+        show = ' '.join(word_list).upper()
         start_time = datetime.datetime.now()
+        hint_list = list(word[:int(len(word) / 4)].upper())
+        hint = f"{' '.join(hint_list)} . . ."
         data = {"word": show, "win": word, "time": start_time}
-        self.data.update({ctx.guild.id: data})
-        win_chan = load.get_config(ctx.guild.id, "game")
+        self.data[ctx.guild.id] = data
         start_msg = await ctx.send(f"`{show}` *(60s Timeout)*")
 
-        def che(m):
-            if not m.guild:
-                return False
-            if m.guild.id not in self.data:
-                return False
-            if m.channel.id == win_chan and m.guild == ctx.guild:
-                res = self.data[m.guild.id]["win"].lower()
-                if res == m.content.lower():
+        def check(m):
+            if m.channel == start_msg.channel:
+                result = self.get_word(m.guild.id, True)
+                if result.lower() == m.content.lower():
                     return True
 
         try:
-            msg = await ctx.bot.wait_for('message', check=che, timeout=30)
+            msg = await self.bot.wait_for('message', check=check, timeout=30)
         except asyncio.TimeoutError:
             try:
-                win = self.get_word(ctx.guild.id, 1)
-                hin = f"{' '.join(list(win[:int(len(win) / 4)].upper()))} . . ."
-                self.data[ctx.guild.id]["hint"] = hin
-                stuff = f"`{show}` | `{self.data[ctx.guild.id]['hint']}`"
+                self.data[ctx.guild.id]["hint"] = hint
+                stuff = f"`{show}` | `{hint}`"
                 await start_msg.edit(content=f"{stuff}(noch 30s)")
-                msg = await ctx.bot.wait_for('message', check=che, timeout=30)
+                msg = await self.bot.wait_for('message', check=check, timeout=30)
             except asyncio.TimeoutError:
-                won = self.data[ctx.guild.id]['win']
-                await ctx.send(f"Die Zeit ist abgelaufen: `{won}`")
+                await ctx.send(f"Die Zeit ist abgelaufen: `{word}`")
                 self.data.pop(ctx.guild.id)
                 return
+
         end_time = datetime.datetime.now()
         fin_time = str((end_time - start_time).total_seconds()).split(".")
         fin_time = f"{fin_time[0]}.{fin_time[1][0]}"
         ran = random.randint(150, 300)
-        time = len(self.data[ctx.guild.id]['win'])
-        amount_won = int((ran * time) * (1 - float(fin_time) / 60 + 1))
+        amount_won = int((ran * len(word)) * (1 - float(fin_time) / 60 + 1))
         await msg.channel.send(
             f"`{msg.author.display_name}` hat das Wort in "
             f"`{fin_time} Sekunden` erraten. "
             f"`{amount_won} Eisen` gewonnen *(15s Cooldown)*")
         await load.save_user_data(msg.author.id, amount_won)
-        self.data.update({ctx.guild.id: 0})
+        self.data.update({ctx.guild.id: False})
         await asyncio.sleep(15)
         self.data.pop(ctx.guild.id)
 

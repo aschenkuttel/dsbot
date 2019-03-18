@@ -1,0 +1,7 @@
+.idea/
+cmds/dev_Test.py
+data/config.json
+data/naruto.py
+datadb.py
+cogs.py
+lab.py

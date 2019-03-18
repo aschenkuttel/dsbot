@@ -17,38 +17,21 @@ class Akte(commands.Cog):
         akte = discord.Embed(title=user.name, url=result_link)
         await ctx.send(embed=akte)
 
-    @commands.command(name="player", aliases=["spieler"])
-    async def player_(self, ctx, *, user: DSObject):
+    @commands.command(name="ingame")
+    async def ingame_(self, ctx, *, user: DSObject):
         world = load.get_world(ctx.channel, True)
         base = f"https://de{world}.die-staemme.de/game.php?screen="
-        result_link = f"{base}info_player&id={user.id}"
-        profile = discord.Embed(title=user.name, url=result_link)
-        await ctx.send(embed=profile)
-
-    @commands.command(name="tribe", aliases=["stamm"])
-    async def tribe_(self, ctx, *, user: DSObject):
-        world = load.get_world(ctx.channel, True)
-        base = f"https://de{world}.die-staemme.de/game.php?screen="
-        result_link = f"{base}info_ally&id={user.id}"
+        state = "player" if user.alone else "ally"
+        result_link = f"{base}info_{state}&id={user.id}"
         profile = discord.Embed(title=user.name, url=result_link)
         await ctx.send(embed=profile)
 
     @commands.command(name="visit", aliases=["besuch"])
-    async def visit_(self, ctx, world):
+    async def visit_(self, ctx, world: int):
         if not await load.is_valid(world):
             return await ctx.send(embed=error_embed("Diese Welt existiert nicht."))
         desc = f"https://de{load.casual(world)}.die-staemme.de/guest.php"
         await ctx.send(embed=discord.Embed(description=f"[{world}]({desc})"))
-
-    @player_.error
-    async def player_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Der gewünschte Spieler fehlt."))
-
-    @tribe_.error
-    async def player_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Der gewünschte Stamm fehlt."))
 
     @visit_.error
     async def visit_error(self, ctx, error):

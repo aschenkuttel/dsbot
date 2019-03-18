@@ -88,16 +88,15 @@ class Set(commands.Cog):
         if config is None:
             cache = {str(ctx.channel.id): world}
             load.change_config(ctx.guild.id, "channel", cache)
-            return
 
-        old_world = config.get(str(ctx.channel.id))
-        if old_world == world:
-            msg = f"Der Server ist bereits zu Welt `{world}` gelinked!"
-            return await ctx.send(embed=error_embed(msg))
+        else:
+            old_world = config.get(str(ctx.channel.id))
+            if old_world == world:
+                msg = f"Der Server ist bereits zu Welt `{world}` gelinked!"
+                return await ctx.send(embed=error_embed(msg))
+            config[str(ctx.channel.id)] = world
 
-        config[str(ctx.channel.id)] = world
         load.save_config()
-
         name = "Welt" if world > 50 else "Casual"
         msg = f"Der Channel wurde mit {name} `{world}` gelinked!"
         await ctx.send(embed=complete_embed(msg))
@@ -137,7 +136,7 @@ class Set(commands.Cog):
         await ctx.send(embed=complete_embed(msg))
 
     @commands.command(name="world")
-    async def world_(self, ctx):
+    async def world_get(self, ctx):
         world = load.get_world(ctx.channel)
         cas = "Welt " if world > 50 else "Casual "
         msg = f"{cas}{world}"

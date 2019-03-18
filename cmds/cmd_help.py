@@ -50,7 +50,8 @@ class Help(commands.Cog):
                   "`sl` | *Useless Af*\n"
                   "`time` | *Erinnerung in gewünschter Uhrzeit*\n"
                   "`villages` | *Koord-Liste eines Spieler/Stammes für WB*\n"
-                  "`visit` | *Gastlogin-Url einer Welt*\n")
+                  "`visit` | *Gastlogin-Url einer Welt*\n"
+                  "`world` | *Aktuelle Channel / Server Welt*\n")
         emb_help.add_field(
             name="Fun Commands:",
             value="`ag` | *Anagram Spiel (DS Worte)*\n"
@@ -205,9 +206,9 @@ class Help(commands.Cog):
                "`set tribe` nur der Eroberungsfeed eines bestimmten Stammes anzeigen."
         cmd_type = "Admin Server Command"
         cmd_inp = "`~set game`\n`~set world <world>`\n`~set prefix <prefix>`\n" \
-                  "`~set conquer`\n`~set tribe <tribename>`"
-        example = "`~set game`\n`~set world 117`\n`~set prefix -`" \
-                  "`~set conquer`\n`~set tribe BumBum`"
+                  "`~set conquer`\n`~set tribe <tribename>`\n`~set channelworld <world>`"
+        example = "`~set game`\n`~set world 117`\n`~set prefix -`\n" \
+                  "`~set conquer`\n`~set tribe BumBum`\n`~set channelworld 164`"
         data = title, desc, cmd_type, cmd_inp, example
         await ctx.author.send(embed=await embed_message(data, ctx))
         return await help_message(ctx)
@@ -217,8 +218,8 @@ class Help(commands.Cog):
         title = "`~remove`"
         desc = "Entfernt eingstellte Serverconfigs / Gegensatz zu ~set"
         cmd_type = "Admin Server Command"
-        cmd_inp = "`~remove <prefix/game/conquer/tribe>"
-        example = "`~sl 1 5 344|555 677|455 344|567"
+        cmd_inp = "`~remove <prefix/game/conquer/tribe/channelworld>`"
+        example = "`~remove world`"
         data = title, desc, cmd_type, cmd_inp, example
         await ctx.author.send(embed=await embed_message(data, ctx))
         return await help_message(ctx)
@@ -274,6 +275,19 @@ class Help(commands.Cog):
         data = title, desc, cmd_type, cmd_inp, example
         await ctx.author.send(embed=await embed_message(data, ctx))
         return await help_message(ctx)
+
+    @help.command(name="world")
+    async def world_(self, ctx):
+        title = "`~world`"
+        desc = "Erhalte die aktuelle Welt des Channels."
+        cmd_type = "Server Command"
+        cmd_inp = "`~world`"
+        example = "`~world`"
+        data = title, desc, cmd_type, cmd_inp, example
+        await ctx.author.send(embed=await embed_message(data, ctx))
+        return await help_message(ctx)
+
+    # Fun
 
     @help.command(name="ag")
     async def ag_(self, ctx):

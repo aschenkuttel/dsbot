@@ -106,7 +106,7 @@ class Load:
         database = 'tribaldata', 'userdata'
         for table in database:
             conn_data = {"host": '46.101.105.115', "port": db_port, "user": db_user,
-                         "password": db_key, "database": table, "loop": loop}
+                         "password": db_key, "database": table, "loop": loop, "max_size": 50}
             cache = await asyncpg.create_pool(**conn_data)
             result.append(cache)
         return result
@@ -172,9 +172,9 @@ class Load:
     # Get Server Prefix
     def pre_fix(self, guild_id):
         config = self.config.get(guild_id)
-        if config is None:
-            return self.secrets["PRE"]
         default = self.secrets["PRE"]
+        if config is None:
+            return default
         return config.get("prefix", default)
 
     # --- Saves Config in File --- #
@@ -267,6 +267,7 @@ class Load:
         statement = "SELECT * FROM usage_data"
         data = await conn.fetch(statement)
         cache = {r['name']: r['usage'] for r in data}
+        await self.ress.release(conn)
         return sorted(cache.items(), key=operator.itemgetter(1), reverse=True)
 
     # World Valid Check
@@ -431,8 +432,8 @@ class Load:
         return file
 
     # Coord Converter
-    async def coordverter(self, coord_list, guild_id):
-        world = self.get_world(guild_id)
+    async def coordverter(self, coord_list, channel):
+        world = self.get_world(channel)
         result = []
         double = []
         fail = []

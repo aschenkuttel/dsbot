@@ -60,7 +60,8 @@ class Quiz(commands.Cog):
 
     def quiz_embed(self, desc, rounds, ingame=False):
         title = "Frage " + rounds if not ingame else rounds
-        embed = discord.Embed(color=0x6a6cd0, title=title, description=desc)
+        color = discord.Colour.dark_blue()
+        embed = discord.Embed(color=color, title=title, description=desc)
         return embed
 
     def index_me_senpai(self, iterable):
@@ -104,7 +105,11 @@ class Quiz(commands.Cog):
                 if m.author not in cache:
                     winner.append(m.author)
             if m.author not in cache:
-                cache.append(m.author)
+                if add:
+                    cache.append(m.author)
+                    return
+                if m.content.isdigit():
+                    cache.append(m.author)
 
         try:
             await self.bot.wait_for('message', check=check, timeout=10 + add)
@@ -115,11 +120,11 @@ class Quiz(commands.Cog):
 
     async def winner(self, guild_id):
         pool = self.data[guild_id]
-        best = sorted(pool.items(), key=lambda k: k[1], reverse=True)
+        ranking = sorted(pool.items(), key=lambda k: k[1], reverse=True)
         result_msg = []
-        for user, points in pool.items():
+        for user, points in ranking:
             msg = f"`{points}` | **{user.display_name}**"
-            if points == best[0][1]:
+            if points == ranking[0][1]:
                 won = 1500 * points
                 msg = f"{msg} `[{won} Eisen]`"
                 await load.save_user_data(user.id, won)
