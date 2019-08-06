@@ -138,14 +138,13 @@ class Quartet(commands.Cog):
             em_bed.remove_field(1)
         return em_bed
 
-    async def start_game(self, guild_id):
+    async def start_game(self, world, guild_id):
         user = self.data[guild_id]["player"]
         card_dict = {1: 10, 2: 10, 3: 9, 4: 8}
         num = card_dict[len(user)]
         players = []
         for player in user:
             players.append(player)
-        world = load.get_world(guild_id)
         cards = await load.random_id(world, amount=len(user) * num, top=250)
         play_num = 0
         for card in cards:
@@ -160,7 +159,7 @@ class Quartet(commands.Cog):
             num -= 1
 
     @commands.command(aliases=["quartett"])
-    @game_channel_only(load)
+    @game_channel_only()
     async def quartet(self, ctx):
 
         self.ingame_check(ctx, 0)
@@ -185,7 +184,7 @@ class Quartet(commands.Cog):
         else:
             self.data[ctx.guild.id]["running"] = 1
             self.data[ctx.guild.id]["channel"] = ctx.message.channel
-            await self.start_game(ctx.guild.id)
+            await self.start_game(ctx.world, ctx.guild.id)
             for player in self.data[ctx.guild.id]["player"]:
                 if player == ctx.author.id:
                     embed = self.embed_create(self.data[ctx.guild.id], player, 1)
@@ -214,7 +213,7 @@ class Quartet(commands.Cog):
                                   "einer Stunde ist abgelaufen.")
 
     @commands.command()
-    @game_channel_only(load)
+    @game_channel_only()
     async def join(self, ctx):
 
         self.ingame_check(ctx, 0)

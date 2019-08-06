@@ -14,22 +14,17 @@ class Hangman(commands.Cog):
     def game_setup(self, guild_id):
 
         word = random.choice(load.msg["hangman"])
-        if word.endswith("\n"):
-            word = word[:-1]
+        word = word.strip()
 
         if len(word) >= 6:
-            life = int(len(word) / 2) + int(len(word) / 4) + 1
+            life = int(0.75 * len(word))
         else:
             life = len(word)
 
         blanks = []
-        for char in list(word):
-
-            if char == " ":
-                blanks.append(" ")
-                continue
-            if char == "-":
-                blanks.append("-")
+        for char in word:
+            if char in [" ", "-"]:
+                blanks.append(char)
             else:
                 blanks.append("_")
 
@@ -37,28 +32,20 @@ class Hangman(commands.Cog):
         self.data.update({guild_id: game})
 
     # --- Info Getter --- #
-    def get_info(self, guild_id, info, nom=True):
-        if info == "blanks":
-            blanks = self.data[guild_id]['blanks']
-            return self.blastr(blanks) if nom else blanks
-        if info == "solution":
-            return self.data[guild_id]['solution']
-        if info == "guessed":
-            return self.data[guild_id]['guessed']
-        if info == "life":
-            return self.data[guild_id]['life']
+    def get_info(self, guild_id, info, raw=False):
+        data = self.data[guild_id][info]
+        return self.wrap(data) if raw else data
 
     # --- Info Saver --- #
     def get_saved(self, guild_id, info, new):
-        if info == "blanks":
-            self.data[guild_id]["blanks"] = new
-        if info == "guessed":
-            self.data[guild_id]["guessed"].append(new)
-        if info == "life":
-            self.data[guild_id]["life"] = new
+        data = self.data[guild_id]
+        if info != "guessed":
+            data[info] = new
+        else:
+            data[info].append(new)
 
     # --- Disc Converter ---#
-    def blastr(self, res):
+    def wrap(self, res):
         return f"`{' '.join(res)}`"
 
     # --- Hangman Function ---#
@@ -66,7 +53,7 @@ class Hangman(commands.Cog):
         guess = inp.lower()
         win = self.get_info(guild_id, 'solution')
         check = self.get_info(guild_id, 'guessed')
-        blanks = self.get_info(guild_id, 'blanks', nom=False)
+        blanks = self.get_info(guild_id, 'blanks')
 
         # --- Only 1 Char! ---#
         if guess == win.lower():
@@ -96,11 +83,11 @@ class Hangman(commands.Cog):
             return 1
 
         self.get_saved(guild_id, 'blanks', blanks)
-        return self.blastr(blanks)
+        return self.wrap(blanks)
 
     # --- Game Ending --- #
     async def game_end(self, guild_id):
-        self.data.update({guild_id: 0})
+        self.data[guild_id] = False
         await asyncio.sleep(15)
         self.data.pop(guild_id)
 
@@ -114,37 +101,38 @@ class Hangman(commands.Cog):
         return True
 
     @commands.command(name="hangman", aliases=["galgenmännchen"])
-    @game_channel_only(load)
+    @game_channel_only()
     async def hangman(self, ctx):
 
-        if ctx.guild.id not in self.data:
-
-            # -- Start Game --#
+        data = self.data.get(ctx.guild.id)
+        if data is False:
+            return
+        if data is None:
             self.game_setup(ctx.guild.id)
             pref = await self.bot.get_prefix(ctx.message)
             msg = f"Das Spiel wurde gestartet, errate mit **{pref}guess**:" \
-                f"\n\n{self.get_info(ctx.guild.id, 'blanks')}" \
+                f"\n\n{self.get_info(ctx.guild.id, 'blanks', True)}" \
                 f" - `{self.get_info(ctx.guild.id, 'life')} Leben`"
-            await ctx.send(msg)
+            return await ctx.send(msg)
 
-        else:
-            if self.data[ctx.guild.id] == 0:
-                return
-            msg = "Es läuft bereits ein Spiel, errate mit " \
-                  "`!guess Buchstabe` oder löse sofort!\n\n" \
-                f"{self.get_info(ctx.guild.id, 'blanks')}"
-            await ctx.send(msg)
+        msg = "Es läuft bereits ein Spiel, errate mit " \
+              "`!guess Buchstabe` oder löse sofort!\n\n" \
+            f"{self.get_info(ctx.guild.id, 'blanks', True)}"
+        await ctx.send(msg)
 
     @commands.command(name="guess", aliases=["raten"])
-    @game_channel_only(load)
+    @game_channel_only()
     async def guess(self, ctx, *, args):
 
-        guild = ctx.guild.id
-        if ctx.guild.id not in self.data:
+        data = self.data.get(ctx.guild.id)
+        if data is False:
+            return
+        if data is None:
             msg = "Aktuell ist kein Spiel im Gange. Starte mit `!hangman`"
             return await ctx.send(msg)
 
         # -- Guess --#
+        guild = ctx.guild.id
         hang = self.hangman_func(guild, args)
         if hang == 0:
             if self.life_edit(guild, 2):
@@ -161,8 +149,8 @@ class Hangman(commands.Cog):
         elif hang == 1:
 
             word_length = len(self.get_info(guild, 'solution'))
-            amount_won = random.randint(150, 300) * word_length
-            amount_won += amount_won * self.get_info(guild, 'life') / word_length
+            rest_life = self.get_info(guild, 'life')
+            amount_won = int(250 * word_length * float(rest_life / word_length + 1))
             await ctx.send(
                 f"Herzlichen Glückwunsch `{ctx.author.display_name}`\n"
                 f"Du hast `{int(amount_won)} Eisen` gewonnen "
@@ -204,7 +192,7 @@ class Hangman(commands.Cog):
             return await ctx.send(hang)
 
     @commands.command(name="guessed")
-    @game_channel_only(load)
+    @game_channel_only()
     async def guessed(self, ctx):
         if ctx.guild.id not in self.data:
             msg = "Aktuell ist kein Spiel im Gange. Starte mit `!hangman`"
@@ -212,19 +200,9 @@ class Hangman(commands.Cog):
         guessed = '` `'.join(self.get_info('guessed', ctx.guild.id))
         if not guessed:
             guessed = "Keine bisherigen Versuche!"
-        msg = f"{self.get_info(ctx.guild.id, 'blanks')}" \
+        msg = f"{self.get_info(ctx.guild.id, 'blanks', True)}" \
             f" - Bereits versucht: `{guessed}`"
         await ctx.send(msg)
-
-    @guess.error
-    async def guess_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            if ctx.guild.id in self.data:
-                msg = "Du musst auch etwas raten."
-                return await ctx.send(embed=error_embed(msg))
-            else:
-                msg = "Kein aktuelles Spiel gefunden."
-                return await ctx.send(embed=error_embed(msg))
 
 
 def setup(bot):

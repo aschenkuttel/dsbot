@@ -15,7 +15,7 @@ async def embed_message(data, ctx):
 
 
 async def help_message(ctx):
-    if not isinstance(ctx.channel, discord.DMChannel):
+    if ctx.guild:
         await ctx.message.add_reaction("📨")
     await asyncio.sleep(5)
     try:

@@ -11,8 +11,7 @@ class Recap(commands.Cog):
     @commands.command(name="recap", aliases=["tagebuch"])
     async def recap(self, ctx, *, args):
 
-        world = load.get_world(ctx.channel)
-        player, time = await load.re_handler(world, args)
+        player, time = await load.re_handler(ctx.world, args)
 
         if not 30 > time > 0:
             msg = "Das Maximum für den Recap Command sind 29 Tage."
@@ -20,9 +19,8 @@ class Recap(commands.Cog):
 
         me = 'player' if player.alone else 'tribe'
         page_link = "http://de.twstats.com/de{}/index.php?page={}&id={}&mode=history"
-        page_link = page_link.format(world, me, player.id)
+        page_link = page_link.format(ctx.url, me, player.id)
 
-        # --- ASYNC HTML Download --- #
         async with self.bot.session.get(page_link) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
 
@@ -31,8 +29,7 @@ class Recap(commands.Cog):
             point1, villages1, bash1 = data[0].split(",")[4:7]
             point8, villages8, bash8 = data[time].split(",")[4:7]
             if not player.alone:
-                member1, member8 = data[0].split(",")[3], \
-                                   data[time].split(",")[3]
+                member1, member8 = data[0].split(",")[3], data[time].split(",")[3]
             else:
                 member1, member8 = 0, 0
 
@@ -74,10 +71,8 @@ class Recap(commands.Cog):
 
     @recap.error
     async def recap_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            await ctx.send(embed=error_embed("Hier ist wohl etwas schief gelaufen ..."))
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed("Der gewünschte Spieler/Stamm fehlt."))
+            await ctx.send(embed=error_embed("Der gewünschte Spieler/Stamm fehlt"))
 
 
 def setup(bot):

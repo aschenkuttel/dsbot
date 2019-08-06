@@ -142,24 +142,24 @@ class Quiz(commands.Cog):
         fake_list = []
         target, rest = tribes[0].id, [obj.id for obj in tribes[1:]]
         foo, bar = (rest, [target]) if positive else ([target], rest)
-        data = await load.find_ally_player(foo, world, True)
+        data = await load.find_ally_player(world, foo)
         while len(fake_list) < 4:
             player = random.choice(data)
             if player not in fake_list:
                 fake_list.append(player)
-        data = await load.find_ally_player(bar, world, True)
+        data = await load.find_ally_player(world, bar)
         target_player = random.choice(data)
         result = fake_list + [target_player]
         random.shuffle(result)
-        return target_player, result
+        return target_player.name, [obj.name for obj in result]
 
     # Module One
-    async def top_entity(self, ctx, world, cur):
+    async def top_entity(self, ctx, cur):
         switch = random.choice([True, False])
         direction = random.choice([True, False])
         entity = "Stämme" if switch else "Spieler"
         top = 15 if switch else 100
-        data = await load.random_id(world, top=top, amount=5, tribe=switch)
+        data = await load.random_id(ctx.world, top=top, amount=5, tribe=switch)
         base = f"Welcher dieser 5 {entity} hat"
         witcher = tr_options if switch else pl_options
         key = random.choice(list(witcher))
@@ -178,7 +178,7 @@ class Quiz(commands.Cog):
         return result, answer_str
 
     # Module Two
-    async def general_ask(self, ctx, _, cur):
+    async def general_ask(self, ctx, cur):
         question, answer = random.choice(load.msg["generalQuestion"])
         splitted = question.split(" ")
         mid = int((len(splitted) + 1) / 2)
@@ -189,13 +189,13 @@ class Quiz(commands.Cog):
         return result, answer
 
     # Module Three
-    async def tribe_quiz(self, ctx, world, cur):
-        tribes = await load.random_id(world, amount=5, top=15, tribe=True)
+    async def tribe_quiz(self, ctx, cur):
+        tribes = await load.random_id(ctx.world, amount=5, top=15, tribe=True)
         positive = random.choice([True, False])
         target, rest = tribes[0], tribes[1:]
         no = " " if positive else " nicht "
         msg = f"Welcher dieser Spieler ist{no}bei `{target.name}`?"
-        data = await self.get_player(world, tribes, positive)
+        data = await self.get_player(ctx.world, tribes, positive)
         options = self.index_me_senpai(data[1])
         question = "{}\n{}".format(msg, options)
         answer = self.get_index(data[1], data[0])
@@ -204,11 +204,11 @@ class Quiz(commands.Cog):
         return result, data[0]
 
     # Module Four
-    async def image_guess(self, ctx, world, rounds):
+    async def image_guess(self, ctx, rounds):
         state = random.choice([True, False])
-        base_player = f"https://de{world}.die-staemme.de/guest.php?screen=info_"
+        base_player = f"https://de{ctx.url}.die-staemme.de/guest.php?screen=info_"
         top = 15 if state else 100
-        obj_list = await load.random_id(world, amount=top, top=top, tribe=state)
+        obj_list = await load.random_id(ctx.world, amount=top, top=top, tribe=state)
         insert = 'ally' if state else 'player'
         random.shuffle(obj_list)
         for obj in obj_list:
@@ -240,18 +240,18 @@ class Quiz(commands.Cog):
                 await ctx.send(embed=embed)
                 break
         else:
-            return
+            return None, None
 
         result = await self.wait_for_answers(ctx, answer)
         return result, obj.name
 
-    async def game_engine(self, ctx, world, rounds):
+    async def game_engine(self, ctx, rounds):
         self.data[ctx.guild.id] = {}
         game_count = 0
         while game_count < rounds:
             game = random.choice(self.game_pool)
             cur = f"{game_count + 1} / {rounds}"
-            result, answer = await game(ctx, world, cur)
+            result, answer = await game(ctx, cur)
 
             if result is None:
                 break
@@ -279,7 +279,7 @@ class Quiz(commands.Cog):
             await ctx.send(embed=end_embed)
 
     @commands.command(name="quiz")
-    @game_channel_only(load)
+    @game_channel_only()
     async def quiz(self, ctx, rounds: int = 5):
 
         if ctx.guild.id in self.data:
@@ -293,10 +293,10 @@ class Quiz(commands.Cog):
         title = "**Das Spiel startet in Kürze!** (15s)"
         msg = "Pro Runde ein Zeitfenster von 10s,\n" \
               "nur die erste Antwort wird gewertet!"
+
         await ctx.send(embed=discord.Embed(title=title, description=msg))
         await asyncio.sleep(15)
-        world = load.get_world(ctx.channel)
-        await self.game_engine(ctx, world, rounds)
+        await self.game_engine(ctx, rounds)
         self.data.pop(ctx.guild.id)
 
 

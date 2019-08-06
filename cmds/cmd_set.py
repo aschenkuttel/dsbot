@@ -1,46 +1,47 @@
-from load import load, DSObject
-from utils import *
+from utils import error_embed, complete_embed, DSObject, ConquerChannelMissing
+from discord.ext import commands
+from load import load
+import discord
 
 
 class Set(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def __local_check(self, ctx):
+    async def cog_check(self, ctx):
         if ctx.guild is None:
             raise commands.NoPrivateMessage
-        return ctx.author.guild_permissions.administrator
+        if ctx.author.guild_permissions.administrator:
+            return True
+        raise commands.MissingPermissions(['administrator'])
 
     @commands.group(invoke_without_command=True, case_insensitive=True)
     async def set(self, ctx):
         pre = load.pre_fix(ctx.guild.id)
-        msg = f"`{pre}set <world> / <game> / <conquer> /" \
-              f" <tribe> / <prefix> / <channelworld>`"
+        msg = f"`{pre}set [world|game|conquer|channel|prefix]`"
         await ctx.send(embed=error_embed(msg))
 
     @set.command(name="world")
-    async def world_(self, ctx, world: int):
+    async def set_world(self, ctx, world: int):
 
         # --- Valid World Check --- #
-        if not await load.is_valid(world):
+        if not load.is_valid(world):
             msg = "Die Welt wurde bereits geschlossen / existiert noch nicht!"
             return await ctx.send(embed=error_embed(msg))
 
-        old = load.get_world(ctx.channel)
+        article = "Welt" if world > 50 else "Casual"
 
         # --- Check if World already linked --- #
-
-        if world == old:
-            msg = f"Der Server ist bereits zu Welt `{world}` gelinked!"
+        if world == ctx.world:
+            msg = f"Der Server ist bereits mit {article} `{world}` verbunden!"
             return await ctx.send(embed=error_embed(msg))
 
         load.change_config(ctx.guild.id, "world", world)
-        name = "Welt" if world > 50 else "Casual"
-        msg = f"Der Server wurde mit {name} `{world}` gelinked!"
+        msg = f"Der Server ist nun mit {article} `{world}` verbunden!"
         await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="game")
-    async def game_(self, ctx):
+    async def set_game(self, ctx):
         cur = load.get_config(ctx.guild.id, "game")
         if cur == ctx.channel.id:
             return await ctx.send("Der aktuelle Channel ist bereits eingespeichert.")
@@ -49,7 +50,7 @@ class Set(commands.Cog):
         await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="conquer")
-    async def conquer_(self, ctx):
+    async def set_conquer(self, ctx):
         cur = load.get_config(ctx.guild.id, "conquer")
         if cur and cur == ctx.channel.id:
             return await ctx.send("Der aktuelle Channel ist bereits eingespeichert.")
@@ -58,7 +59,7 @@ class Set(commands.Cog):
         await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="prefix")
-    async def prefix_(self, ctx, pre):
+    async def set_prefix(self, ctx, pre):
         cur = load.pre_fix(ctx.guild.id)
         if cur == pre:
             msg = f"`{cur}` ist bereits der aktuelle Prefix dieses Servers."
@@ -67,20 +68,10 @@ class Set(commands.Cog):
         msg = f"Der Prefix `{pre}` ist nun aktiv."
         await ctx.send(embed=complete_embed(msg))
 
-    @set.command(name="tribe")
-    async def tribe_(self, ctx, *, tribe: DSObject):
-        cur = load.get_config(ctx.guild.id, "conquer")
-        if cur is None:
-            msg = "Der Server hat noch keinen Conquer Channel."
-            return await ctx.send(embed=error_embed(msg))
-        load.change_config(ctx.guild.id, "tribe", tribe.id)
-        msg = f"`{tribe.name}` ist nun der registrierte Stamm."
-        await ctx.send(embed=complete_embed(msg))
+    @set.command(name="channel")
+    async def set_channel(self, ctx, world: int):
 
-    @set.command(name="channelworld")
-    async def channel_world(self, ctx, world: int):
-
-        if not await load.is_valid(world):
+        if not load.is_valid(world):
             msg = "Die Welt wurde bereits geschlossen / existiert noch nicht!"
             return await ctx.send(embed=error_embed(msg))
 
@@ -103,27 +94,26 @@ class Set(commands.Cog):
 
     @commands.group(invoke_without_command=True)
     async def remove(self, ctx, entry):
-        entries = ("game", "conquer", "prefix", "tribe")
+        entries = ("game", "conquer", "prefix")
         if entry.lower() not in entries:
             pre = load.pre_fix(ctx.guild.id)
             msg = f"**Fehlerhafte Eingabe:** {pre}remove <{'/'.join(entries)}>"
             return await ctx.send(embed=error_embed(msg))
         res = {"game": "Game Channel", "conquer": "Eroberungschannel",
-               "prefix": "Prefix", "tribe": "Conquer Stamm"}
+               "prefix": "Prefix"}
         done = load.remove_config(ctx.guild.id, entry.lower())
         if not done:
-            msg = f"Der Server hat keinen zugewiesenen `{res[entry]}`."
+            msg = f"Der Server hat keinen zugewiesenen `{res[entry]}`"
             return await ctx.send(embed=error_embed(msg))
-        msg = f"`{res[entry]}` erfolgreich gelöscht."
+        msg = f"`{res[entry]}` erfolgreich gelöscht"
         await ctx.send(embed=complete_embed(msg))
 
-    @remove.command(name="channelworld")
-    async def remove_channelworld(self, ctx):
+    @remove.command(name="channel")
+    async def remove_channel(self, ctx):
         config = load.get_config(ctx.guild.id, "channel")
         if config:
             world = config.get(str(ctx.channel.id))
-            state = True if world else False
-
+            state = bool(world)
         else:
             state = False
 
@@ -131,15 +121,81 @@ class Set(commands.Cog):
             msg = "Dieser Channel hat keine eigene Welt"
             return await ctx.send(embed=error_embed(msg))
 
-        del config[str(ctx.channel.id)]
+        config.pop(str(ctx.channel.id))
+        load.change_config(ctx.guild.id, "channel", config)
         msg = "Die Channel-Welt wurde gelöscht"
         await ctx.send(embed=complete_embed(msg))
 
     @commands.command(name="world")
-    async def world_get(self, ctx):
-        world = load.get_world(ctx.channel)
-        cas = "Welt " if world > 50 else "Casual "
-        msg = f"{cas}{world}"
+    async def get_world(self, ctx):
+        cas = "Welt " if ctx.world > 50 else "Casual "
+        msg = f"{cas}{ctx.world}"
+        await ctx.send(embed=complete_embed(msg))
+
+    @commands.group(case_insensitive=True)
+    async def conquer(self, ctx):
+        channel = load.get_config(ctx.guild.id, "conquer")
+        if not channel:
+            raise ConquerChannelMissing
+
+    @conquer.command(name="add")
+    async def conquer_add(self, ctx, tribe: DSObject):
+        cache = load.get_config(ctx.guild.id, "filter")
+        if cache is None:
+            cache = []
+        if tribe.alone:
+            msg = "Der Filter unterstützt nur Stämme"
+            return await ctx.send(embed=error_embed(msg))
+        if tribe.id in cache:
+            msg = "Der Stamm ist bereits eingespeichert"
+            return await ctx.send(embed=error_embed(msg))
+        cache.append(tribe.id)
+        load.change_config(ctx.guild.id, "filter", cache)
+        msg = "done"
+        await ctx.send(embed=complete_embed(msg))
+
+    @conquer.command(name="remove")
+    async def conquer_remove(self, ctx, tribe: DSObject):
+        cache = load.get_config(ctx.guild.id, "filter")
+        if cache is None:
+            cache = []
+        if tribe.alone:
+            msg = "Der Filter unterstützt nur Stämme"
+            return await ctx.send(embed=error_embed(msg))
+        if tribe.id not in cache:
+            msg = "Der Stamm ist nicht eingespeichert"
+            return await ctx.send(embed=error_embed(msg))
+        cache.remove(tribe.id)
+        load.change_config(ctx.guild.id, "filter", cache)
+        msg = "done"
+        await ctx.send(embed=complete_embed(msg))
+
+    @conquer.command(name="grey")
+    async def conquer_grey(self, ctx):
+        cache = load.get_config(ctx.guild.id, "bb")
+        state = True if not cache else False
+        load.change_config(ctx.guild.id, "bb", state)
+        state_str = "aktiv" if state else "inaktiv"
+        msg = f"Der Filter für Barbarendörfer ist nun {state_str}"
+        await ctx.send(embed=complete_embed(msg))
+
+    @conquer.command(name="list")
+    async def conquer_list(self, ctx):
+        filter_list = load.get_config(ctx.guild.id, "filter")
+        if not filter_list:
+            msg = "Aktuell ist kein Stamm im Filter gespeichert"
+            return await ctx.send(embed=error_embed(msg))
+
+        cache = await load.find_allys(ctx.world, filter_list)
+        data = [obj.name for obj in cache]
+        title = f"{len(data)} Stämme insgesamt"
+        embed = discord.Embed(title=title, description='\n'.join(data[:10]))
+        await ctx.send(embed=embed)
+
+    @conquer.command(name="clear")
+    async def conquer_clear(self, ctx):
+        load.change_config(ctx.guild.id, "filter", [])
+        msg = "Der Filter wurde zurückgesetzt"
         await ctx.send(embed=complete_embed(msg))
 
 

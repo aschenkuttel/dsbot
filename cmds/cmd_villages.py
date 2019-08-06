@@ -16,10 +16,9 @@ class Villages(commands.Cog):
             msg = "Die Anzahl der gewünschten Dörfer muss entweder eine Zahl oder `all` sein."
             return await ctx.send(embed=error_embed(msg))
 
-        world = load.get_world(ctx.channel)
-        player, con = await load.vil_handler(world, args)
+        player, con = await load.vil_handler(ctx.world, args)
 
-        res = await load.get_villages(player, amount, world, con)
+        res = await load.get_villages(player, amount, ctx.world, con)
 
         if isinstance(res, tuple):
             obd = "Spieler" if res[0] else "Stamm"

@@ -1,6 +1,6 @@
 from discord.ext import commands
-from load import load, GuildUser
-from utils import error_embed
+from load import load
+from utils import error_embed, GuildUser
 import discord
 import asyncio
 import random
@@ -129,7 +129,7 @@ class Enjoy(commands.Cog):
             return await ctx.send("Es muss ein Ziel angegeben werden")
         msg = await ctx.send("Sending...")
         await asyncio.sleep(5)
-        res = f"**{random.randint(101, 1999)}** Fakes auf wurden versendet."
+        res = f"**{random.randint(101, 1999)}** Fakes wurden auf {username} versendet."
         await msg.edit(content=res)
 
     @commands.command(name="ddos")

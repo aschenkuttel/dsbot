@@ -1,6 +1,6 @@
-from utils import pcv, error_embed
+from utils import pcv, error_embed, DSObject
 from discord.ext import commands
-from load import load, DSObject
+from load import load
 import discord
 import asyncio
 
@@ -48,18 +48,17 @@ class Bash(commands.Cog):
 
         else:
 
-            world = load.get_world(ctx.channel)
-            s1 = await load.find_both_data(player1, world)
-            s2 = await load.find_both_data(player2, world)
+            s1 = await load.find_both_data(ctx.world, player1)
+            s2 = await load.find_both_data(ctx.world, player2)
 
             if not s1 and not s2:
-                msg = f"Auf der `{world}` gibt es weder einen Stamm noch " \
+                msg = f"Auf der `{ctx.world}` gibt es weder einen Stamm noch " \
                     f"einen Spieler, der `{player1}` oder `{player2}` heißt."
                 await ctx.send(msg)
 
             if not s1 or not s2:
                 player = player1 if not s1 else player2
-                msg = f"Auf der `{world}` gibt es einen Stamm oder Spieler " \
+                msg = f"Auf der `{ctx.world}` gibt es einen Stamm oder Spieler " \
                     f"namens `{player}` nicht!"
                 await ctx.send(msg)
 

@@ -53,15 +53,11 @@ class Time(commands.Cog):
         num = 0
 
         # ----- Max Cap Check ----- #
-        try:
-            cap_num = self.cap_dict[ctx.author.id]
-            if self.cap_dict[ctx.author.id] >= 5:
-                msg = "Du hast dein Limit erreicht - " \
-                      "Pro User nur maximal 5 aktive Timer!"
-                return await ctx.author.send(embed=error_embed(msg))
-        except KeyError:
-            cap_num = 0
-            pass
+        cap_num = self.cap_dict.get(ctx.author.id, 0)
+        if cap_num >= 5:
+            msg = "Du hast dein Limit erreicht - " \
+                  "Pro User nur maximal 5 aktive Timer!"
+            return await ctx.author.send(embed=error_embed(msg))
 
         if thyme.__contains__(":"):
             thym = thyme.split(":")
@@ -82,7 +78,7 @@ class Time(commands.Cog):
                 num = int(sec)
 
         if not thyme.__contains__(":"):
-            thymes = re.findall('\d*\D+', thyme)
+            thymes = re.findall(r'\d*\D+', thyme)
             for thy in thymes:
                 if thy.endswith("h"):
                     hour = int(thy[:-1])
@@ -97,8 +93,8 @@ class Time(commands.Cog):
         if num > 36000:
             return await ctx.send(
                 "Du kannst dich maximal bis in 10 Stunden erinnern lassen!")
-        cap_num += 1
-        self.cap_dict.update({ctx.author.id: cap_num})
+
+        self.cap_dict.update({ctx.author.id: cap_num + 1})
         await ctx.message.add_reaction("⏰")
         await asyncio.sleep(num)
         if not reason:
@@ -106,10 +102,11 @@ class Time(commands.Cog):
         await ctx.author.send(f"ERINNERUNG <@{ctx.author.id}> | `{reason}`")
         await ctx.message.remove_reaction("⏰", ctx.bot.user)
 
-        cap_num -= 1
-        if cap_num == 0:
-            return self.cap_dict.pop(ctx.author.id, None)
-        self.cap_dict.update({ctx.author.id: cap_num})
+        cur = self.cap_dict.get(ctx.author.id)
+        if cur == 1:
+            self.cap_dict.pop(ctx.author.id)
+        else:
+            self.cap_dict.update({ctx.author.id: cap_num - 1})
 
     @time_.error
     async def time_error(self, ctx, error):

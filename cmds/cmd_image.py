@@ -1,19 +1,18 @@
+from utils import error_embed, DSObject
 from discord.ext import commands
-from utils import error_embed
 from PIL import Image, ImageSequence
 from io import BytesIO
-from load import load, DSObject
+from load import load
 from bs4 import BeautifulSoup
 import discord
+import os
 
 
 class Graphic(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.emo_list = ["ag", "axt", "dorfi",
-                         "inc", "katta", "lkav",
-                         "ramme", "schwert", "skav",
-                         "speer", "spy", "ut"]
+        self.emojis = {}
+        self.setup_emojis()
 
     # ----- Crop ----- #
     def crop(self, img, x, y):
@@ -53,6 +52,14 @@ class Graphic(commands.Cog):
             pic = pic.resize((int(x * fac), int(y * fac)), Image.ANTIALIAS)
             yield pic
 
+    def setup_emojis(self):
+        path = f"{self.bot.path}/data/emojis/"
+        for file in os.listdir(path):
+            with open(f"{path}/{file}", 'rb') as pic:
+                img = bytearray(pic.read())
+                name = file.split(".")[0]
+            self.emojis[name] = img
+
     @commands.command(name="avatar", aliases=["profilbild"])
     async def avatar_(self, ctx, url):
 
@@ -83,50 +90,44 @@ class Graphic(commands.Cog):
             file = discord.File(fp=output_buffer, filename=filename)
             await ctx.author.send(file=file)
 
-    # @commands.command(name="map", aliases=["karte"])
-    # @commands.cooldown(1, 60.0, commands.BucketType.guild)
-    # async def map_(self, ctx, world=None):
-    #
-    #     if not world:
-    #         world = load.get_world(ctx.channel, True)
-    #
-    #     base_url = "https://www.dsreal.de/index.php?screen=map_history&world=de{}"
-    #     img_url = "https://www.dsreal.de/history.php?world=de{}&id={}"
-    #     result = base_url.format(world)
-    #     res = await self.bot.session.get(result)
-    #     html = await res.text()
-    #     soup = BeautifulSoup(html, 'html.parser')
-    #     form = soup.find_all('form')
-    #     inputs = form[1].find_all('option')
-    #     value = inputs[0]["value"]
-    #     url = img_url.format(world, value)
-    #     resp2 = await self.bot.session.get(url)
-    #     cache = await resp2.read()
-    #     with Image.open(BytesIO(cache)) as img:
-    #         dis = 310
-    #         h, w = img.height, img.width
-    #         img = img.crop((0 + dis, 0 + dis, w - dis, h - dis))
-    #         file = BytesIO()
-    #         img.save(file, "png")
-    #         file.seek(0)
-    #
-    #     await ctx.send(file=discord.File(file, f"{world}_map.png"))
+    @commands.command(name="map", aliases=["karte"])
+    @commands.cooldown(1, 60.0, commands.BucketType.guild)
+    async def map_(self, ctx, world=None):
+
+        if not world:
+            world = ctx.url
+
+        base_url = "https://www.dsreal.de/index.php?screen=map_history&world=de{}"
+        img_url = "https://www.dsreal.de/history.php?world=de{}&id={}"
+        result = base_url.format(world)
+        async with self.bot.session.get(result) as res:
+            html = await res.text()
+
+        soup = BeautifulSoup(html, 'html.parser')
+        form = soup.find_all('form')
+        inputs = form[1].find_all('option')
+        value = inputs[0]["value"]
+        url = img_url.format(world, value)
+        async with self.bot.session.get(url) as res2:
+            cache = await res2.read()
+
+        with Image.open(BytesIO(cache)) as img:
+            dis = 310
+            h, w = img.height, img.width
+            img = img.crop((0 + dis, 0 + dis, w - dis, h - dis))
+            file = BytesIO()
+            img.save(file, "png")
+            file.seek(0)
+
+        await ctx.send(file=discord.File(file, f"{world}_map.png"))
 
     @commands.command(name="nude", aliases=["nacktfoto"])
     @commands.cooldown(1, 10.0, commands.BucketType.member)
     async def nude_(self, ctx, *, user: DSObject = None):
 
-        world = load.get_world(ctx.channel, True)
-        base_player = f"https://de{world}.die-staemme.de/guest.php?screen=info_"
-
-        # ----- Random Player Picture -----#
         if user:
-
-            # ----- Picture of the Given Player -----#
-            insert = 'player' if user.alone else 'ally'
-            result_link = f"{base_player}{insert}&id={user.id}"
-            resp = await self.bot.session.get(result_link)
-            data = await resp.read()
+            async with self.bot.session.get(user.guest_url) as res:
+                data = await res.read()
             soup = BeautifulSoup(data, "html.parser")
             result = soup.find(alt="Profilbild") if user.alone else soup.find("img")
             if not result:
@@ -136,10 +137,9 @@ class Graphic(commands.Cog):
         else:
             await ctx.trigger_typing()
             while True:
-                idr = await load.random_id(world)
-                result_link = f"{base_player}player&id={idr.id}"
-                resp = await self.bot.session.get(result_link)
-                data = await resp.read()
+                user = await load.random_id(ctx.world)
+                async with self.bot.session.get(user.guest_url) as res:
+                    data = await res.read()
                 soup = BeautifulSoup(data, "html.parser")
                 result = soup.find(alt="Profilbild")
                 if not result:
@@ -149,8 +149,8 @@ class Graphic(commands.Cog):
                 else:
                     break
 
-        resp2 = await self.bot.session.get(result['src'])
-        img = await resp2.read()
+        async with self.bot.session.get(result['src']) as res2:
+            img = await res2.read()
         file = BytesIO()
         file.write(img)
         file.seek(0)
@@ -159,30 +159,20 @@ class Graphic(commands.Cog):
     @commands.command(name="emoji", aliases=["cancer"])
     @commands.bot_has_permissions(manage_emojis=True)
     async def emoji_(self, ctx):
-        guild = self.bot.get_guild(213992901263228928)
-        cache = 0
-        for emo in self.emo_list:
-            if emo in [e.name for e in ctx.guild.emojis]:
+        counter = 0
+        for name, emoji in self.emojis.items():
+            if name in [e.name for e in ctx.guild.emojis]:
                 continue
-            emoji = discord.utils.get(guild.emojis, name=emo)
-            async with self.bot.session.get(emoji.url) as resp2:
-                img = await resp2.read()
-                img = bytearray(img)
-            await ctx.guild.create_custom_emoji(name=emo, image=img)
-            cache += 1
+            await ctx.guild.create_custom_emoji(name=name, image=emoji)
+            counter += 1
 
-        await ctx.send(f"`{cache}/12` Emojis wurden hinzugefügt.")
-
-    # @map_.error
-    # async def map_error(self, ctx, error):
-    #     await ctx.send(f"Huch, das sieht gar nicht gut aus!\n{error}")
+        await ctx.send(f"`{counter}/{len(self.emojis)}` Emojis wurden hinzugefügt")
 
     @avatar_.error
     async def avatar_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Die URL fehlt."))
+            await ctx.send(embed=error_embed(f"Du musst eine URL angeben"))
         if hasattr(error, "original"):
-            print(type(error))
             if isinstance(error.original, (ValueError, OSError)):
                 msg = "Du musst eine gültige URL angeben"
                 return await ctx.send(embed=error_embed(msg))

@@ -10,7 +10,7 @@ full_set = [card + num for num in l2 for card in l1]
 spec = {"J": 11, "Q": 12, "K": 13, "A": 14, "a": 1}
 wins = {"Paar": 1.5, "Doppel-Paar": 2, "Drilling": 7.5, "Straße": 20,
         "Flush": 40, "Full House": 60, "Vierling": 100,
-        "Straight Flush": 200, "Royal Flush": 400}
+        "Straight Flush": 250, "Royal Flush": 500}
 win_msg = {"Paar": "ein", "Doppel-Paar": "ein", "Drilling": "einen",
            "Straße": "eine", "Flush": "einen", "Full House": "ein",
            "Vierling": "einen", "Straight Flush": "'nen fucking",
@@ -27,7 +27,7 @@ class VP(commands.Cog):
         return cute
 
     async def game_end(self, guild_id):
-        self.data[guild_id] = 0
+        self.data[guild_id] = False
         await asyncio.sleep(15)
         self.data.pop(guild_id)
 
@@ -140,7 +140,7 @@ class VP(commands.Cog):
         return False
 
     @commands.command(aliases=["videopoker"])
-    @game_channel_only(load)
+    @game_channel_only()
     async def vp(self, ctx, money: int):
 
         if money > 2000 or money < 100:
@@ -151,7 +151,7 @@ class VP(commands.Cog):
                                   " welches du nicht besitzt...")
 
         if ctx.guild.id in self.data:
-            if self.data[ctx.guild.id] == 0:
+            if self.data[ctx.guild.id] is False:
                 return
             player = ctx.bot.get_user(self.data[ctx.guild.id]['player']).name
             return await ctx.send(f"`{player}` spielt bereits auf "
@@ -163,7 +163,7 @@ class VP(commands.Cog):
         game_id = self.data[ctx.guild.id]["game_id"]
         await asyncio.sleep(60)
         if ctx.guild.id in self.data:
-            if self.data[ctx.guild.id] != 0:
+            if self.data[ctx.guild.id] is not False:
                 if self.data[ctx.guild.id]["game_id"] == game_id:
                     await start_msg.edit(
                         content="Die maximale Wartezeit von einer Minute"
@@ -173,7 +173,7 @@ class VP(commands.Cog):
                     await self.game_end(ctx.guild.id)
 
     @commands.command(aliases=["ziehen"])
-    @game_channel_only(load)
+    @game_channel_only()
     async def draw(self, ctx, cards=""):
 
         # --- Various Checks --- #
@@ -183,8 +183,8 @@ class VP(commands.Cog):
         if self.data[ctx.guild.id] == 0:
             return
         if ctx.author.id != self.data[ctx.guild.id]['player']:
-            player = ctx.bot.get_user(self.data[ctx.guild.id]['player']).name
-            return await ctx.send(f"`{player}` spielt bereits "
+            player = self.bot.get_user(self.data[ctx.guild.id]['player'])
+            return await ctx.send(f"`{player.display_name}` spielt bereits "
                                   f"auf dem Server eine Runde `!vp`")
 
         # --- Card Replace Handler --- #
@@ -210,8 +210,6 @@ class VP(commands.Cog):
             end_msg = f"Du behältst deine Karten: `{n_cards}`"
 
         # --- Result Check --- #
-        if self.data[ctx.guild.id] == 0:
-            return
         result = self.check_result(self.data[ctx.guild.id]['cards'])
         if not result:
             await ctx.send(f"{end_msg}\n**Du hast nichts und damit"

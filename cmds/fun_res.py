@@ -1,6 +1,6 @@
 from discord.ext import commands
-from utils import pcv, error_embed
-from load import load, GuildUser
+from utils import pcv, error_embed, GuildUser
+from load import load
 import discord
 
 find = discord.utils.find
@@ -31,10 +31,10 @@ class Money(commands.Cog):
         cur = await load.get_user_data(ctx.author.id)
         if cur < amount:
             await ctx.send(f"Du hast nur `{cur} Eisen` auf dem Konto.")
-            return await ctx.command.reset_cooldown(ctx)
-        if not 20001 > amount > 100:
+            return ctx.command.reset_cooldown(ctx)
+        if not 20001 > amount > 99:
             await ctx.send("Du kannst nur `100-20.000 Eisen` überweisen.")
-            return await ctx.command.reset_cooldown(ctx)
+            return ctx.command.reset_cooldown(ctx)
 
         await load.save_user_data(ctx.author.id, -amount)
         await load.save_user_data(user.id, amount)
@@ -78,8 +78,8 @@ class Money(commands.Cog):
         if isinstance(error, commands.BadArgument):
             embed = error_embed("Fehlerhafte Eingabe - Beispiel\n"
                                 "!ress send <username> <100-20000>:")
+            ctx.command.reset_cooldown(ctx)
             await ctx.send(embed=embed)
-            await ctx.command.reset_cooldown(ctx)
 
 
 def setup(bot):

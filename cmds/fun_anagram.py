@@ -18,7 +18,7 @@ class Anagram(commands.Cog):
             return self.data[guild_id]["word"]
 
     @commands.command(name="anagram", aliases=["ag"])
-    @game_channel_only(load)
+    @game_channel_only()
     async def anagram_(self, ctx):
 
         game_data = self.data.get(ctx.guild.id)
@@ -72,11 +72,10 @@ class Anagram(commands.Cog):
         end_time = datetime.datetime.now()
         fin_time = str((end_time - start_time).total_seconds()).split(".")
         fin_time = f"{fin_time[0]}.{fin_time[1][0]}"
-        ran = random.randint(150, 300)
-        amount_won = int((ran * len(word)) * (1 - float(fin_time) / 60 + 1))
+        amount_won = int(250*(len(word)) * (1 - float(fin_time) / 60 + 1))
         await msg.channel.send(
             f"`{msg.author.display_name}` hat das Wort in "
-            f"`{fin_time} Sekunden` erraten. "
+            f"`{fin_time} Sekunden` erraten.\n"
             f"`{amount_won} Eisen` gewonnen *(15s Cooldown)*")
         await load.save_user_data(msg.author.id, amount_won)
         self.data.update({ctx.guild.id: False})

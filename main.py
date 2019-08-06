@@ -1,11 +1,13 @@
+from data.naruto import pm_commands
 from discord.ext import commands
-from utils import WorldMissing
+from utils import WorldMissing, DSContext
 from load import load
 import discord
 import asyncio
+import os
 
 
-async def prefix(_, message):
+def prefix(_, message):
     if message.guild is None:
         return load.secrets["PRE"]
     custom = load.pre_fix(message.guild.id)
@@ -15,8 +17,8 @@ async def prefix(_, message):
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.loop.create_task(self.conquer_loop())
-        self.white = ["help", "play", "time"]
+        self.path = os.path.dirname(__file__)
+        self.white = pm_commands
         self.owner_id = 211836670666997762
         self.add_check(self.global_world)
         self.remove_command("help")
@@ -27,38 +29,49 @@ class DSBot(commands.Bot):
     # ----- Connected -----#
     async def on_ready(self):
 
-        # ----- Log In Check -----#
+        # Login Setup
         session = await self.load.setup(self.loop)
         self.session = session
 
-        # ----- Playing Status -----#
-        await self.change_presence(activity=discord.Activity(type=1, name="!help [1.5]"))
+        # Conquer Task
+        self.loop.create_task(self.conquer_loop())
+
+        # Playing Status
+        activity = discord.Activity(type=1, name="!help [1.5]")
+        await self.change_presence(activity=activity)
         print("Erfolgreich Verbunden!")
 
     # -------- Global Checks --------#
     async def global_world(self, ctx):
-        cmd = ctx.invoked_with.lower()
+        if "help" in str(ctx.command):
+            return True
+        cmd = str(ctx.command).lower()
         if ctx.guild is None:
             if cmd in self.white:
                 return True
-            if str(ctx.command).startswith("help"):
-                return True
             raise commands.NoPrivateMessage
-        if cmd in ["world", "help"]:
+        if cmd == "set world":
             return True
-        if self.load.get_guild_world(ctx.guild):
+        ctx.world = load.get_world(ctx.channel)
+        if ctx.world:
             return True
-        else:
-            raise WorldMissing
+        raise WorldMissing
+
+    # Custom Context Implementation
+    async def on_message(self, message):
+        ctx = await self.get_context(message, cls=DSContext)
+        await self.invoke(ctx)
 
     # ----- Update every Hour -----#
     async def conquer_loop(self):
-        await self.wait_until_ready()
-        till = self.load.get_seconds()
-        await asyncio.sleep(till)
+        seconds = self.load.get_seconds()
+        await asyncio.sleep(seconds)
         while not self.is_closed():
+            connections = self.load.session, self.load.pool
+            # await cardinal.update(*connections)
+
             # --- Conquer Feed --- #
-            await self.load.conquer_feed(bot.guilds)
+            # await self.load.conquer_feed(bot.guilds)
             wait_pls = self.load.get_seconds()
             await asyncio.sleep(wait_pls)
 

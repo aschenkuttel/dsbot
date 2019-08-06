@@ -24,12 +24,12 @@ class Rm(commands.Cog):
                   "maximal `10 Stämme` per Command."
             return await ctx.send(msg)
 
-        world = load.get_world(ctx.channel)
-        data = await load.find_ally_player(tribes, world)
+        data = await load.find_ally_player(ctx.world, tribes, True)
         if isinstance(data, str):
             return await ctx.send(f"Der Stamm `{data}` existiert so nicht.")
+        result = [obj.name for obj in data]
         await ctx.message.add_reaction("📨")
-        return await ctx.author.send(f"```\n{';'.join(data)}\n```")
+        return await ctx.author.send(f"```\n{';'.join(result)}\n```")
 
     @commands.command(name="rz3", aliases=["scavenge3"])
     async def rz3_(self, ctx, *args: int):
