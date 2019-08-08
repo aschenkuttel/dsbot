@@ -145,7 +145,7 @@ class Quartet(commands.Cog):
         players = []
         for player in user:
             players.append(player)
-        cards = await load.random_id(world, amount=len(user) * num, top=250)
+        cards = await load.fetch_random(world, amount=len(user) * num, top=250)
         play_num = 0
         for card in cards:
             if num == 1:

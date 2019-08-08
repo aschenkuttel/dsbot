@@ -137,7 +137,7 @@ class Graphic(commands.Cog):
         else:
             await ctx.trigger_typing()
             while True:
-                user = await load.random_id(ctx.world)
+                user = await load.fetch_random(ctx.world)
                 async with self.bot.session.get(user.guest_url) as res:
                     data = await res.read()
                 soup = BeautifulSoup(data, "html.parser")

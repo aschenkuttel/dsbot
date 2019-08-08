@@ -36,6 +36,7 @@ dc = {
     "!": "%21",
     "#": "%23",
     "$": "%24",
+    "%": "%25",
     "&": "%26",
     "'": "%27",
     "(": "%28",
@@ -288,7 +289,7 @@ class DSObject:
         'ut_bash', 'member', 'all_points', 'guest_url', 'ingame_url', 'twstats_url')
 
     async def convert(self, ctx, searchable):
-        obj = await load.find_both_data(ctx.world, searchable)
+        obj = await load.fetch_both(ctx.world, searchable)
         if not obj:
             raise DSUserNotFound(searchable, ctx.world)
         return obj

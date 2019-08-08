@@ -29,7 +29,7 @@ class Daily(commands.Cog):
             for row in rows[1:6]:
                 vanity = row.find('a')['href']
                 player_id = int(vanity.split("=")[-1])
-                player = await load.find_player_data(ctx.world, player_id)
+                player = await load.fetch_player(ctx.world, player_id)
                 name = player.name if player else "Unknown"
                 url = player.guest_url if player else self.never
                 points = row.findAll("td")[3].text

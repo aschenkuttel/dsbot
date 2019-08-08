@@ -18,7 +18,7 @@ class Villages(commands.Cog):
 
         player, con = await load.vil_handler(ctx.world, args)
 
-        res = await load.get_villages(player, amount, ctx.world, con)
+        res = await load.fetch_villages(player, amount, ctx.world, con)
 
         if isinstance(res, tuple):
             obd = "Spieler" if res[0] else "Stamm"

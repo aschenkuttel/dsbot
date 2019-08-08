@@ -67,11 +67,9 @@ class DSBot(commands.Bot):
         seconds = self.load.get_seconds()
         await asyncio.sleep(seconds)
         while not self.is_closed():
-            connections = self.load.session, self.load.pool
-            # await cardinal.update(*connections)
 
-            # --- Conquer Feed --- #
-            # await self.load.conquer_feed(bot.guilds)
+            await load.re
+            await self.load.conquer_feed(bot.guilds)
             wait_pls = self.load.get_seconds()
             await asyncio.sleep(wait_pls)
 

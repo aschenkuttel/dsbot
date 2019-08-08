@@ -186,7 +186,7 @@ class Set(commands.Cog):
             msg = "Aktuell ist kein Stamm im Filter gespeichert"
             return await ctx.send(embed=error_embed(msg))
 
-        cache = await load.find_allys(ctx.world, filter_list)
+        cache = await load.fetch_tribes(ctx.world, filter_list)
         data = [obj.name for obj in cache]
         title = f"{len(data)} Stämme insgesamt"
         embed = discord.Embed(title=title, description='\n'.join(data[:10]))

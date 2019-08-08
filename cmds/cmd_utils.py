@@ -24,7 +24,7 @@ class Rm(commands.Cog):
                   "maximal `10 Stämme` per Command."
             return await ctx.send(msg)
 
-        data = await load.find_ally_player(ctx.world, tribes, True)
+        data = await load.fetch_tribe_member(ctx.world, tribes, True)
         if isinstance(data, str):
             return await ctx.send(f"Der Stamm `{data}` existiert so nicht.")
         result = [obj.name for obj in data]

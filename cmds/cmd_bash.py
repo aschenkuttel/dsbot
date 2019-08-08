@@ -48,8 +48,8 @@ class Bash(commands.Cog):
 
         else:
 
-            s1 = await load.find_both_data(ctx.world, player1)
-            s2 = await load.find_both_data(ctx.world, player2)
+            s1 = await load.fetch_both(ctx.world, player1)
+            s2 = await load.fetch_both(ctx.world, player2)
 
             if not s1 and not s2:
                 msg = f"Auf der `{ctx.world}` gibt es weder einen Stamm noch " \

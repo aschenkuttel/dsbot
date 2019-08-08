@@ -50,8 +50,8 @@ class Load:
         self.session = aiohttp.ClientSession(loop=loop)
         connections = await self.db_connect(loop)
         self.pool, self.ress = connections
-        self.worlds = await self.fetch_table_worlds()
-        self.config_loader()
+        await self.fetch_worlds()
+        self.config_setup()
         return self.session
 
     # DB Connect
@@ -74,7 +74,7 @@ class Load:
         return world in self.worlds
 
     # Config Load at Start
-    def config_loader(self):
+    def config_setup(self):
         cache = json.load(open(f"{self.data_loc}config.json"))
         data = {int(key): value for key, value in cache.items()}
         self.config.update(data)
@@ -125,6 +125,18 @@ class Load:
             return self.casual(world)
         return world
 
+    # Remove all World Occurences
+    def remove_world(self, world):
+        for guild in self.config:
+            config = self.config[guild]
+            if config.get('world') == world:
+                config.pop('world')
+            channel = config.get('channel', {})
+            for ch in channel:
+                if channel[ch] == world:
+                    channel.pop(ch)
+        self.save_config()
+
     # Get Server Prefix
     def pre_fix(self, guild_id):
         config = self.config.get(guild_id)
@@ -139,22 +151,20 @@ class Load:
 
     # Ress Data Update
     async def save_user_data(self, user_id, amount):
-        statement = "SELECT * FROM iron_data WHERE id = {}"
-        conn = await self.ress.acquire()
-        data = await conn.fetchrow(statement.format(user_id))
-        statement = "INSERT INTO iron_data(id, amount) VALUES({0}, {1}) " \
-                    "ON CONFLICT (id) DO UPDATE SET id={0}, amount={1}"
-        new_amount = data["amount"] + amount if data else amount
-        await conn.execute(statement.format(user_id, new_amount))
-        await self.ress.release(conn)
+        statement = "SELECT * FROM iron_data WHERE id = $1"
+        async with self.ress.acquire() as conn:
+            data = await conn.fetchrow(statement, user_id)
+            statement = "INSERT INTO iron_data(id, amount) VALUES({0}, {1}) " \
+                        "ON CONFLICT (id) DO UPDATE SET id={0}, amount={1}"
+            new_amount = data["amount"] + amount if data else amount
+            await conn.execute(statement.format(user_id, new_amount))
 
     # Ress Data Fetch
     async def get_user_data(self, user_id, info=False):
         statement = "SELECT * FROM iron_data"
-        conn = await self.ress.acquire()
-        data = await conn.fetch(statement)
+        async with self.ress.acquire() as conn:
+            data = await conn.fetch(statement)
         cache = {cur["id"]: cur["amount"] for cur in data}
-        await self.ress.release(conn)
         rank = "Unknown"
         sort = sorted(cache.items(), key=lambda kv: kv[1], reverse=True)
         for index, (idc, cash) in enumerate(sort):
@@ -165,89 +175,64 @@ class Load:
 
     # Search Top
     async def get_user_top(self, amount, guild=None):
-        conn = await self.ress.acquire()
         if guild:
-            statement = "SELECT * FROM iron_data WHERE id IN " \
+            raw_statement = "SELECT * FROM iron_data WHERE id IN " \
                         "({}) ORDER BY amount DESC LIMIT $1"
             member = ', '.join([str(mem.id) for mem in guild.members])
-            data = await conn.fetch(statement.format(member), amount)
+            statement = raw_statement.format(member)
         else:
             statement = "SELECT * FROM iron_data ORDER BY amount DESC LIMIT $1"
+        async with self.ress.acquire() as conn:
             data = await conn.fetch(statement, amount)
-        await self.ress.release(conn)
         return data
-
-    # Download Settings / World Data
-    async def data_getter(self, world, settings=False):
-        url = (self.url_set if settings else self.url_val).format(world)
-        async with self.session.get(url) as r:
-            return await r.text()
-
-    # Conquer Data Download
-    async def fetch_conquer(self, world, sec=3600):
-        cur = time.time() - sec
-        base = "http://de{}.die-staemme.de/interface.php?func=get_conquer&since={}"
-        url = base.format(self.casual(world), cur)
-        async with self.session.get(url) as r:
-            data = await r.text("utf-8")
-        return data.split("\n")
-
-    # Download Report Data
-    async def fetch_report(self, url):
-        try:
-            resp = await self.session.get(url)
-            return await resp.text()
-        except (aiohttp.InvalidURL, ValueError):
-            return None
 
     # Save Command Usage
     async def save_usage_cmd(self, cmd):
         cmd = cmd.lower()
-        conn = await self.ress.acquire()
-
         statement = "SELECT * FROM usage_data WHERE name = $1"
-        data = await conn.fetchrow(statement, cmd)
-
         query = "INSERT INTO usage_data(name, usage) VALUES($1, $2) " \
                 "ON CONFLICT (name) DO UPDATE SET name=$1, usage=$2"
-
-        new_usage = data['usage'] + 1 if data else 1
-        await conn.execute(query, cmd, new_usage)
-        await self.ress.release(conn)
+        async with self.ress.acquire() as conn:
+            data = await conn.fetchrow(statement, cmd)
+            new_usage = data['usage'] + 1 if data else 1
+            await conn.execute(query, cmd, new_usage)
 
     # Return Sorted Command Usage Stats
     async def get_usage(self):
-        conn = await self.ress.acquire()
         statement = "SELECT * FROM usage_data"
-        data = await conn.fetch(statement)
+        async with self.ress.acquire() as conn:
+            data = await conn.fetch(statement)
         cache = {r['name']: r['usage'] for r in data}
-        await self.ress.release(conn)
         return sorted(cache.items(), key=operator.itemgetter(1), reverse=True)
 
-    # World Valid Check
-    async def fetch_table_worlds(self):
+    # Get all valid database worlds
+    async def fetch_worlds(self):
         query = "SELECT table_name FROM information_schema.tables " \
                 "WHERE table_schema='public' AND table_type='BASE TABLE';"
-        conn = await self.pool.acquire()
-        result = await conn.fetch(query)
-        await self.pool.release(conn)
-        worlds = [dct["table_name"][2:] for dct in result]
-        return sorted([int(obj) for obj in set(worlds)])
+        async with self.pool.acquire() as conn:
+            data = await conn.fetch(query)
+        cache = [int(r['table_name'][2:]) for r in data]
+        if not cache:
+            return
+        for world in self.worlds:
+            if world not in cache:
+                self.worlds.remove(world)
+                self.remove_world(world)
+        for world in cache:
+            if world not in self.worlds:
+                self.worlds.append(world)
 
-    # Random Player
-    async def random_id(self, world, **kwargs):
-
+    # Get a random player
+    async def fetch_random(self, world, **kwargs):
         amount = kwargs.get("amount", 1)
         top = kwargs.get("top", 500)
         tribe = kwargs.get("tribe", False)
         least = kwargs.get("least", False)
-
         state = "t" if tribe else "p"
 
         statement = f"SELECT * FROM {state}_{world} WHERE rank < {top + 1}"
-        conn = await self.pool.acquire()
-        data = await conn.fetch(statement)
-        await self.pool.release(conn)
+        async with self.pool.acquire() as conn:
+            data = await conn.fetch(statement)
 
         result = []
         while len(result) < amount:
@@ -264,8 +249,8 @@ class Load:
 
         return result[0] if amount == 1 else result
 
-    # Find Village
-    async def find_village_data(self, world, searchable, coord=False):
+    # Search for village with coordinates or ID
+    async def fetch_village(self, world, searchable, coord=False):
         if coord:
             x, y = searchable.partition("|")[0], searchable.partition("|")[2]
             statement = "SELECT * FROM v_{} WHERE x = $1 AND y = $2;"
@@ -274,13 +259,12 @@ class Load:
             statement = "SELECT * FROM v_{} WHERE id = $1;"
             query, searchable = statement.format(world), [searchable]
 
-        conn = await self.pool.acquire()
-        result = await conn.fetchrow(query, *searchable)
-        await self.pool.release(conn)
+        async with await self.pool.acquire() as conn:
+            result = await conn.fetchrow(query, *searchable)
         return utils.Village(world, result) if result else None
 
-    # Find Player
-    async def find_player_data(self, world, searchable, name=False):
+    # Search for player with name or ID
+    async def fetch_player(self, world, searchable, name=False):
         if name:
             searchable = utils.converter(searchable, True)
             statement = "SELECT * FROM p_{} WHERE LOWER(name) = $1;"
@@ -289,13 +273,12 @@ class Load:
             statement = "SELECT * FROM p_{} WHERE id = $1;"
             query = statement.format(world)
 
-        conn = await self.pool.acquire()
-        result = await conn.fetchrow(query, searchable)
-        await self.pool.release(conn)
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(query, searchable)
         return utils.Player(world, result) if result else None
 
-    # Find Tribe
-    async def find_ally_data(self, world, searchable, name=False):
+    # Search for tribe with name or ID
+    async def fetch_tribe(self, world, searchable, name=False):
         if name:
             searchable = utils.converter(searchable, True)
             statement = "SELECT * FROM t_{} WHERE LOWER(tag) = $1 OR LOWER(name) = $1;"
@@ -304,28 +287,26 @@ class Load:
             statement = "SELECT * FROM t_{} WHERE id = $1;"
             query = statement.format(world)
 
-        conn = await self.pool.acquire()
-        result = await conn.fetchrow(query, searchable)
-        await self.pool.release(conn)
+        async with await self.pool.acquire() as conn:
+            result = await conn.fetchrow(query, searchable)
         return utils.Tribe(world, result) if result else None
 
-    # Find Tribe/Player
-    async def find_both_data(self, world, name):
-        player = await self.find_player_data(world, name, True)
-        tribe = await self.find_ally_data(world, name, True)
-        if player and tribe or player:
+    # Search for both Tribe / Player
+    async def fetch_both(self, world, name):
+        player = await self.fetch_player(world, name, True)
+        if player:
             return player
-        if tribe:
-            return tribe
+        tribe = await self.fetch_tribe(world, name, True)
+        return tribe
 
-    # Find Tribe Players
-    async def find_ally_player(self, world, allys, name=False):
+    # Get all Tribe Member Objects
+    async def fetch_tribe_member(self, world, allys, name=False):
         if not isinstance(allys, (tuple, list)):
             allys = [allys]
         if name:
             cache = []
             for ally in allys:
-                tribe = await self.find_ally_data(world, ally, True)
+                tribe = await self.fetch_tribe(world, ally, True)
                 if not tribe:
                     continue
                 if tribe.id not in cache:
@@ -333,19 +314,17 @@ class Load:
         else:
             cache = allys
         result = []
-        conn = await self.pool.acquire()
-        for tribe in cache:
-            statement = "SELECT * FROM p_{} WHERE tribe_id = {};"
-            query = statement.format(world, tribe)
-            res = await conn.fetch(query)
-            for cur in res:
-                result.append(utils.Player(world, cur))
-        await self.pool.release(conn)
-        return result
+        async with self.pool.acquire() as conn:
+            for tribe in cache:
+                statement = "SELECT * FROM p_{} WHERE tribe_id = {};"
+                query = statement.format(world, tribe)
+                res = await conn.fetch(query)
+                for cur in res:
+                    result.append(utils.Player(world, cur))
+            return result
 
-    # Find multiple Ally Objects
-    async def find_allys(self, world, iterable, name=False):
-        conn = await self.pool.acquire()
+    # Get multiple Tribe Objects
+    async def fetch_tribes(self, world, iterable, name=False):
         if name:
             iterable = [utils.converter(obj, True) for obj in iterable]
             statement = "SELECT * FROM t_{} WHERE ARRAY[LOWER(name), LOWER(tag)] && $1;"
@@ -355,19 +334,18 @@ class Load:
             statement = "SELECT * FROM t_{} WHERE id = any($1);"
             query = statement.format(world)
 
-        res = await conn.fetch(query, iterable)
-        await self.pool.release(conn)
+        async with self.pool.acquire() as conn:
+            res = await conn.fetch(query, iterable)
         return [utils.Tribe(world, cur) for cur in res]
 
-    # Get Specific Village Set
-    async def get_villages(self, obj, num, world, k=None):
+    # Get Villages from specific Player / Tribe
+    async def fetch_villages(self, obj, num, world, k=None):
         res = []
-        conn = await self.pool.acquire()
-
         if isinstance(obj, utils.Tribe):
             statement = "SELECT * FROM p_{} WHERE tribe_id = {};"
             query = statement.format(world, obj.id)
-            cache = await conn.fetch(query)
+            async with self.pool.acquire() as conn:
+                cache = await conn.fetch(query)
             for cur in cache:
                 res.append(cur["id"])
 
@@ -381,11 +359,10 @@ class Load:
             statement = statement + temp.format(k[2], k[1])
 
         query = statement.format(world, ', '.join([str(c) for c in res]))
-        result = await conn.fetch(query)
-        await self.pool.release(conn)
+        async with self.pool.acquire() as conn:
+            result = await conn.fetch(query)
         random.shuffle(result)
         en_lis = result
-
         state = k if k else False
         if str(num).isdigit():
             en_lis = result[:int(num)]
@@ -408,7 +385,7 @@ class Load:
 
         for coord in coord_list:
 
-            res = await self.find_village_data(world, coord, True)
+            res = await self.fetch_village(world, coord, True)
             if not res:
                 fail.append(coord) if coord not in fail else None
                 continue
@@ -418,7 +395,7 @@ class Load:
 
             url = "https://de{}.die-staemme.de/game.php?&screen=info_village&id={}"
             if res.player_id:
-                player = await self.find_player_data(world, res.player_id)
+                player = await self.fetch_player(world, res.player_id)
                 v1 = f"[{player.name}]"
             else:
                 v1 = "[Barbarendorf]"
@@ -487,6 +464,15 @@ class Load:
                 result.append(entry)
             self.conquer[world] = result
 
+    # Conquer Data Download
+    async def fetch_conquer(self, world, sec=3600):
+        cur = time.time() - sec
+        base = "http://de{}.die-staemme.de/interface.php?func=get_conquer&since={}"
+        url = base.format(self.casual(world), cur)
+        async with self.session.get(url) as r:
+            data = await r.text("utf-8")
+        return data.split("\n")
+
     # Parse Conquer Data
     async def conquer_parse(self, world, tribes, bb=False):
         data = self.conquer.get(world)
@@ -495,7 +481,7 @@ class Load:
         id_list = []
         res_lis = []
         if tribes:
-            tribe_list = await self.find_ally_player(world, tribes)
+            tribe_list = await self.fetch_tribe_member(world, tribes)
             id_list = [obj.id for obj in tribe_list]
 
         date = None
@@ -506,25 +492,25 @@ class Load:
                 continue
             if not bb and 0 in player_idc:
                 continue
-            vil = await self.find_village_data(world, vil_id)
+            vil = await self.fetch_village(world, vil_id)
             if not vil:
                 continue
 
-            ally = self.find_ally_data
+            ally = self.fetch_tribe
             base = f"https://de{world}.die-staemme.de/game.php?&screen="
             res_vil = f"[{vil.x}|{vil.y}]({base}info_village&id={vil.id})"
 
             res_new = "Barbarendorf"
             res_old = "(Barbarendorf)"
 
-            new = await self.find_player_data(world, new_owner)
+            new = await self.fetch_player(world, new_owner)
             if new:
                 url_n = f"[{new.name}]({base}info_player&id={new.id})"
                 cache = await ally(world, new.tribe_id) if new.tribe_id else None
                 new_tribe = f" **{cache.tag}**" if cache else f""
                 res_new = f"{url_n}{new_tribe}"
 
-            old = await self.find_player_data(world, old_owner)
+            old = await self.fetch_player(world, old_owner)
             if old:
                 url_o = f"[{old.name}]({base}info_player&id={old.id})"
                 cache = await ally(world, old.tribe_id) if old.tribe_id else None
@@ -540,15 +526,15 @@ class Load:
     async def re_handler(self, world, args):
         days = 7
         if ' ' not in args:
-            player = await self.find_both_data(world, args)
+            player = await self.fetch_both(world, args)
         elif args.split(" ")[-1].isdigit():
-            player = await self.find_both_data(world, ' '.join(args.split(" ")[:-1]))
+            player = await self.fetch_both(world, ' '.join(args.split(" ")[:-1]))
             if not player:
-                player = await self.find_both_data(world, args)
+                player = await self.fetch_both(world, args)
             else:
                 days = int(args.split(" ")[-1])
         else:
-            player = await self.find_both_data(world, args)
+            player = await self.fetch_both(world, args)
         if not player:
             raise utils.DSUserNotFound(args, world)
         return player, days
@@ -564,10 +550,10 @@ class Load:
             name = ' '.join(args[:-1])
         else:
             name = ' '.join(args)
-        player = await self.find_both_data(world, name)
+        player = await self.fetch_both(world, name)
         if not player:
             if con:
-                player = await self.find_both_data(world, f"{name} {con}")
+                player = await self.fetch_both(world, f"{name} {con}")
                 if not player:
                     raise utils.DSUserNotFound(name, world)
             else:
@@ -601,8 +587,10 @@ class Load:
     # Main Report Func
     async def report_func(self, content):
 
-        data = await self.fetch_report(content)
-        if not data:
+        try:
+            async with self.session.get(content) as res:
+                data = await res.text()
+        except (aiohttp.InvalidURL, ValueError):
             return
 
         img_bytes = await self.html_lover(data)
@@ -654,136 +642,8 @@ class Load:
     async def silencer(self, coro):
         try:
             await coro
-        except:
+        except discord.Forbidden:
             pass
-
-    # Database Update
-    async def update(self):
-
-        begin = datetime.datetime.now()
-        await self.refresh_worlds()
-        conn = await self.pool.acquire()
-        survivor = await self.cleaning(conn)
-        print(survivor)
-        await self.create_tables(conn, survivor)
-        done = []
-        for world in self.worlds:
-            data = utils.world_data_url(self.casual(world))
-            for name, url in data.items():
-                print(name)
-                async with self.session.get(url) as r:
-                    raw = await r.text()
-                data_input = []
-                if len(name) == 1:
-                    sql = self.sql_is_shit(world, name)
-                    for line in raw.split("\n"):
-                        if not line:
-                            continue
-                        raw_data = line.split(",")
-                        if name == "v":
-                            raw_data = raw_data[:-1]
-                        if name == "c":
-                            raw_data = [int(num) for num in raw_data]
-
-                        data_input.append(raw_data)
-                    await self.what_is_my_purpose(conn, data_input, world, name)
-                else:
-                    sql = self.sql_update_shit(world, name)
-                    for line in raw.text.split("\n"):
-                        if not line:
-                            continue
-                        raw_data = line.split(",")
-                        rank, idc, kills = raw_data
-                        data_input.append((kills, rank, idc))
-
-                print(sql)
-                await conn.executemany(sql, data_input)
-
-            done.append(world)
-
-        end = datetime.datetime.now()
-        print(f"Updated in Time: {end - begin}")
-        print(f"{len(done)} Welten geupdated!")
-        await self.pool.release(conn)
-
-    def sql_update_shit(self, world, file):
-        weird = file.split("_")
-        bash_type, state = weird[-1], weird[0]
-        string = f"{bash_type}_bash=$, {bash_type}_rank=$"
-        update = "UPDATE {} SET {} WHERE id = $"
-        result = update.format(f"{state}_{world}", string)
-        return result
-
-    def sql_is_shit(self, world, state):
-        main = "INSERT INTO {}({}) VALUES({}) ON CONFLICT (id) DO UPDATE SET {}"
-        columns = utils.values[state]
-        column_list = columns.split(",")
-        inp = ', '.join([f"${num + 1}" for num, _ in enumerate(column_list)])
-        update = ', '.join([f'{k} = ${num + 1}' for num, k in enumerate(column_list)])
-        query = main.format(f"{state}_{world}", columns, inp, update)
-        return query
-
-    async def refresh_worlds(self):
-        url_val = "https://de{}.die-staemme.de/map/ally.txt"
-        ran_nor = [f"{num}" for num in range(135, 175)]
-        ran_cas = [f"p{num}" for num in range(7, 15)]
-        cache_worlds = []
-        for world in ran_cas + ran_nor:
-            async with self.session.get(url_val.format(world)) as cache:
-                data = await cache.text()
-            if data.startswith("<!DOCTYPE"):
-                continue
-            if not data:
-                continue
-            world = int(world[1:]) if "p" in world else int(world)
-            cache_worlds.append(world)
-        self.worlds = cache_worlds
-
-    async def what_is_my_purpose(self, conn, new_data, world, name):
-        query = f"SELECT * FROM {name}_{world}"
-        data = await conn.fetch(query)
-        old = [str(i[0]) for i in data]
-        new = [i[0] for i in new_data]
-        if not data:
-            return
-        delete_me = list(set(old) - set(new))
-        # delete_me = [[idc] for idc in delete_me]
-        if delete_me:
-            query = f"DELETE FROM {name}_{world} WHERE id = $1"
-            await conn.execute(query, delete_me)
-
-    async def create_tables(self, conn, survivor):
-        tables = ["p", "t", "v", "c"]
-        raw = 'CREATE TABLE "{}_{}" ({})'
-        new = set(self.worlds) - set(survivor)
-        for world in sorted(list(new)):
-            for table in tables:
-                create = getattr(utils, f"{table}_create")
-                query = raw.format(table, world, create)
-                await conn.execute(query)
-
-    def execute_world(self, world):
-        for guild in self.config:
-            cur = self.config[guild].get('world')
-            if world == cur:
-                self.config[guild].pop('world')
-            channel = self.config[guild].get('channel', {})
-            for ch_id, ch_world in list(channel.items()):
-                if world == ch_world:
-                    self.config[guild]['channel'].pop(ch_id)
-        self.save_config()
-
-    async def cleaning(self, conn):
-        query = "DROP TABLE p_{}, t_{}, v_{}, c_{}"
-        worlds = await self.fetch_table_worlds()
-        survivor = worlds.copy()
-        for world in worlds:
-            if world in self.worlds:
-                continue
-            self.execute_world(world)
-            await conn.execute(query.format(world))
-            survivor.remove(world)
-        return survivor
 
 
 # Main Class

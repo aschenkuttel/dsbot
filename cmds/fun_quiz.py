@@ -142,12 +142,12 @@ class Quiz(commands.Cog):
         fake_list = []
         target, rest = tribes[0].id, [obj.id for obj in tribes[1:]]
         foo, bar = (rest, [target]) if positive else ([target], rest)
-        data = await load.find_ally_player(world, foo)
+        data = await load.fetch_tribe_member(world, foo)
         while len(fake_list) < 4:
             player = random.choice(data)
             if player not in fake_list:
                 fake_list.append(player)
-        data = await load.find_ally_player(world, bar)
+        data = await load.fetch_tribe_member(world, bar)
         target_player = random.choice(data)
         result = fake_list + [target_player]
         random.shuffle(result)
@@ -159,7 +159,7 @@ class Quiz(commands.Cog):
         direction = random.choice([True, False])
         entity = "Stämme" if switch else "Spieler"
         top = 15 if switch else 100
-        data = await load.random_id(ctx.world, top=top, amount=5, tribe=switch)
+        data = await load.fetch_random(ctx.world, top=top, amount=5, tribe=switch)
         base = f"Welcher dieser 5 {entity} hat"
         witcher = tr_options if switch else pl_options
         key = random.choice(list(witcher))
@@ -190,7 +190,7 @@ class Quiz(commands.Cog):
 
     # Module Three
     async def tribe_quiz(self, ctx, cur):
-        tribes = await load.random_id(ctx.world, amount=5, top=15, tribe=True)
+        tribes = await load.fetch_random(ctx.world, amount=5, top=15, tribe=True)
         positive = random.choice([True, False])
         target, rest = tribes[0], tribes[1:]
         no = " " if positive else " nicht "
@@ -208,7 +208,7 @@ class Quiz(commands.Cog):
         state = random.choice([True, False])
         base_player = f"https://de{ctx.url}.die-staemme.de/guest.php?screen=info_"
         top = 15 if state else 100
-        obj_list = await load.random_id(ctx.world, amount=top, top=top, tribe=state)
+        obj_list = await load.fetch_random(ctx.world, amount=top, top=top, tribe=state)
         insert = 'ally' if state else 'player'
         random.shuffle(obj_list)
         for obj in obj_list:
