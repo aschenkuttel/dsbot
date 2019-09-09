@@ -1,36 +1,12 @@
 from discord.ext import commands
 from load import load
+import datetime
 import discord
+import asyncio
 import re
 
 twstats = "http://de.twstats.com/de{}/index.php?page={}&id={}"
 ingame = "https://de{}.die-staemme.de/{}.php?screen=info_{}&id={}"
-
-bash_values = "att_bash,att_rank,def_bash,def_rank,all_bash,all_rank"
-player_values = "id,name,tribe_id,villages,points,rank," + bash_values
-tribe_values = "id,name,tag,member,villages,points,all_points,rank," + bash_values
-village_values = "id,name,x,y,player,points"  # + useless extra rank
-conquer_values = "id,time,new,old"
-
-values = {"p": player_values, "t": tribe_values, "v": village_values, "c": conquer_values}
-
-p_create = "id BIGINT PRIMARY KEY, name TEXT, tribe_id BIGINT, villages BIGINT," \
-           "points BIGINT, rank BIGINT, att_bash BIGINT,att_rank BIGINT," \
-           "def_bash BIGINT, def_rank BIGINT, all_bash BIGINT, all_rank BIGINT"
-
-t_create = "id BIGINT PRIMARY KEY, name TEXT, tag TEXT, member BIGINT, villages BIGINT," \
-           "points BIGINT, all_points TEXT, rank BIGINT, att_bash BIGINT, att_rank BIGINT," \
-           "def_bash BIGINT, def_rank BIGINT, all_bash BIGINT, all_rank BIGINT"
-
-v_create = "id BIGINT PRIMARY KEY, name TEXT, x BIGINT," \
-           " y BIGINT, player BIGINT, points BIGINT"
-
-c_create = "id BIGINT PRIMARY KEY, time BIGINT, new BIGINT, old BIGINT"
-
-p_val, t_val, v_val = [res.split(",") for res in (player_values, tribe_values, village_values)]
-pla_create, tri_create, vil_create = [', '.join(cur) for cur in (p_create, t_create, v_create)]
-
-states = {"v": 0, "p": 1, "t": 2}
 
 dc = {
     "!": "%21",
@@ -157,7 +133,28 @@ def casual(world):
     return str(world) if world > 50 else f"p{world}"
 
 
-# Convert to weird Inno Stuff
+# ignores missing perm error
+async def silencer(coro):
+    try:
+        await coro
+    except discord.Forbidden:
+        return
+
+
+# adds reaction hint and deletes it afterwards
+async def private_hint(ctx):
+    try:
+        await ctx.message.add_reaction("📨")
+    except discord.Forbidden:
+        pass
+    await asyncio.sleep(10)
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass
+
+
+# converts names to innos version / normal
 def converter(name, dirty=False):
     dic = {value: key for key, value in dc.items()}
     destination = dc if dirty else dic
@@ -169,24 +166,7 @@ def converter(name, dirty=False):
     return result.lower() if dirty else result
 
 
-# Tribal Wars API XD
-def world_data_url(world):
-    data = {
-        "c": f"http://de{world}.die-staemme.de/map/conquer.txt",
-        "p": f"http://de{world}.die-staemme.de/map/player.txt",
-        "t": f"http://de{world}.die-staemme.de/map/ally.txt",
-        "v": f"https://de{world}.die-staemme.de/map/village.txt",
-        "p_att": f"http://de{world}.die-staemme.de/map/kill_att.txt",
-        "p_def": f"http://de{world}.die-staemme.de/map/kill_def.txt",
-        "p_all": f"http://de{world}.die-staemme.de/map/kill_all.txt",
-        "t_att": f"http://de{world}.die-staemme.de/map/kill_att_tribe.txt",
-        "t_def": f"http://de{world}.die-staemme.de/map/kill_def_tribe.txt",
-        "t_all": f"http://de{world}.die-staemme.de/map/kill_all_tribe.txt",
-    }
-    return data
-
-
-# Custom Embeds
+# default embeds
 def error_embed(text):
     return discord.Embed(description=text, color=discord.Color.red())
 
@@ -195,21 +175,9 @@ def complete_embed(text):
     return discord.Embed(description=text, color=discord.Color.green())
 
 
-# Message Channel Check
-def private_message_only():
-    def predicate(ctx):
-        if ctx.guild:
-            raise PrivateOnly()
-        else:
-            return True
-
-    return commands.check(predicate)
-
-
-# Game Channel Check
 def game_channel_only():
     def predicate(ctx):
-        chan = load.get_config(ctx.guild.id, "game")
+        chan = load.get_item(ctx.guild.id, "game")
         if not chan:
             raise GameChannelMissing()
         if chan == ctx.channel.id:
@@ -219,13 +187,8 @@ def game_channel_only():
     return commands.check(predicate)
 
 
-# Custom Error
+# custom errors
 class GameChannelMissing(commands.CheckFailure):
-    def __str__(self):
-        return "missing channel"
-
-
-class ConquerChannelMissing(commands.CheckFailure):
     def __str__(self):
         return "missing channel"
 
@@ -263,6 +226,7 @@ class GuildUserNotFound(commands.CheckFailure):
         self.name = searchable
 
 
+# custom context for simple world implementation
 class DSContext(commands.Context):
     def __init__(self, **attrs):
         super().__init__(**attrs)
@@ -278,11 +242,11 @@ class DSContext(commands.Context):
 
     @property
     def url(self):
-        return load.casual(self._world)
+        return casual(self._world)
 
 
-# Custom Classes
-class DSObject:
+# typhint converter which convertes to either tribe or player
+class DSObject(commands.Converter):
     __slots__ = (
         'id', 'x', 'y', 'world', 'url', 'alone', 'name', 'tag', 'tribe_id', 'villages', 'points',
         'rank', 'player', 'att_bash', 'att_rank', 'def_bash', 'def_rank', 'all_bash', 'all_rank',
@@ -295,6 +259,7 @@ class DSObject:
         return obj
 
 
+# own case insensitive member converter
 class GuildUser(commands.Converter):
     def __init__(self):
         self.id = None
@@ -314,6 +279,7 @@ class GuildUser(commands.Converter):
             raise GuildUserNotFound(arg)
 
 
+# default tribal wars classes
 class Player:
     def __init__(self, world, dct):
         self.id = dct['id']
@@ -335,15 +301,19 @@ class Player:
 
     @property
     def guest_url(self):
-        return ingame.format("166", 'guest', 'player', self.id)
+        return ingame.format(self.url, 'guest', 'player', self.id)
 
     @property
     def ingame_url(self):
-        return ingame.format("166", 'game', 'player', self.id)
+        return ingame.format(self.url, 'game', 'player', self.id)
 
     @property
     def twstats_url(self):
-        return twstats.format("166", 'player', self.id)
+        return twstats.format(self.url, 'player', self.id)
+
+    async def fetch_tribe(self):
+        tribe = await load.fetch_tribe(self.world, self.tribe_id)
+        return tribe
 
 
 class Tribe:
@@ -401,3 +371,37 @@ class Village:
     @property
     def twstats_url(self):
         return twstats.format(self.url, 'village', self.id)
+
+
+class Conquer:
+    def __init__(self, world, data):
+        self.id = data[0]
+        self.unix = data[1]
+        self.new = data[2]
+        self.old = data[3]
+        self.world = world
+
+    async def new_owner(self):
+        if self.new == 0:
+            return "(Barbarendorf)"
+        player = await load.fetch_player(self.world, self.new)
+        return player
+
+    async def old_owner(self):
+        if self.old == 0:
+            return "Barbarendorf"
+        player = await load.fetch_player(self.world, self.old)
+        return player
+
+    @property
+    def time(self):
+        date = datetime.datetime.fromtimestamp(self.unix)
+        return date
+
+    @property
+    def player_ids(self):
+        return self.new, self.old
+
+    @property
+    def grey(self):
+        return 0 in (self.new, self.old)

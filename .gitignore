@@ -1,7 +1,7 @@
 .idea/
-cmds/dev_Test.py
+cogs/dev_Test.py
 data/config.json
 data/naruto.py
+discord.log
 datadb.py
-cogs.py
 lab.py

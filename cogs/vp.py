@@ -144,18 +144,21 @@ class VP(commands.Cog):
     async def vp(self, ctx, money: int):
 
         if money > 2000 or money < 100:
-            return await ctx.send("Fehlerhafte Eingabe: `!vp <100-2000>`")
+            await ctx.send("Fehlerhafte Eingabe: `!vp <100-2000>`")
+            return
+
         credit = await load.get_user_data(ctx.author.id)
         if credit - money < 0:
-            return await ctx.send("Du kannst nicht um Geld spielen"
-                                  " welches du nicht besitzt...")
+            await ctx.send("Du kannst nicht um Geld spielen welches du nicht besitzt...")
+            return
 
         if ctx.guild.id in self.data:
             if self.data[ctx.guild.id] is False:
                 return
             player = ctx.bot.get_user(self.data[ctx.guild.id]['player']).name
-            return await ctx.send(f"`{player}` spielt bereits auf "
-                                  f"dem Server eine Runde `!vp`")
+            await ctx.send(f"`{player}` spielt bereits auf dem Server eine Runde `!vp`")
+            return
+
         self.starter(ctx.guild.id, ctx.author.id, money)
         cards = ' '.join(self.cuteverter(self.data[ctx.guild.id]['cards']))
         start_msg = await ctx.send(f"Deine Karten: `{cards}` - "
@@ -178,29 +181,31 @@ class VP(commands.Cog):
 
         # --- Various Checks --- #
         if ctx.guild.id not in self.data:
-            return await ctx.send("Du musst erst eine Runde mit"
-                                  " `!vp bet_amount` starten!")
+            await ctx.send("Du musst erst eine Runde mit `!vp <100-2000>` starten!")
+            return
         if self.data[ctx.guild.id] == 0:
             return
         if ctx.author.id != self.data[ctx.guild.id]['player']:
             player = self.bot.get_user(self.data[ctx.guild.id]['player'])
-            return await ctx.send(f"`{player.display_name}` spielt bereits "
-                                  f"auf dem Server eine Runde `!vp`")
+            await ctx.send(f"`{player.display_name}` spielt bereits "
+                           f"auf dem Server eine Runde `!vp`")
+            return
 
-        # --- Card Replace Handler --- #
+            # --- Card Replace Handler --- #
         if cards:
             if len(cards) > 5 or len(cards) - len(set(cards)) != 0:
-                return await ctx.send("Fehlerhafte Eingabe - Bsp: `!draw 135`")
+                await ctx.send("Fehlerhafte Eingabe - Bsp: `!draw 135`")
+                return
             for num in cards:
                 try:
                     if int(num) > 5 or int(num) < 1:
-                        msg = "Fehlerhafte Eingabe - Bsp: `!draw 125`"
-                        return await ctx.send(msg)
+                        await ctx.send("Fehlerhafte Eingabe - Bsp: `!draw 125`")
+                        return
                     else:
                         continue
                 except ValueError:
-                    msg = "Fehlerhafte Eingabe - Bsp: `!draw 14`"
-                    return await ctx.send(msg)
+                    await ctx.send("Fehlerhafte Eingabe - Bsp: `!draw 14`")
+                    return
             self.card_replace(ctx.guild.id, [num for num in cards])
 
         n_cards = ' '.join(self.cuteverter(self.data[ctx.guild.id]['cards']))
@@ -225,15 +230,15 @@ class VP(commands.Cog):
                        f" Eisen` gewonnen *(15s Cooldown)*")
         bet = self.data[ctx.guild.id]['bet']
         await load.save_user_data(ctx.author.id, amount_won - bet)
-        return await self.game_end(ctx.guild.id)
+        await self.game_end(ctx.guild.id)
 
     @vp.error
     async def vp_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Der gewünschte Einsatz(100-2000) fehlt."
+            msg = "Der gewünschte Einsatz(100-2000) fehlt"
             return await ctx.send(embed=error_embed(msg))
         if isinstance(error, commands.BadArgument):
-            msg = "Der gewünschte Einsatz(100-2000) fehlt."
+            msg = "Der gewünschte Einsatz(100-2000) fehlt"
             return await ctx.send(embed=error_embed(msg))
 
 

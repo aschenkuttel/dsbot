@@ -1,33 +1,70 @@
-from utils import error_embed, private_message_only
+from datetime import datetime
 from discord.ext import commands
-import datetime
+from load import load
+from utils import error_embed
+import discord
 import asyncio
-import time
+import math
 import re
 
 
-class Time(commands.Cog):
+class Rm(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cap_dict = {}
 
-    def max_time(self, thy):
-        if thy.endswith("h"):
-            return int(thy[:-1]) > 9
-        if thy.endswith("m"):
-            return int(thy[:-1]) > 59
-        if thy.endswith("s"):
-            return int(thy[:-1]) > 59
+    @commands.command(aliases=["rundmail"])
+    async def rm(self, ctx, *tribes: str):
+
+        if len(tribes) > 10:
+            msg = "Der RM Command unterstützt aktuell nur " \
+                  "maximal `10 Stämme` per Command"
+            return await ctx.send(msg)
+
+        data = await load.fetch_tribe_member(ctx.world, tribes, True)
+        if isinstance(data, str):
+            return await ctx.send(f"Der Stamm `{data}` existiert so nicht")
+        result = [obj.name for obj in data]
+        await ctx.author.send(f"```\n{';'.join(result)}\n```")
+        await ctx.message.add_reaction("📨")
+
+    @commands.command(name="rz3", aliases=["rz4"])
+    async def rz3_(self, ctx, *args: int):
+        if len(args) > 7:
+            msg = "Das Maximum von 7 verschiedenen Truppentypen wurde überschritten"
+            await ctx.send(embed=error_embed(msg))
+            return
+
+        three = ctx.invoked_with.lower() == "rz3"
+
+        sca1, sca2, sca3, sca4 = [], [], [], []
+        if three:
+            for element in args:
+                sca1.append(str(math.floor((5 / 8) * element)))
+                sca2.append(str(math.floor((2 / 8) * element)))
+                sca3.append(str(math.floor((1 / 8) * element)))
+        else:
+            for element in args:
+                sca1.append(str(math.floor(0.5765 * element)))
+                sca2.append(str(math.floor(0.23 * element)))
+                sca3.append(str(math.floor(0.1155 * element)))
+                sca4.append(str(math.floor(0.077 * element)))
+
+        cache = []
+        for index, ele in enumerate([sca1, sca2, sca3, sca4]):
+            cache.append(f"**Raubzug {index + 1}:** `[{', '.join(ele)}]`")
+        em = discord.Embed(description='\n'.join(cache))
+        await ctx.send(embed=em)
 
     def check_time(self, input_time):
         if input_time.__contains__(":"):
             try:
-                time.strptime(input_time, '%H:%M:%S')
+                datetime.strptime(input_time, '%H:%M:%S')
                 return True
 
             except ValueError:
                 try:
-                    time.strptime(input_time, '%H:%M')
+                    datetime.strptime(input_time, '%H:%M')
                     return True
                 except ValueError:
                     return False
@@ -36,11 +73,10 @@ class Time(commands.Cog):
             if len(input_time) > 9:
                 return False
             return True
-
         else:
             return False
 
-    @private_message_only()
+    @commands.dm_only()
     @commands.command(name="time", aliases=["eieruhr"])
     async def time_(self, ctx, thyme: str, *reason: str):
         reason = ' '.join(reason)
@@ -61,21 +97,15 @@ class Time(commands.Cog):
 
         if thyme.__contains__(":"):
             thym = thyme.split(":")
-            sec = 0
-            if len(thym) is 3:
-                sec = int(thym[2])
-            act = datetime.datetime.now().replace(hour=int(thym[0]),
-                                                  minute=int(thym[1]),
-                                                  second=sec)
-            rn = datetime.datetime.now()
-            sec = (act - rn).total_seconds()
+            sec = int(thym[2]) if len(thym) == 3 else 0
+            begin = datetime.now()
+            end = begin.replace(hour=int(thym[0]),
+                                minute=int(thym[1]),
+                                second=sec)
+            sec = (end - begin).total_seconds()
             if sec.__str__().startswith("-"):
                 sec = 24 * 3600 - (-sec)
-            if int(sec) > 36000:
-                msg = "Du kannst dich maximal bis in 10h erinnern lassen."
-                return await ctx.send(msg)
-            else:
-                num = int(sec)
+            num = int(sec)
 
         if not thyme.__contains__(":"):
             thymes = re.findall(r'\d*\D+', thyme)
@@ -97,8 +127,7 @@ class Time(commands.Cog):
         self.cap_dict.update({ctx.author.id: cap_num + 1})
         await ctx.message.add_reaction("⏰")
         await asyncio.sleep(num)
-        if not reason:
-            reason = "Du hast keinen Grund angegeben."
+        reason = reason or "Du hast keinen Grund angegeben"
         await ctx.author.send(f"ERINNERUNG <@{ctx.author.id}> | `{reason}`")
         await ctx.message.remove_reaction("⏰", ctx.bot.user)
 
@@ -108,12 +137,18 @@ class Time(commands.Cog):
         else:
             self.cap_dict.update({ctx.author.id: cap_num - 1})
 
+    @rz3_.error
+    async def rz3_error(self, ctx, error):
+        if isinstance(error, commands.BadArgument):
+            msg = "Truppenangaben dürfen nur aus Zahlen bestehen"
+            await ctx.send(embed=error_embed(msg))
+
     @time_.error
     async def time_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            msg = f"Die gewünschte Uhrzeit/Dauer fehlt."
+            msg = f"Die gewünschte Uhrzeit/Dauer fehlt"
             await ctx.send(embed=error_embed(msg))
 
 
 def setup(bot):
-    bot.add_cog(Time(bot))
+    bot.add_cog(Rm(bot))

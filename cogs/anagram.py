@@ -12,10 +12,8 @@ class Anagram(commands.Cog):
         self.data = {}
 
     def get_word(self, guild_id, solution=False):
-        if solution:
-            return self.data[guild_id]["win"]
-        else:
-            return self.data[guild_id]["word"]
+        key = 'win' if solution else 'word'
+        return self.data[guild_id][key]
 
     @commands.command(name="anagram", aliases=["ag"])
     @game_channel_only()
@@ -25,11 +23,11 @@ class Anagram(commands.Cog):
         if game_data is False:
             return
         if game_data:
-            ag_time = self.data[ctx.guild.id]["time"]
+            ag_time = game_data['time']
             now = (datetime.datetime.now() - ag_time).seconds
-            hint = self.data[ctx.guild.id].get('hint')
+            hint = game_data.get('hint')
             comment = f"| `{hint}` " if hint else ""
-            msg = f"`{self.get_word(ctx.guild.id)}` {comment}*(noch {60 - now}s)*"
+            msg = f"`{game_data['word']}` {comment}*(noch {60 - now}s)*"
             return await ctx.send(msg)
 
         word = None
@@ -43,24 +41,24 @@ class Anagram(commands.Cog):
             random.shuffle(word_list)
 
         show = ' '.join(word_list).upper()
-        start_time = datetime.datetime.now()
         hint_list = list(word[:int(len(word) / 4)].upper())
         hint = f"{' '.join(hint_list)} . . ."
-        data = {"word": show, "win": word, "time": start_time}
+
+        start_time = datetime.datetime.now()
+        data = {'word': show, 'win': word, 'time': start_time}
         self.data[ctx.guild.id] = data
-        start_msg = await ctx.send(f"`{show}` *(60s Timeout)*")
+        start_msg = await ctx.send(f"`{show}` (60s Timeout)")
 
         def check(m):
-            if m.channel == start_msg.channel:
-                result = self.get_word(m.guild.id, True)
-                if result.lower() == m.content.lower():
+            if m.channel == ctx.channel:
+                if m.content.lower() == word.lower():
                     return True
 
         try:
             msg = await self.bot.wait_for('message', check=check, timeout=30)
         except asyncio.TimeoutError:
             try:
-                self.data[ctx.guild.id]["hint"] = hint
+                self.data[ctx.guild.id]['hint'] = hint
                 stuff = f"`{show}` | `{hint}`"
                 await start_msg.edit(content=f"{stuff}(noch 30s)")
                 msg = await self.bot.wait_for('message', check=check, timeout=30)
@@ -70,15 +68,14 @@ class Anagram(commands.Cog):
                 return
 
         end_time = datetime.datetime.now()
-        fin_time = str((end_time - start_time).total_seconds()).split(".")
-        fin_time = f"{fin_time[0]}.{fin_time[1][0]}"
-        amount_won = int(250*(len(word)) * (1 - float(fin_time) / 60 + 1))
-        await msg.channel.send(
+        str_time = "%.1f" % (end_time-start_time).total_seconds()
+        amount_won = int(250 * (len(word)) * (1 - float(str_time) / 60 + 1))
+        await ctx.send(
             f"`{msg.author.display_name}` hat das Wort in "
-            f"`{fin_time} Sekunden` erraten.\n"
-            f"`{amount_won} Eisen` gewonnen *(15s Cooldown)*")
+            f"`{str_time} Sekunden` erraten.\n"
+            f"`{amount_won} Eisen` gewonnen (15s Cooldown)")
         await load.save_user_data(msg.author.id, amount_won)
-        self.data.update({ctx.guild.id: False})
+        self.data[ctx.guild.id] = False
         await asyncio.sleep(15)
         self.data.pop(ctx.guild.id)
 

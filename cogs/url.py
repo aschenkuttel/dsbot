@@ -26,14 +26,14 @@ class Akte(commands.Cog):
     @commands.command(name="visit", aliases=["besuch"])
     async def visit_(self, ctx, world: int):
         if not load.is_valid(world):
-            return await ctx.send(embed=error_embed("Diese Welt existiert nicht."))
+            return await ctx.send(embed=error_embed("Diese Welt existiert nicht"))
         desc = f"https://de{load.casual(world)}.die-staemme.de/guest.php"
         await ctx.send(embed=discord.Embed(description=f"[{world}]({desc})"))
 
     @visit_.error
     async def visit_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Der gewünschte Spieler fehlt"))
+            await ctx.send(embed=error_embed(f"Die gewünschte Welt fehlt"))
 
     @akte_.error
     async def akte_error(self, ctx, error):

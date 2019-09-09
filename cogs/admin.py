@@ -51,7 +51,7 @@ class Admin(commands.Cog):
         if item.lower() not in ["prefix", "world", "game", "conquer"]:
             return await ctx.send(embed=error_embed("Fehlerhafte Eingabe"))
         value = value if item == "prefix" else int(value)
-        load.change_config(guild_id, item, value)
+        load.change_item(guild_id, item, value)
         load.save_config()
         return await ctx.send(f"`{item}` registriert")
 

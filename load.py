@@ -1,10 +1,10 @@
+from data.naruto import TOKEN, pre, db_key, db_port, db_user
 from PIL import Image, ImageChops
 from bs4 import BeautifulSoup
-from data.cogs import cmds
-from data.naruto import *
-import asyncpg
+import functools
 import datetime
 import operator
+import asyncpg
 import aiohttp
 import asyncio
 import discord
@@ -13,17 +13,14 @@ import random
 import utils
 import json
 import time
-import math
 import os
 import io
-import re
 
 options = {
-    # "xvfb": "",
     "quiet": "",
     "format": "png",
     "quality": 100,
-    "encoding": "UTF-8"
+    "encoding": "UTF-8",
 }
 
 fml = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0' \
@@ -39,7 +36,7 @@ class Load:
         self.ress = None
         self.pool = None
         self.session = None
-        self.secrets = {"CMDS": cmds, "TOKEN": TOKEN, "PRE": pre}
+        self.secrets = {"TOKEN": TOKEN, "PRE": pre}
         self.data_loc = f"{os.path.dirname(__file__)}/data/"
         self.url_val = "https://de{}.die-staemme.de/map/ally.txt"
         self.url_set = "https://de{}.die-staemme.de/page/settings"
@@ -50,8 +47,13 @@ class Load:
         self.session = aiohttp.ClientSession(loop=loop)
         connections = await self.db_connect(loop)
         self.pool, self.ress = connections
-        await self.fetch_worlds()
+        await self.refresh_worlds()
         self.config_setup()
+
+        # x
+        if os.name != "nt":
+            options['xvfb']: ""
+
         return self.session
 
     # DB Connect
@@ -59,15 +61,11 @@ class Load:
         result = []
         database = 'tribaldata', 'userdata'
         for table in database:
-            conn_data = {"host": '46.101.105.115', "port": db_port, "user": db_user,
+            conn_data = {"host": '134.209.249.102', "port": db_port, "user": db_user,
                          "password": db_key, "database": table, "loop": loop, "max_size": 50}
             cache = await asyncpg.create_pool(**conn_data)
             result.append(cache)
         return result
-
-    # Casual
-    def casual(self, world):
-        return str(world) if world > 50 else f"p{world}"
 
     # World Check
     def is_valid(self, world):
@@ -80,26 +78,27 @@ class Load:
         self.config.update(data)
 
     # Get Config Entry
-    def get_config(self, guild_id, item):
+    def get_item(self, guild_id, item):
         config = self.config.get(guild_id)
         if config is None:
             return
         return config.get(item)
 
     # Change Config Entry
-    def change_config(self, guild_id, item, value):
+    def change_item(self, guild_id, item, value):
         if guild_id not in self.config:
             self.config[guild_id] = {}
         self.config[guild_id][item] = value
         self.save_config()
 
     # Remove Config Entry
-    def remove_config(self, guild_id, item):
+    def remove_item(self, guild_id, item):
         config = self.config.get(guild_id)
         if not config:
             return
         job = config.pop(item, None)
-        self.save_config()
+        if job is not None:
+            self.save_config()
         return job
 
     # Get World if Main World
@@ -122,7 +121,7 @@ class Load:
             return
         world = con.get('world')
         if url and world:
-            return self.casual(world)
+            return utils.casual(world)
         return world
 
     # Remove all World Occurences
@@ -138,7 +137,7 @@ class Load:
         self.save_config()
 
     # Get Server Prefix
-    def pre_fix(self, guild_id):
+    def get_prefix(self, guild_id):
         config = self.config.get(guild_id)
         default = self.secrets["PRE"]
         if config is None:
@@ -151,12 +150,12 @@ class Load:
 
     # Ress Data Update
     async def save_user_data(self, user_id, amount):
-        statement = "SELECT * FROM iron_data WHERE id = $1"
+        statement = "SELECT * FROM irondata WHERE id = $1"
         async with self.ress.acquire() as conn:
             data = await conn.fetchrow(statement, user_id)
             statement = "INSERT INTO iron_data(id, amount) VALUES({0}, {1}) " \
                         "ON CONFLICT (id) DO UPDATE SET id={0}, amount={1}"
-            new_amount = data["amount"] + amount if data else amount
+            new_amount = data['amount'] + amount if data else amount
             await conn.execute(statement.format(user_id, new_amount))
 
     # Ress Data Fetch
@@ -177,7 +176,7 @@ class Load:
     async def get_user_top(self, amount, guild=None):
         if guild:
             raw_statement = "SELECT * FROM iron_data WHERE id IN " \
-                        "({}) ORDER BY amount DESC LIMIT $1"
+                            "({}) ORDER BY amount DESC LIMIT $1"
             member = ', '.join([str(mem.id) for mem in guild.members])
             statement = raw_statement.format(member)
         else:
@@ -206,7 +205,7 @@ class Load:
         return sorted(cache.items(), key=operator.itemgetter(1), reverse=True)
 
     # Get all valid database worlds
-    async def fetch_worlds(self):
+    async def refresh_worlds(self):
         query = "SELECT table_name FROM information_schema.tables " \
                 "WHERE table_schema='public' AND table_type='BASE TABLE';"
         async with self.pool.acquire() as conn:
@@ -217,6 +216,7 @@ class Load:
         for world in self.worlds:
             if world not in cache:
                 self.worlds.remove(world)
+
                 self.remove_world(world)
         for world in cache:
             if world not in self.worlds:
@@ -259,7 +259,7 @@ class Load:
             statement = "SELECT * FROM v_{} WHERE id = $1;"
             query, searchable = statement.format(world), [searchable]
 
-        async with await self.pool.acquire() as conn:
+        async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, *searchable)
         return utils.Village(world, result) if result else None
 
@@ -287,7 +287,7 @@ class Load:
             statement = "SELECT * FROM t_{} WHERE id = $1;"
             query = statement.format(world)
 
-        async with await self.pool.acquire() as conn:
+        async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, searchable)
         return utils.Tribe(world, result) if result else None
 
@@ -377,37 +377,6 @@ class Load:
         file.seek(0)
         return file
 
-    # Coord Converter
-    async def coordverter(self, coord_list, world):
-        result = []
-        double = []
-        fail = []
-
-        for coord in coord_list:
-
-            res = await self.fetch_village(world, coord, True)
-            if not res:
-                fail.append(coord) if coord not in fail else None
-                continue
-
-            if coord in double:
-                continue
-
-            url = "https://de{}.die-staemme.de/game.php?&screen=info_village&id={}"
-            if res.player_id:
-                player = await self.fetch_player(world, res.player_id)
-                v1 = f"[{player.name}]"
-            else:
-                v1 = "[Barbarendorf]"
-            result.append(f"[{coord}]({url.format(world, res.id)}) {v1}")
-            double.append(coord)
-
-        shit = '\n'.join(result) if result else None
-        piss = ', '.join(fail) if fail else None
-        found = f"**Gefundene Koordinaten:**\n{shit}" if shit else ""
-        lost = f"**Nicht gefunden:**\n{piss}" if piss else ""
-        return found, lost
-
     # Conquer Main Function
     async def conquer_feed(self, guilds):
         await self.update_conquer()
@@ -415,13 +384,12 @@ class Load:
             world = self.get_guild_world(guild)
             if not world:
                 continue
-            print(world)
-            channel_id = self.get_config(guild.id, "conquer")
+            channel_id = self.get_item(guild.id, "conquer")
             channel = guild.get_channel(channel_id)
             if not channel:
                 continue
-            tribes = self.get_config(guild.id, "filter")
-            grey = self.get_config(guild.id, "bb")
+            tribes = self.get_item(guild.id, "filter")
+            grey = self.get_item(guild.id, "bb")
             data = await self.conquer_parse(world, tribes, grey)
             if not data:
                 continue
@@ -432,13 +400,13 @@ class Load:
                 res_cache.append(sen)
                 if len(res_cache) == 5:
                     embed = discord.Embed(title=once, description='\n'.join(res_cache))
-                    await self.silencer(channel.send(embed=embed))
+                    await utils.silencer(channel.send(embed=embed))
                     res_cache.clear()
                     once = ""
                     await asyncio.sleep(1)
             if res_cache:
                 embed = discord.Embed(title=once, description='\n'.join(res_cache))
-                await self.silencer(channel.send(embed=embed))
+                await utils.silencer(channel.send(embed=embed))
 
     async def update_conquer(self):
         for world in self.worlds:
@@ -452,159 +420,23 @@ class Load:
             for line in data:
                 int_list = [int(num) for num in line.split(",")]
                 cache.append(int_list)
-            old_data = self.conquer.get(world, [])
             old_unix = self.get_seconds(True, 1)
             result = []
             for entry in cache:
                 vil_id, unix_time, new_owner, old_owner = entry
-                if entry in old_data:
-                    continue
                 if unix_time > old_unix:
                     continue
-                result.append(entry)
+                result.append(utils.Conquer(world, entry))
             self.conquer[world] = result
 
     # Conquer Data Download
     async def fetch_conquer(self, world, sec=3600):
         cur = time.time() - sec
         base = "http://de{}.die-staemme.de/interface.php?func=get_conquer&since={}"
-        url = base.format(self.casual(world), cur)
+        url = base.format(utils.casual(world), cur)
         async with self.session.get(url) as r:
             data = await r.text("utf-8")
         return data.split("\n")
-
-    # Parse Conquer Data
-    async def conquer_parse(self, world, tribes, bb=False):
-        data = self.conquer.get(world)
-        if not data:
-            return
-        id_list = []
-        res_lis = []
-        if tribes:
-            tribe_list = await self.fetch_tribe_member(world, tribes)
-            id_list = [obj.id for obj in tribe_list]
-
-        date = None
-        for line in data:
-            vil_id, unix_time, new_owner, old_owner = line
-            player_idc = [new_owner, old_owner]
-            if tribes and not any(idc in id_list for idc in player_idc):
-                continue
-            if not bb and 0 in player_idc:
-                continue
-            vil = await self.fetch_village(world, vil_id)
-            if not vil:
-                continue
-
-            ally = self.fetch_tribe
-            base = f"https://de{world}.die-staemme.de/game.php?&screen="
-            res_vil = f"[{vil.x}|{vil.y}]({base}info_village&id={vil.id})"
-
-            res_new = "Barbarendorf"
-            res_old = "(Barbarendorf)"
-
-            new = await self.fetch_player(world, new_owner)
-            if new:
-                url_n = f"[{new.name}]({base}info_player&id={new.id})"
-                cache = await ally(world, new.tribe_id) if new.tribe_id else None
-                new_tribe = f" **{cache.tag}**" if cache else f""
-                res_new = f"{url_n}{new_tribe}"
-
-            old = await self.fetch_player(world, old_owner)
-            if old:
-                url_o = f"[{old.name}]({base}info_player&id={old.id})"
-                cache = await ally(world, old.tribe_id) if old.tribe_id else None
-                old_tribe = f" **{cache.tag}**" if cache else ""
-                res_old = f"von {url_o}{old_tribe}"
-
-            now = datetime.datetime.utcfromtimestamp(int(unix_time)) + datetime.timedelta(hours=1)
-            date, now = now.strftime('%d-%m-%Y'), now.strftime('%H:%M')
-            res_lis.append(f"`{now}` | {res_new} adelt {res_vil} {res_old}")
-        return date, res_lis
-
-    # Recap Argument Handler
-    async def re_handler(self, world, args):
-        days = 7
-        if ' ' not in args:
-            player = await self.fetch_both(world, args)
-        elif args.split(" ")[-1].isdigit():
-            player = await self.fetch_both(world, ' '.join(args.split(" ")[:-1]))
-            if not player:
-                player = await self.fetch_both(world, args)
-            else:
-                days = int(args.split(" ")[-1])
-        else:
-            player = await self.fetch_both(world, args)
-        if not player:
-            raise utils.DSUserNotFound(args, world)
-        return player, days
-
-    # Village Argument Handler
-    async def vil_handler(self, world, args):
-        con = None
-        args = args.split(" ")
-        if len(args) == 1:
-            name = args[0]
-        elif re.match(r'[k, K]\d\d', args[-1]):
-            con = args[-1]
-            name = ' '.join(args[:-1])
-        else:
-            name = ' '.join(args)
-        player = await self.fetch_both(world, name)
-        if not player:
-            if con:
-                player = await self.fetch_both(world, f"{name} {con}")
-                if not player:
-                    raise utils.DSUserNotFound(name, world)
-            else:
-                raise utils.DSUserNotFound(name, world)
-        return player, con
-
-    # Report HTML Converting
-    async def html_lover(self, raw_data):
-        soup = BeautifulSoup(raw_data, 'html.parser')
-        tiles = soup.body.find_all(class_="vis")
-        if len(tiles) < 2:
-            return
-
-        main = tiles[1]
-        main = f"{fml}<head></head>{main}"  # don't ask me why...
-
-        css = f"{os.path.dirname(__file__)}/data/report.css"
-
-        img = imgkit.from_string(main, False, options=options, css=css)
-        return img
-
-    # Barbershop
-    async def trim(self, im):
-        bg = Image.new(im.mode, im.size, im.getpixel((0, 0)))
-        diff = ImageChops.difference(im, bg)
-        diff = ImageChops.add(diff, diff, 2.0, -100)
-        bbox = diff.getbbox()
-        if bbox:
-            return im.crop(bbox)
-
-    # Main Report Func
-    async def report_func(self, content):
-
-        try:
-            async with self.session.get(content) as res:
-                data = await res.text()
-        except (aiohttp.InvalidURL, ValueError):
-            return
-
-        img_bytes = await self.html_lover(data)
-        if not img_bytes:
-            return
-
-        data_io = io.BytesIO(img_bytes)
-        image = Image.open(data_io)
-        img = await self.trim(image)
-        img = img.crop((2, 2, img.width - 2, img.height - 2))
-        file = io.BytesIO()
-        img.save(file, "png")
-        file.seek(0)
-        return file
 
     # Seconds till next Hour
     def get_seconds(self, reverse=False, only=0):
@@ -618,32 +450,84 @@ class Load:
         goal = (goal_time - start_time).seconds
         return goal if not only else start_time.timestamp()
 
-    # Scavenge Maths
-    def scavenge(self, state, troops):
-        sca1 = []
-        sca2 = []
-        sca3 = []
-        sca4 = []
-        if state == 3:
-            for element in troops:
-                sca1.append(str(math.floor((5 / 8) * element)))
-                sca2.append(str(math.floor((2 / 8) * element)))
-                sca3.append(str(math.floor((1 / 8) * element)))
-        if state == 4:
-            for element in troops:
-                sca1.append(str(math.floor(0.5765 * element)))
-                sca2.append(str(math.floor(0.23 * element)))
-                sca3.append(str(math.floor(0.1155 * element)))
-                sca4.append(str(math.floor(0.077 * element)))
+    # Parse Conquer Data
+    async def conquer_parse(self, world, tribes, bb):
+        data = self.conquer.get(world)
+        if not data:
+            return
+        id_list = []
+        res_lis = []
+        if tribes:
+            tribe_list = await self.fetch_tribe_member(world, tribes)
+            id_list = [obj.id for obj in tribe_list]
 
-        return sca1, sca2, sca3, sca4
+        date = None
+        for conquer in data:
 
-    # Silence Method
-    async def silencer(self, coro):
+            if tribes and not any(idc in id_list for idc in conquer.player_ids):
+                continue
+            if not bb and conquer.grey:
+                continue
+            vil = await self.fetch_village(world, conquer.id)
+            if not vil:
+                continue
+
+            res_vil = f"[{vil.x}|{vil.y}]({vil.ingame_url})"
+
+            new = await conquer.new_owner()
+            if isinstance(new, utils.Player):
+                url_n = f"[{new.name}]({new.ingame_url})"
+                cache = await new.fetch_tribe()
+                new_tribe = f" **{cache.tag}**" if cache else ""
+                new = f"{url_n} {new_tribe}"
+
+            old = await conquer.old_owner()
+            if isinstance(old, utils.Player):
+                url_o = f"[{old.name}]({old.ingame_url})"
+                cache = await old.fetch_tribe()
+                old_tribe = f" **{cache.tag}**" if cache else ""
+                old = f"von {url_o} {old_tribe}"
+
+            date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
+            res_lis.append(f"``{now}`` | {new} adelt {res_vil} {old}")
+        return date, res_lis
+
+    # converts html to image and crops it till border
+    def html_lover(self, raw_data):
+        soup = BeautifulSoup(raw_data, 'html.parser')
+        tiles = soup.body.find_all(class_="vis")
+        if len(tiles) < 2:
+            return
+        main = f"{fml}<head></head>{tiles[1]}"  # don't ask me why...
+        css = f"{self.data_loc}report.css"
+        img_bytes = imgkit.from_string(main, False, options=options, css=css)
+
+        # crops empty background
+        im = Image.open(io.BytesIO(img_bytes))
+        bg = Image.new(im.mode, im.size, im.getpixel((0, 0)))
+        diff = ImageChops.difference(im, bg)
+        diff = ImageChops.add(diff, diff, 2.0, -100)
+        im = im.crop(diff.getbbox())
+
+        # crops border and saves to FileIO
+        result = im.crop((2, 2, im.width - 2, im.height - 2))
+        file = io.BytesIO()
+        result.save(file, "png")
+        file.seek(0)
+        return file
+
+    # converts reports into images
+    async def fetch_report(self, loop, content):
+
         try:
-            await coro
-        except discord.Forbidden:
-            pass
+            async with self.session.get(content) as res:
+                data = await res.text()
+        except (aiohttp.InvalidURL, ValueError):
+            return
+
+        func = functools.partial(self.html_lover, data)
+        file = await loop.run_in_executor(None, func)
+        return file
 
 
 # Main Class

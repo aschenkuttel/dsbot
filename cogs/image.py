@@ -1,10 +1,13 @@
-from utils import error_embed, DSObject
-from discord.ext import commands
+from utils import error_embed, DSObject, private_hint
 from PIL import Image, ImageSequence
+from discord.ext import commands
+from bs4 import BeautifulSoup
 from io import BytesIO
 from load import load
-from bs4 import BeautifulSoup
+import functools
 import discord
+import aiohttp
+
 import os
 
 
@@ -66,63 +69,32 @@ class Graphic(commands.Cog):
         async with self.bot.session.get(url) as r:
             avatar_bytes = await r.read()
 
-        with Image.open(BytesIO(avatar_bytes)) as img:
+        img = Image.open(BytesIO(avatar_bytes))
+        if img.size[0] <= 270 and img.size[1] <= 180:
+            msg = "Das angegebene Bild ist bereits klein genug"
+            return await ctx.send(embed=error_embed(msg))
 
-            if img.size[0] <= 270 and img.size[1] <= 180:
-                msg = "Das angegebene Bild ist bereits klein genug."
-                return await ctx.send(embed=error_embed(msg))
+        output_buffer = BytesIO()
+        if img.format == "GIF":
+            frames = ImageSequence.Iterator(img)
+            func = functools.partial(self.gif_resize, frames)
+            frames = await self.bot.loop.run_in_executor(None, func)
+            om = next(frames)
+            om.save(output_buffer, "gif", save_all=True, append_images=list(frames), quality=90)
+            filename = "avatar.gif"
+        else:
+            func = functools.partial(self.img_resize, img)
+            img = await self.bot.loop.run_in_executor(None, func)
+            img.save(output_buffer, "png", quality=90)
+            filename = "avatar.png"
+        output_buffer.seek(0)
+        file = discord.File(fp=output_buffer, filename=filename)
 
-            output_buffer = BytesIO()
-
-            if img.format == "GIF":
-                frames = ImageSequence.Iterator(img)
-                frames = self.gif_resize(frames)
-                om = next(frames)
-                om.save(output_buffer, "gif", save_all=True, append_images=list(frames), quality=90)
-                filename = "avatar.gif"
-
-            else:
-                img = self.img_resize(img)
-                img.save(output_buffer, "png", quality=90)
-                filename = "avatar.png"
-
-            output_buffer.seek(0)
-            file = discord.File(fp=output_buffer, filename=filename)
-            await ctx.author.send(file=file)
-
-    @commands.command(name="map", aliases=["karte"])
-    @commands.cooldown(1, 60.0, commands.BucketType.guild)
-    async def map_(self, ctx, world=None):
-
-        if not world:
-            world = ctx.url
-
-        base_url = "https://www.dsreal.de/index.php?screen=map_history&world=de{}"
-        img_url = "https://www.dsreal.de/history.php?world=de{}&id={}"
-        result = base_url.format(world)
-        async with self.bot.session.get(result) as res:
-            html = await res.text()
-
-        soup = BeautifulSoup(html, 'html.parser')
-        form = soup.find_all('form')
-        inputs = form[1].find_all('option')
-        value = inputs[0]["value"]
-        url = img_url.format(world, value)
-        async with self.bot.session.get(url) as res2:
-            cache = await res2.read()
-
-        with Image.open(BytesIO(cache)) as img:
-            dis = 310
-            h, w = img.height, img.width
-            img = img.crop((0 + dis, 0 + dis, w - dis, h - dis))
-            file = BytesIO()
-            img.save(file, "png")
-            file.seek(0)
-
-        await ctx.send(file=discord.File(file, f"{world}_map.png"))
+        await ctx.author.send(file=file)
+        await private_hint(ctx)
 
     @commands.command(name="nude", aliases=["nacktfoto"])
-    @commands.cooldown(1, 10.0, commands.BucketType.member)
+    @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def nude_(self, ctx, *, user: DSObject = None):
 
         if user:
@@ -136,7 +108,7 @@ class Graphic(commands.Cog):
 
         else:
             await ctx.trigger_typing()
-            while True:
+            for _ in range(0, 30):
                 user = await load.fetch_random(ctx.world)
                 async with self.bot.session.get(user.guest_url) as res:
                     data = await res.read()
@@ -146,11 +118,14 @@ class Graphic(commands.Cog):
                     continue
                 elif str(result).__contains__("/avatar/"):
                     continue
-                else:
-                    break
+                break
+            else:
+                msg = "Die maximale Anzahl von Versuchen wurden erreicht"
+                return await ctx.send(msg)
 
         async with self.bot.session.get(result['src']) as res2:
             img = await res2.read()
+
         file = BytesIO()
         file.write(img)
         file.seek(0)
@@ -165,7 +140,6 @@ class Graphic(commands.Cog):
                 continue
             await ctx.guild.create_custom_emoji(name=name, image=emoji)
             counter += 1
-
         await ctx.send(f"`{counter}/{len(self.emojis)}` Emojis wurden hinzugefügt")
 
     @avatar_.error
@@ -173,9 +147,10 @@ class Graphic(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=error_embed(f"Du musst eine URL angeben"))
         if hasattr(error, "original"):
-            if isinstance(error.original, (ValueError, OSError)):
+            badboys = ValueError, OSError, aiohttp.InvalidURL
+            if isinstance(error.original, badboys):
                 msg = "Du musst eine gültige URL angeben"
-                return await ctx.send(embed=error_embed(msg))
+                await ctx.send(embed=error_embed(msg))
 
 
 def setup(bot):

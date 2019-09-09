@@ -1,6 +1,6 @@
 from discord.ext import commands
 from load import load
-from utils import IngameError, error_embed, pcv, game_channel_only, private_message_only
+from utils import IngameError, error_embed, pcv, game_channel_only
 import discord
 import asyncio
 import operator
@@ -167,7 +167,7 @@ class Quartet(commands.Cog):
             msg = "Es läuft bereits eine Runde auf dem Server!"
             return await ctx.send(msg)
 
-        pre = load.pre_fix(ctx.guild.id)
+        pre = load.get_prefix(ctx.guild.id)
         self.game_basic(ctx.guild.id, ctx.author.id)
         msg = await ctx.send(f"`{ctx.author.name}` möchte eine Partie "
                              f"**dsQuartett** spielen!\nTrete der Runde "
@@ -243,10 +243,10 @@ class Quartet(commands.Cog):
             await ctx.send(msg)
 
         else:
-            return await ctx.send("Es haben bereits 4 Spieler teilgenommen."
+            return await ctx.send("Es haben bereits 4 Spieler teilgenommen"
                                   " Das Spiel startet in Kürze!")
 
-    @private_message_only()
+    @commands.dm_only()
     @commands.command(aliases=["spiele"])
     async def play(self, ctx, args):
 

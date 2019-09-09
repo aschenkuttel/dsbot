@@ -22,7 +22,7 @@ class Enjoy(commands.Cog):
             if num not in [300, 400, 500]:
                 await ctx.send(random.choice(load.msg["cleanOrakel"]))
 
-            elif [300].__contains__(num):
+            elif num == 300:
 
                 data = "Hilfe, ich bin in Kuttes Keller gefangen" \
                        " und werde gezwungen diese Antw"
@@ -118,10 +118,6 @@ class Enjoy(commands.Cog):
         em = discord.Embed()
         em.set_image(url=user.avatar_url if user else ctx.author.avatar_url)
         await ctx.send(embed=em)
-
-    @commands.command(name="quickmeth")
-    async def quickmeth_(self, ctx):
-        await ctx.send("https://www.youtube.com/watch?v=X09oxyIeGuY")
 
     @commands.command(name="fake")
     async def fake_(self, ctx, username=None):
