@@ -10,6 +10,7 @@ cmds = [
     "`daily` | Top 5 der \"An einem Tag\"-Ranglisten",
     "`emoji` | Fügt dem Server eine Reihe von DS-Emojis hinzu",
     "`nude` | Profilbild von Spieler/Stamm oder zufällig",
+    "`pin` | Help Embed für den Server"
     "`player` | Ingame-URL von Spieler/Stamm",
     "`recap` | Kurze Zusammenfassung der letzten Tage eines Spielers/Stammes",
     "`rm` | Rundmail Generator für mehrere Stämme",
@@ -63,6 +64,7 @@ class Help(commands.Cog):
             return
 
     @commands.command(name="pin")
+    @commands.has_permissions(administrator=True)
     async def pin_(self, ctx):
         embed = self.help_embed(ctx.prefix)
         await ctx.send(embed=embed)
@@ -119,7 +121,7 @@ class Help(commands.Cog):
     @help.command(name="conquer")
     async def conquer_(self, ctx):
         title = "`~conquer`"
-        desc = "Fügt dem Conquer-Filter einen Stamm hinzu oder entfernt ihn," \
+        desc = "Fügt dem Conquer-Filter einen Stamm hinzu oder entfernt ihn, " \
                "blendet zukünftig alle Barbarendörfer aus/ein, zeigt alle" \
                "Stämme im Filter an oder löscht diesen komplett"
         cmd_type = "Admin Server Command"
@@ -162,6 +164,17 @@ class Help(commands.Cog):
         cmd_type = "Server Command"
         cmd_inp = "`~nude`\n`~nude <playername/tribename>`"
         example = "`~nude`\n`~nude Leedsi`"
+        data = title, desc, cmd_type, cmd_inp, example
+        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
+        await self.send_help(ctx)
+
+    @help.command(name="pin")
+    async def pin_(self, ctx):
+        title = "`~pin`"
+        desc = "Erhalte den Help Command im Server zum Anpinnen"
+        cmd_type = "Server Admin Command"
+        cmd_inp = "`~pin`"
+        example = "`~pin`"
         data = title, desc, cmd_type, cmd_inp, example
         await ctx.author.send(embed=await self.cmd_embed(data, ctx))
         await self.send_help(ctx)
@@ -320,7 +333,7 @@ class Help(commands.Cog):
 
     @help.command(name="iron")
     async def iron_(self, ctx):
-        title = "`~res`"
+        title = "`~iron`"
         desc = "Beim Gewinnen von Spielen (ag, hangman und vp) gewinnt man " \
                "Eisen. Man kann sich seinen Speicher anzeigen lassen, die " \
                "aktuelle Top 5 des Servers oder die globale Top 5 aller " \

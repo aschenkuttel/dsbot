@@ -32,11 +32,11 @@ class Villages(commands.Cog):
             if con:
                 player = await load.fetch_both(ctx.world, f"{name} {con}")
                 if not player:
-                    raise utils.DSUserNotFound(name, ctx.world)
+                    raise utils.DSUserNotFound(name)
             else:
-                raise utils.DSUserNotFound(name, ctx.world)
+                raise utils.DSUserNotFound(name)
 
-        res = await load.fetch_villages(player, amount, ctx.ctx.world, con)
+        res = await load.fetch_villages(player, amount, ctx.world, con)
         if isinstance(res, tuple):
             obd = "Spieler" if res[0] else "Stamm"
             if res[2]:

@@ -21,9 +21,10 @@ class Bash(commands.Cog):
 
         title = f"Besiegte Gegner von {user.name}"
         result = [f"`OFF` | **{pcv(user.att_bash)} Bashpoints**",
-                  f"`DEF` | **{pcv(user.def_bash)} Bashpoints**",
-                  f"`UNT` | **{pcv(user.ut_bash)} Bashpoints**",
-                  f"`INS` | **{pcv(user.all_bash)} Bashpoints**"]
+                  f"`DEF` | **{pcv(user.def_bash)} Bashpoints**"]
+        if user.alone:
+            result.append(f"`UNT` | **{pcv(user.ut_bash)} Bashpoints**")
+        result.append(f"`INS` | **{pcv(user.all_bash)} Bashpoints**")
         embed = discord.Embed(title=title, description='\n'.join(result))
         await ctx.send(embed=embed)
 
@@ -72,6 +73,8 @@ class Bash(commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def recap(self, ctx, *args):
 
+        if not args:
+            raise commands.MissingRequiredArgument('nothing')
         time = 7
         if args[-1].isdigit():
             dsobj = await load.fetch_both(ctx.world, ' '.join(args[:-1]))
@@ -82,7 +85,7 @@ class Bash(commands.Cog):
         else:
             dsobj = await load.fetch_both(ctx.world, ' '.join(args))
         if not dsobj:
-            raise DSUserNotFound(args, ctx.world)
+            raise DSUserNotFound(args)
 
         if not 30 > time > 0:
             msg = "Das Maximum für den Recap Command sind 29 Tage"

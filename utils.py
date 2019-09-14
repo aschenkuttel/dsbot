@@ -12,7 +12,6 @@ dc = {
     "!": "%21",
     "#": "%23",
     "$": "%24",
-    "%": "%25",
     "&": "%26",
     "'": "%27",
     "(": "%28",
@@ -216,9 +215,8 @@ class DontPingMe(commands.CheckFailure):
 
 
 class DSUserNotFound(commands.CheckFailure):
-    def __init__(self, searchable, world):
+    def __init__(self, searchable):
         self.name = searchable
-        self.world = world
 
 
 class GuildUserNotFound(commands.CheckFailure):
@@ -255,7 +253,7 @@ class DSObject(commands.Converter):
     async def convert(self, ctx, searchable):
         obj = await load.fetch_both(ctx.world, searchable)
         if not obj:
-            raise DSUserNotFound(searchable, ctx.world)
+            raise DSUserNotFound(searchable)
         return obj
 
 
@@ -405,3 +403,29 @@ class Conquer:
     @property
     def grey(self):
         return 0 in (self.new, self.old)
+
+
+class DSColor:
+
+    def __init__(self):
+        self.red = [186, 22, 63]
+        self.blue = [21, 104, 156]
+        self.yellow = [242, 202, 33]
+        self.turquoise = [52, 161, 152]
+        self.pink = [194, 63, 118]
+        self.orange = [249, 149, 51]
+        self.green = [116, 161, 97]
+        self.purple = [17, 17, 80]
+        self.white = [245, 245, 245]
+        self.black = [0, 0, 0]
+        self.bg_green = [88, 118, 27]
+        self.bg_forrest = [73, 103, 21]
+        self.vil_brown = [130, 60, 10]
+        self.sector_green = [48, 73, 14]
+        self.field_green = [67, 98, 19]
+        self.bb_grey = [150, 150, 150]
+
+    def top(self):
+        palette = [self.red, self.blue, self.yellow, self.turquoise, self.pink,
+                   self.orange, self.green, self.purple, self.white, self.black]
+        return palette

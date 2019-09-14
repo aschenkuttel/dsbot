@@ -34,7 +34,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="ursula_haverbeck", aliases=["ursula"])
     async def ursula_haverbeck_(self, ctx):
-        res = [guild.name for guild in ctx.bot.guilds]
+        res = [guild.name for guild in ctx.bot.guilds[0:10]]
         await ctx.send(f"{len(ctx.bot.guilds)}\n{', '.join(res)}")
 
     @commands.command(name="stats")

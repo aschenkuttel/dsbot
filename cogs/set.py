@@ -136,7 +136,7 @@ class Set(commands.Cog):
 
     @commands.group(name="conquer", invoke_without_command=True)
     async def conquer(self, ctx):
-        msg = f"{ctx.prefix}conquer <add/remove/list/grey/clear>" \
+        msg = f"{ctx.prefix}conquer <add/remove/list/grey/clear>\n" \
               f"Erklärung und Beispiele: `{ctx.prefix}help conquer`"
         await ctx.send(embed=error_embed(msg))
 
@@ -175,7 +175,7 @@ class Set(commands.Cog):
     @conquer.command(name="grey")
     async def conquer_grey(self, ctx):
         cache = load.get_item(ctx.guild.id, "bb")
-        state = True if not cache else False
+        state = False if cache is not False else True
         load.change_item(ctx.guild.id, "bb", state)
         state_str = "aktiv" if not state else "inaktiv"
         msg = f"Der Filter für Barbarendörfer ist nun {state_str}"
@@ -191,15 +191,24 @@ class Set(commands.Cog):
 
         cache = await load.fetch_tribes(ctx.world, filter_list)
         data = [obj.name for obj in cache]
-        title = f"{len(data)} Stämme insgesamt"
+        name = "Stamm" if len(data) == 1 else "Stämme"
+        title = f"{len(data)} {name} insgesamt"
         embed = discord.Embed(title=title, description='\n'.join(data[:10]))
         await ctx.send(embed=embed)
 
     @conquer.command(name="clear")
     async def conquer_clear(self, ctx):
-        self.bot.config.change_item(ctx.guild.id, "filter", [])
+        load.change_item(ctx.guild.id, "filter", [])
         msg = "Der Filter wurde zurückgesetzt"
         await ctx.send(embed=complete_embed(msg))
+
+    @set_world.error
+    @set_channel.error
+    async def set_error(self, ctx, error):
+        if isinstance(error, commands.BadArgument):
+            msg = "Du musst eine gültige Welt angeben:\n" \
+                  "`!set world 170` | `!set channel 170`"
+            await ctx.send(embed=error_embed(msg))
 
 
 def setup(bot):

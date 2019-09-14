@@ -33,7 +33,7 @@ class DSBot(commands.Bot):
         self.path = path
         self.white = pm_commands
         self.owner_id = 211836670666997762
-        self.activity = discord.Activity(type=1, name="!help [1.5]")
+        self.activity = discord.Activity(type=1, name="!help [1.6]")
         self.add_check(self.global_world)
         self.remove_command("help")
         self.session = None
@@ -93,6 +93,11 @@ class DSBot(commands.Bot):
                 self.load_extension(f"cogs.{file}")
             except commands.ExtensionNotFound:
                 print(f"module {file} not found")
+
+    async def logout(self):
+        await self.session.close()
+        await load.close_db()
+        await self.close()
 
 
 # instance creation and bot start

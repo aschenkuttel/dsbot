@@ -103,7 +103,7 @@ class Hangman(commands.Cog):
 
         # checks for direct win
         if guess == win.lower():
-            await self.victory_royale(ctx)
+            return await self.victory_royale(ctx)
 
         # checks for valid input (1 character)
         if not len(guess) == 1:

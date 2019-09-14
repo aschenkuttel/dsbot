@@ -63,6 +63,12 @@ class Graphic(commands.Cog):
                 name = file.split(".")[0]
             self.emojis[name] = img
 
+    @commands.command(name='map')
+    async def map_(self, ctx, *tribes):
+
+        img = await load.create_map(self.bot.loop, ctx.world, tribes)
+        await ctx.send(file=discord.File(img, "map.png"))
+
     @commands.command(name="avatar", aliases=["profilbild"])
     async def avatar_(self, ctx, url):
 

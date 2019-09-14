@@ -16,6 +16,7 @@ class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cap = 10
+        self.silenced = (aiohttp.InvalidURL, commands.BadArgument, commands.MissingRequiredArgument)
 
     @listener()
     async def on_message(self, message):
@@ -32,7 +33,7 @@ class Listen(commands.Cog):
 
             file = await load.fetch_report(self.bot.loop, message.content)
             if file is None:
-                return await load.silencer(message.add_reaction('❌'))
+                return await utils.silencer(message.add_reaction('❌'))
             await message.channel.send(file=discord.File(file, "report.png"))
             await utils.silencer(message.delete())
             return
@@ -98,12 +99,12 @@ class Listen(commands.Cog):
             msg = "Der Command ist leider nur auf einem Server verfügbar"
             await ctx.send(embed=error_embed(msg))
 
-        elif isinstance(error, utils.DontPingMe):
-            msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
+        elif isinstance(error, (utils.PrivateOnly, commands.PrivateMessageOnly)):
+            msg = "Der Command ist leider nur per private Message verfügbar"
             await ctx.send(embed=error_embed(msg))
 
-        elif isinstance(error, utils.PrivateOnly):
-            msg = "Der Command ist leider nur per private Message verfügbar"
+        elif isinstance(error, utils.DontPingMe):
+            msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
             await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, utils.WorldMissing):
@@ -133,7 +134,7 @@ class Listen(commands.Cog):
             await ctx.send(embed=error_embed(msg.format(int(error.retry_after))))
 
         elif isinstance(error, utils.DSUserNotFound):
-            name = f"Casual {error.world}" if error.world < 50 else f"der `{error.world}`"
+            name = f"Casual {ctx.world}" if ctx.world < 50 else f"der `{ctx.world}`"
             msg = f"`{error.name}` konnte auf {name} nicht gefunden werden"
             await ctx.send(embed=error_embed(msg))
 
@@ -146,12 +147,12 @@ class Listen(commands.Cog):
                   f"`{', '.join(error.missing_perms)}`"
             await ctx.send(embed=error_embed(msg))
 
+        elif isinstance(error, self.silenced):
+            return
+
         elif isinstance(error, discord.Forbidden):
             msg = f"Dem Bot fehlen benötigte Rechte:\n`{error.text}`"
             await ctx.send(embed=error_embed(msg))
-
-        elif isinstance(error, aiohttp.InvalidURL):
-            return
 
         else:
             cog = self.bot.get_cog(ctx.command.cog_name)
