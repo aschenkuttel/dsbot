@@ -16,6 +16,7 @@ cmds = [
     "`rm` | Rundmail Generator für mehrere Stämme",
     "`rz` | Ungefähre Verteilung der Truppen auf die Raubzugoptionen",
     "`set` | Administrator-Commands für Einstellungen",
+    "`sl` | Generiert Truppen-Einfügen SL Script für angegebene Dörfer",
     "`time` | Erinnerung zu gewünschter Uhrzeit per PN",
     "`villages` | Liste von Koordinaten von Spieler/Stamm",
     "`visit` | Gastlogin-Url von gewünschter/Server-Welt",
@@ -60,7 +61,7 @@ class Help(commands.Cog):
                 await ctx.message.add_reaction("📨")
             await asyncio.sleep(5)
             await ctx.message.delete()
-        except discord.Forbidden:
+        except (discord.Forbidden, discord.NotFound):
             return
 
     @commands.command(name="pin")
@@ -239,6 +240,20 @@ class Help(commands.Cog):
                   "`~set conquer`\n`~set prefix <prefix>`"
         example = "`~set world 117`\n`~set channel 164`\n`~set game`\n" \
                   "`~set conquer`\n`~set prefix -`"
+        data = title, desc, cmd_type, cmd_inp, example
+        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
+        await self.send_help(ctx)
+
+    @help.command(name="sl")
+    async def sl_(self, ctx):
+        title = "`~sl`"
+        desc = "Erstellt beliebig viele \"Truppen einfügen\" SL-Scripte.\nTruppen werden " \
+               "hierbei per Keyword angegeben(Truppe=Anzahl):\n`Speer, Schwert, Axt, Bogen, " \
+               "Späher, Lkav, Berittene`\n`Skav, Ramme, Katapult, Paladin, Ag`"
+        cmd_type = "Server/PM Command"
+        cmd_inp = "`~sl <troop>=<amount> <*coords>`"
+        example = "`~sl speer=20 lkav=5 späher=2 550|490 489|361`\n" \
+                  "`~sl axt=80ramme=20ag=1 [coord]452|454[/coord]`"
         data = title, desc, cmd_type, cmd_inp, example
         await ctx.author.send(embed=await self.cmd_embed(data, ctx))
         await self.send_help(ctx)

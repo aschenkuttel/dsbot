@@ -219,7 +219,7 @@ class Quiz(commands.Cog):
             result, answer = await game(ctx, cur)
 
             if result is None:
-                continue
+                break
 
             game_count += 1
             if not result:
@@ -249,7 +249,7 @@ class Quiz(commands.Cog):
             await asyncio.sleep(5)
 
         if game_count < rounds:
-            await ctx.send(embed=error_embed("Quiz vorzeitig beendet"))
+            await ctx.send(embed=error_embed("Keine Antwort, Quiz vorzeitig beendet"))
         else:
 
             pool = self.data[ctx.guild.id]

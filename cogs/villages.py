@@ -11,15 +11,18 @@ class Villages(commands.Cog):
         self.bot = bot
 
     @commands.command(aliases=["dörfer"])
-    async def villages(self, ctx, amount: str, *, args):
+    async def villages(self, ctx, amount: str, *args):
 
         if not amount.isdigit() and amount.lower() != "all":
             msg = "Die Anzahl der gewünschten Dörfer muss entweder eine Zahl oder `all` sein."
             await ctx.send(embed=utils.error_embed(msg))
             return
 
+        if not args:
+            msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte K55**"
+            await ctx.send(embed=utils.error_embed(msg))
+
         con = None
-        args = args.split(" ")
         if len(args) == 1:
             name = args[0]
         elif re.match(r'[k, K]\d\d', args[-1]):
@@ -36,46 +39,29 @@ class Villages(commands.Cog):
             else:
                 raise utils.DSUserNotFound(name)
 
-        res = await load.fetch_villages(player, amount, ctx.world, con)
-        if isinstance(res, tuple):
-            obd = "Spieler" if res[0] else "Stamm"
-            if res[2]:
-                msg = f"Der {obd} `{utils.converter(res[1])}` hat leider nur " \
-                    f"`{res[3]}` Dörfer auf dem Kontinent `{res[2].upper()}`"
-                await ctx.send(embed=utils.error_embed(msg))
-                return
+        result = await load.fetch_villages(player, amount, ctx.world, con)
+        if isinstance(result, tuple):
+            ds_type = "Spieler" if player.alone else "Stamm"
+            if con:
+                msg = f"Der {ds_type} `{player.name}` hat leider nur " \
+                      f"`{result}` Dörfer auf dem Kontinent `{con}`"
             else:
-                msg = f"So viele Dörfer hat der {obd} " \
-                    f"`{utils.converter(res[1])}` leider nicht"
-                await ctx.send(embed=utils.error_embed(msg))
-                return
+                msg = f"Der {ds_type} `{player.name}` hat leider nur `{result}` Dörfer"
+            await ctx.send(embed=utils.error_embed(msg))
+            return
 
-        await ctx.message.add_reaction("📨")
-
-        if isinstance(res, io.StringIO):
-            await ctx.author.send(file=discord.File(res, 'villages.txt'))
-            return res.close()
-
-        fin = '\n'.join([f"{r['x']}|{r['y']}" for r in res])
-        if len(fin) <= 2000:
-            await ctx.author.send(fin)
+        await utils.private_hint(ctx)
+        if isinstance(result, io.StringIO):
+            await ctx.author.send(file=discord.File(result, 'villages.txt'))
+            return result.close()
         else:
-            counter = 0
-            while len(fin) > counter:
-                stuff = counter + 2000
-                await ctx.author.send(fin[counter:stuff])
-                counter = stuff
+            await ctx.author.send('\n'.join(result))
 
     @villages.error
     async def villages_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte (K55)**"
+            msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte K55**"
             await ctx.send(embed=utils.error_embed(msg))
-        elif isinstance(error, ValueError):
-            msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte (K55)**"
-            await ctx.send(embed=utils.error_embed(msg))
-        elif isinstance(error, AttributeError):
-            return
 
 
 def setup(bot):

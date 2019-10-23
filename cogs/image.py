@@ -63,7 +63,7 @@ class Graphic(commands.Cog):
                 name = file.split(".")[0]
             self.emojis[name] = img
 
-    @commands.command(name='map')
+    @commands.command(name="map", aliases=["karte"])
     async def map_(self, ctx, *tribes):
 
         img = await load.create_map(self.bot.loop, ctx.world, tribes)

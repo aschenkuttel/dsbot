@@ -16,7 +16,10 @@ class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cap = 10
-        self.silenced = (aiohttp.InvalidURL, commands.BadArgument, commands.MissingRequiredArgument)
+        self.silenced = (commands.MissingRequiredArgument,
+                         commands.BadArgument,
+                         aiohttp.InvalidURL,
+                         utils.IngameError)
 
     @listener()
     async def on_message(self, message):
@@ -62,22 +65,17 @@ class Listen(commands.Cog):
                     good.append(f"[{coord}]({res.ingame_url}) {owner}")
                     cache.append(coord)
 
-            found = '\n'.join(good) or ""
-            lost = ','.join(bad) or ""
+            found = '\n'.join(good)
+            lost = ','.join(bad)
             if found:
                 found = f"**Gefundene Koordinaten:**\n{found}"
             if lost:
                 lost = f"**Nicht gefunden:**\n{lost}"
             em = discord.Embed(description=f"{found}\n{lost}")
-            await message.channel.send(embed=em)
-
-    @listener()
-    async def on_message_edit(self, before, after):
-        if self.bot.user == before.author:
-            return
-        ctx = await self.bot.get_context(after)
-        if ctx.valid:
-            await self.bot.invoke(ctx)
+            try:
+                await message.channel.send(embed=em)
+            except discord.Forbidden:
+                return
 
     @listener()
     async def on_command_completion(self, ctx):
@@ -130,8 +128,8 @@ class Listen(commands.Cog):
             await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, commands.CommandOnCooldown):
-            msg = "Command Cooldown: Versuche es in {} Sekunden erneut"
-            await ctx.send(embed=error_embed(msg.format(int(error.retry_after))))
+            msg = "Command Cooldown: Versuche es in {0:.1f} Sekunden erneut"
+            await ctx.send(embed=error_embed(msg.format(error.retry_after)))
 
         elif isinstance(error, utils.DSUserNotFound):
             name = f"Casual {ctx.world}" if ctx.world < 50 else f"der `{ctx.world}`"

@@ -91,24 +91,38 @@ class Bash(commands.Cog):
             msg = "Das Maximum für den Recap Command sind 29 Tage"
             return await ctx.send(embed=error_embed(msg))
 
-        page_link = f"{dsobj.twstats_url}&mode=history"
-        async with self.bot.session.get(page_link) as r:
-            soup = BeautifulSoup(await r.read(), "html.parser")
+        if ctx.invoked_with.lower() == "tagebuch":
+            table = "player" if dsobj.alone else "tribe"
+            dsobj8 = await load.fetch_archive(ctx.world, dsobj.id, table, time)
 
-        try:
-            data = soup.find(id='export').text.split()
-            point1, villages1, bash1 = data[0].split(",")[4:7]
-            point8, villages8, bash8 = data[time].split(",")[4:7]
+            point1 = dsobj.points
+            point8 = dsobj8.points
 
-        except (IndexError, ValueError, AttributeError):
-            obj = "Spieler" if dsobj.alone else "Stamm"
-            msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
-            return await ctx.send(msg)
+            villages1 = dsobj.villages
+            villages8 = dsobj8.villages
+
+            bash1 = dsobj.all_bash
+            bash8 = dsobj8.all_bash
+
+        else:
+            page_link = f"{dsobj.twstats_url}&mode=history"
+            async with self.bot.session.get(page_link) as r:
+                soup = BeautifulSoup(await r.read(), "html.parser")
+
+            try:
+                data = soup.find(id='export').text.split("\n")
+                point1, villages1, bash1 = data[0].split(",")[4:7]
+                point8, villages8, bash8 = data[time].split(",")[4:7]
+
+            except (IndexError, ValueError, AttributeError):
+                obj = "Spieler" if dsobj.alone else "Stamm"
+                msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
+                return await ctx.send(msg)
 
         p_done = pcv(int(point1) - int(point8))
         points_done = f"`{p_done}` Punkte gemacht,"
         if p_done.startswith("-"):
-            points_done = f"`{p_done[1:]}` Punkte gemacht,"
+            points_done = f"`{p_done[1:]}` Punkte verloren,"
 
         v_done = int(villages1) - int(villages8)
         vil = "Dorf" if v_done == 1 or v_done == -1 else "Dörfer"

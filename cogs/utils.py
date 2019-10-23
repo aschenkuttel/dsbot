@@ -1,7 +1,7 @@
+from utils import error_embed, private_hint
 from datetime import datetime
 from discord.ext import commands
 from load import load
-from utils import error_embed
 import discord
 import asyncio
 import math
@@ -12,6 +12,13 @@ class Rm(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cap_dict = {}
+        self.troops = ["speer", "schwert", "axt", "bogen", "späher", "lkav", "berittene",
+                       "skav", "ramme", "katapult", "paladin", "ag"]
+        self.base = "javascript: var settings = Array" \
+                    "({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}," \
+                    " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
+                    "('https://media.innogamescdn.com/com_DS_DE/" \
+                    "scripts/qb_main/scriptgenerator.js'); void(0);"
 
     @commands.command(aliases=["rundmail"])
     async def rm(self, ctx, *tribes: str):
@@ -27,6 +34,53 @@ class Rm(commands.Cog):
         result = [obj.name for obj in data]
         await ctx.author.send(f"```\n{';'.join(result)}\n```")
         await ctx.message.add_reaction("📨")
+
+    @commands.command(name="sl")
+    async def sl_(self, ctx, *, args):
+        troops = re.findall(r'[A-z]*=\d*', args)
+        coordinates = re.findall(r'\d\d\d\|\d\d\d', args)
+
+        if not troops or not coordinates:
+            msg = f"Du musst mindestens eine Truppe und ein Dorf angeben\n" \
+                  f"**Erklärung und Beispiele unter:** {ctx.prefix}help sl"
+            return await ctx.send(msg)
+
+        data = [0 for _ in range(12)]
+        for kwarg in troops:
+            name, amount = kwarg.split("=")
+            try:
+                index = self.troops.index(name.lower())
+            except ValueError:
+                continue
+            data[index] = int(amount)
+
+        if not sum(data):
+            troops = ', '.join([o.capitalize() for o in self.troops])
+            msg = f"Du musst einen gültigen Truppennamen angeben:\n`{troops}`"
+            return await ctx.send(msg)
+
+        result = []
+        counter = 0
+        cache = []
+        for coord in coordinates:
+            if coord in cache:
+                continue
+            cache.append(coord)
+            x, y = coord.split("|")
+            script = self.base.format(*data, x, y)
+            if counter + len(script) > 2000:
+                msg = "\n".join(result)
+                await ctx.author.send(f"```js\n{msg}\n```")
+            else:
+                result.append(script)
+                counter += len(script)
+
+        if result:
+            msg = "\n".join(result)
+            await ctx.author.send(f"```js\n{msg}\n```")
+
+        if ctx.guild:
+            await private_hint(ctx)
 
     @commands.command(name="rz3", aliases=["rz4"])
     async def rz3_(self, ctx, *args: int):

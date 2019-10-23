@@ -2,7 +2,6 @@ from data.naruto import pm_commands, default_cogs
 from utils import WorldMissing, DSContext
 from discord.ext import commands
 from load import load
-import logging
 import discord
 import asyncio
 import os
@@ -16,29 +15,22 @@ def prefix(_, message):
     return custom
 
 
-# set up of discord logging
-path = os.path.dirname(__file__)
-logger = logging.getLogger('discord')
-logger.setLevel(logging.ERROR)
-handler = logging.FileHandler(filename=f"{path}/data/discord.log", encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
-
-
 # implementation of own class / overwrites
 class DSBot(commands.Bot):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.path = path
+
+        self.load = load
         self.white = pm_commands
         self.owner_id = 211836670666997762
+        self.path = os.path.dirname(__file__)
         self.activity = discord.Activity(type=1, name="!help [1.6]")
+        self.loop.create_task(self.conquer_loop())
         self.add_check(self.global_world)
         self.remove_command("help")
         self.session = None
         self._lock = True
-        self.load = load
         self.setup_cogs()
 
     # setup functions
@@ -48,8 +40,6 @@ class DSBot(commands.Bot):
         session = await self.load.setup(self.loop)
         self.session = session
 
-        # conquer loop creation
-        self.loop.create_task(self.conquer_loop())
         self._lock = False
         print("Erfolgreich Verbunden!")
 

@@ -5,7 +5,7 @@ import discord
 import asyncio
 import re
 
-twstats = "http://de.twstats.com/de{}/index.php?page={}&id={}"
+twstats = "https://de.twstats.com/de{}/index.php?page={}&id={}"
 ingame = "https://de{}.die-staemme.de/{}.php?screen=info_{}&id={}"
 
 dc = {
@@ -279,22 +279,22 @@ class GuildUser(commands.Converter):
 
 # default tribal wars classes
 class Player:
-    def __init__(self, world, dct):
-        self.id = dct['id']
+    def __init__(self, data):
+        self.id = data['id']
         self.alone = True
-        self.world = world
-        self.url = casual(world)
-        self.name = converter(dct['name'])
-        self.tribe_id = dct['tribe_id']
-        self.villages = dct['villages']
-        self.points = dct['points']
-        self.rank = dct['rank']
-        self.att_bash = dct['att_bash']
-        self.att_rank = dct['att_rank']
-        self.def_bash = dct['def_bash']
-        self.def_rank = dct['def_rank']
-        self.all_bash = dct['all_bash']
-        self.all_rank = dct['all_rank']
+        self.world = data['world']
+        self.url = casual(self.world)
+        self.name = converter(data['name'])
+        self.tribe_id = data['tribe_id']
+        self.villages = data['villages']
+        self.points = data['points']
+        self.rank = data['rank']
+        self.att_bash = data['att_bash']
+        self.att_rank = data['att_rank']
+        self.def_bash = data['def_bash']
+        self.def_rank = data['def_rank']
+        self.all_bash = data['all_bash']
+        self.all_rank = data['all_rank']
         self.ut_bash = self.all_bash - self.def_bash - self.att_bash
 
     @property
@@ -309,30 +309,26 @@ class Player:
     def twstats_url(self):
         return twstats.format(self.url, 'player', self.id)
 
-    async def fetch_tribe(self):
-        tribe = await load.fetch_tribe(self.world, self.tribe_id)
-        return tribe
-
 
 class Tribe:
-    def __init__(self, world, dct):
-        self.id = int(dct['id'])
+    def __init__(self, data):
+        self.id = int(data['id'])
         self.alone = False
-        self.world = world
-        self.url = casual(world)
-        self.name = converter(dct['name'])
-        self.tag = converter(dct['tag'])
-        self.member = dct['member']
-        self.villages = dct['villages']
-        self.points = dct['points']
-        self.all_points = dct['all_points']
-        self.rank = dct['rank']
-        self.att_bash = dct['att_bash']
-        self.att_rank = dct['att_rank']
-        self.def_bash = dct['def_bash']
-        self.def_rank = dct['def_rank']
-        self.all_bash = dct['all_bash']
-        self.all_rank = dct['all_rank']
+        self.world = data['world']
+        self.url = casual(self.world)
+        self.name = converter(data['name'])
+        self.tag = converter(data['tag'])
+        self.member = data['member']
+        self.villages = data['villages']
+        self.points = data['points']
+        self.all_points = data['all_points']
+        self.rank = data['rank']
+        self.att_bash = data['att_bash']
+        self.att_rank = data['att_rank']
+        self.def_bash = data['def_bash']
+        self.def_rank = data['def_rank']
+        self.all_bash = data['all_bash']
+        self.all_rank = data['all_rank']
 
     @property
     def guest_url(self):
@@ -348,15 +344,19 @@ class Tribe:
 
 
 class Village:
-    def __init__(self, world, dct):
-        self.id = int(dct['id'])
-        self.name = converter(dct['name'])
-        self.x = dct['x']
-        self.y = dct['y']
-        self.player_id = dct['player']
-        self.points = dct['points']
-        self.url = casual(world)
-        self.world = world
+    def __init__(self, data):
+        self.id = int(data['id'])
+        self.name = converter(data['name'])
+        self.x = data['x']
+        self.y = data['y']
+        self.player_id = data['player']
+        self.points = data['points']
+        self.world = data['world']
+        self.url = casual(self.world)
+
+    @property
+    def coords(self):
+        return f"{self.x}|{self.y}"
 
     @property
     def guest_url(self):
@@ -378,18 +378,11 @@ class Conquer:
         self.new = data[2]
         self.old = data[3]
         self.world = world
-
-    async def new_owner(self):
-        if self.new == 0:
-            return "(Barbarendorf)"
-        player = await load.fetch_player(self.world, self.new)
-        return player
-
-    async def old_owner(self):
-        if self.old == 0:
-            return "Barbarendorf"
-        player = await load.fetch_player(self.world, self.old)
-        return player
+        self.old_tribe = None
+        self.new_tribe = None
+        self.old_player = None
+        self.new_player = None
+        self.village = None
 
     @property
     def time(self):
@@ -404,28 +397,72 @@ class Conquer:
     def grey(self):
         return 0 in (self.new, self.old)
 
+    @property
+    def coords(self):
+        return f"{self.village.x}|{self.village.y}"
+
 
 class DSColor:
 
     def __init__(self):
-        self.red = [186, 22, 63]
-        self.blue = [21, 104, 156]
-        self.yellow = [242, 202, 33]
-        self.turquoise = [52, 161, 152]
-        self.pink = [194, 63, 118]
-        self.orange = [249, 149, 51]
-        self.green = [116, 161, 97]
-        self.purple = [17, 17, 80]
-        self.white = [245, 245, 245]
-        self.black = [0, 0, 0]
+        self.red = [230, 40, 0]  # DONE
+        self.blue = [16, 52, 166]  # DONE
+        self.yellow = [255, 189, 32]  # DONE
+        self.turquoise = [64, 224, 208]  # DONE
+        self.pink = [255, 8, 127]  # DONE
+        self.orange = [253, 106, 2]
+        self.green = [152, 251, 152]  # DONE
+        self.purple = [192, 5, 248]  # DONE [47, 1, 40]
+        self.white = [245, 245, 245]  # DONE
+        self.black = [5, 5, 5]  # DONE
         self.bg_green = [88, 118, 27]
         self.bg_forrest = [73, 103, 21]
         self.vil_brown = [130, 60, 10]
         self.sector_green = [48, 73, 14]
         self.field_green = [67, 98, 19]
         self.bb_grey = [150, 150, 150]
+        self.fortress_green = [10, 150, 150]
+        self.fortress_yellow = [240, 200, 0]
 
     def top(self):
         palette = [self.red, self.blue, self.yellow, self.turquoise, self.pink,
                    self.orange, self.green, self.purple, self.white, self.black]
         return palette
+
+
+class DSType:
+    classes = {'player': Player, 'tribe': Tribe, 'village': Village}
+
+    def __init__(self, arg):
+        self.arg = arg
+        self.type = None
+        self.table = None
+        res = self.try_convers(self.arg)
+        if not res:
+            raise ValueError(f"argument: {self.arg} needs to be either enum or tablename")
+
+    def try_convers(self, arg):
+        if isinstance(arg, int):
+            res = self.try_enum(arg)
+            return res
+        elif isinstance(arg, str):
+            arg = arg.lower()
+            res = self.try_name(arg)
+            return res
+        return False
+
+    def try_enum(self, arg):
+        for index, (name, dstype) in enumerate(self.classes.items()):
+            if arg == index:
+                self.type = dstype
+                self.table = name
+                return True
+        else:
+            return False
+
+    def try_name(self, arg):
+        self.type = self.classes.get(arg)
+        if self.type:
+            self.table = arg
+            return True
+        return False
