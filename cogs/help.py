@@ -3,23 +3,23 @@ from discord.ext import commands
 import discord
 
 cmds = [
-    "`akte` | Twstats-URL von Spieler/Stamm",
+    "`akte` | Twstats-URL von Spieler|Stamm",
     "`avatar` | Konvertiert Bild auf vorgeschriebene DS-Maße",
     "`bash` | Zusammenfassung der Bashpoints von Spieler/Stamm",
     "`conquer` | Administrator-Commands für den Conquer Channel",
     "`daily` | Top 5 der \"An einem Tag\"-Ranglisten",
     "`emoji` | Fügt dem Server eine Reihe von DS-Emojis hinzu",
-    "`nude` | Profilbild von Spieler/Stamm oder zufällig",
-    "`pin` | Help Embed für den Server"
-    "`player` | Ingame-URL von Spieler/Stamm",
-    "`recap` | Kurze Zusammenfassung der letzten Tage eines Spielers/Stammes",
+    "`nude` | Profilbild von Spieler|Stamm oder zufällig",
+    "`pin` | Help Embed für den Server",
+    "`player` | Ingame-URL von Spieler|Stamm",
+    "`recap` | Kurze Zusammenfassung der letzten Tage eines Spielers|Stammes",
     "`rm` | Rundmail Generator für mehrere Stämme",
     "`rz` | Ungefähre Verteilung der Truppen auf die Raubzugoptionen",
     "`set` | Administrator-Commands für Einstellungen",
     "`sl` | Generiert Truppen-Einfügen SL Script für angegebene Dörfer",
     "`time` | Erinnerung zu gewünschter Uhrzeit per PN",
-    "`villages` | Liste von Koordinaten von Spieler/Stamm",
-    "`visit` | Gastlogin-Url von gewünschter/Server-Welt",
+    "`villages` | Liste von Koordinaten von Spieler|Stamm",
+    "`visit` | Gastlogin-Url von gewünschter|Server-Welt",
 ]
 
 fun = [
@@ -43,8 +43,8 @@ class Help(commands.Cog):
         desc = "Erhalte eine ausführliche Erklärung zu einzelnen Commands\nmit " \
                "`{0}help <command>` | Beispiel: `{0}help villages`".format(prefix)
         emb_help = discord.Embed(description=desc, color=discord.Color.blue())
-        emb_help.add_field(name="DS-Commands:", value="\n".join(cmds))
-        emb_help.add_field(name="Fun-Commands:", value="\n".join(fun))
+        emb_help.add_field(name="DS-Commands:", value="\n".join(cmds), inline=False)
+        emb_help.add_field(name="Fun-Commands:", value="\n".join(fun), inline=False)
         return emb_help
 
     async def cmd_embed(self, data, ctx):
@@ -66,7 +66,7 @@ class Help(commands.Cog):
 
     @commands.command(name="pin")
     @commands.has_permissions(administrator=True)
-    async def pin_(self, ctx):
+    async def pin_help_(self, ctx):
         embed = self.help_embed(ctx.prefix)
         await ctx.send(embed=embed)
 

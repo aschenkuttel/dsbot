@@ -166,8 +166,12 @@ def converter(name, dirty=False):
 
 
 # default embeds
-def error_embed(text):
-    return discord.Embed(description=text, color=discord.Color.red())
+def error_embed(text, ctx=None):
+    embed = discord.Embed(description=text, color=discord.Color.red())
+    if ctx:
+        help_text = f"Erklärung und Beispiel mit {ctx.prefix}help {ctx.command}"
+        embed.set_footer(text=help_text)
+    return embed
 
 
 def complete_embed(text):
@@ -241,6 +245,12 @@ class DSContext(commands.Context):
     @property
     def url(self):
         return casual(self._world)
+
+    async def safe_send(self, content=None, *, embed=None, file=None, delete_after=None):
+        try:
+            await self.send(content, embed=embed, file=file, delete_after=delete_after)
+        except discord.Forbidden:
+            return
 
 
 # typhint converter which convertes to either tribe or player
@@ -351,6 +361,7 @@ class Village:
         self.y = data['y']
         self.player_id = data['player']
         self.points = data['points']
+        self.rank = data['rank']
         self.world = data['world']
         self.url = casual(self.world)
 
@@ -369,6 +380,14 @@ class Village:
     @property
     def twstats_url(self):
         return twstats.format(self.url, 'village', self.id)
+
+
+class MapVillage:
+    def __init__(self, data):
+        self.id = data['id']
+        self.x = 1001 + 5 * (data['x'] - 500)
+        self.y = 1001 + 5 * (data['y'] - 500)
+        self.player = data['player']
 
 
 class Conquer:
@@ -435,7 +454,7 @@ class DSType:
 
     def __init__(self, arg):
         self.arg = arg
-        self.type = None
+        self.Class = None
         self.table = None
         res = self.try_convers(self.arg)
         if not res:
@@ -454,15 +473,15 @@ class DSType:
     def try_enum(self, arg):
         for index, (name, dstype) in enumerate(self.classes.items()):
             if arg == index:
-                self.type = dstype
+                self.Class = dstype
                 self.table = name
                 return True
         else:
             return False
 
     def try_name(self, arg):
-        self.type = self.classes.get(arg)
-        if self.type:
+        self.Class = self.classes.get(arg)
+        if self.Class:
             self.table = arg
             return True
         return False

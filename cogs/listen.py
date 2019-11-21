@@ -19,6 +19,7 @@ class Listen(commands.Cog):
         self.silenced = (commands.MissingRequiredArgument,
                          commands.BadArgument,
                          aiohttp.InvalidURL,
+                         discord.Forbidden,
                          utils.IngameError)
 
     @listener()
@@ -31,42 +32,49 @@ class Listen(commands.Cog):
         if not world:
             return
 
-        # --- Report Converter --- #
+        # Report Converter
         if message.content.__contains__("public_report"):
 
             file = await load.fetch_report(self.bot.loop, message.content)
             if file is None:
                 return await utils.silencer(message.add_reaction('❌'))
-            await message.channel.send(file=discord.File(file, "report.png"))
-            await utils.silencer(message.delete())
-            return
+            try:
+                await message.channel.send(file=discord.File(file, "report.png"))
+                await message.delete()
+            except discord.Forbidden:
+                pass
+            finally:
+                return
 
-        # ----- Coord Converter -----#
+        # Coord Converter
         result = re.findall(r'\d\d\d\|\d\d\d', message.content)
         if result:
+
+            result = set(result)
             pre = load.get_prefix(message.guild.id)
             if message.content.lower().startswith(pre.lower()):
                 return
 
-            cache, bad, good = [], [], []
-            for coord in result[:self.cap]:
-                if coord in cache:
-                    continue
-                res = await load.fetch_village(world, coord, True)
-                if not res:
-                    bad.append(coord)
-                    cache.append(coord)
+            coords = [obj.replace('|', '') for obj in result]
+            villages = await load.fetch_bulk(world, coords, "village", name=True)
+            player_ids = [obj.player_id for obj in villages]
+            players = await load.fetch_bulk(world, player_ids, dic=True)
+
+            good = []
+            for vil in villages:
+
+                player = players.get(vil.player_id)
+                if player:
+                    owner = f"[{player.name}]"
                 else:
-                    if res.player_id:
-                        player = await load.fetch_player(world, res.player_id)
-                        owner = f"[{player.name}]"
-                    else:
-                        owner = "[Barbarendorf]"
-                    good.append(f"[{coord}]({res.ingame_url}) {owner}")
-                    cache.append(coord)
+                    owner = "[Barbarendorf]"
+
+                coord = f"{vil.x}|{vil.y}"
+                good.append(f"[{coord}]({vil.ingame_url}) {owner}")
+                result.remove(coord)
 
             found = '\n'.join(good)
-            lost = ','.join(bad)
+            lost = ','.join(result)
             if found:
                 found = f"**Gefundene Koordinaten:**\n{found}"
             if lost:
@@ -75,7 +83,45 @@ class Listen(commands.Cog):
             try:
                 await message.channel.send(embed=em)
             except discord.Forbidden:
+                pass
+            finally:
                 return
+
+        # DS Player/Tribe Converter
+        names = re.findall(r'<(.*?)>', message.content)
+        if names:
+            world = load.get_world(message.channel)
+            if not world:
+                return
+
+            parsed_msg = message.content
+            ds_objects = await load.fetch_bulk(world, names, name=True)
+            cache = await load.fetch_bulk(world, names, 1, name=True)
+            ds_objects.extend(cache)
+
+            found_names = {}
+            for dsobj in ds_objects:
+                if dsobj.alone:
+                    found_names[dsobj.name.lower()] = dsobj
+                else:
+                    found_names[dsobj.tag.lower()] = dsobj
+
+            for index, name in enumerate(names):
+                dsobj = found_names.get(name.lower())
+                if not dsobj:
+                    parsed_msg = parsed_msg.replace(f"<{name}>", "[Unknown]")
+                    continue
+
+                correct_name = dsobj.name if dsobj.alone else dsobj.tag
+                hyperlink = f"[{correct_name}]({dsobj.ingame_url})"
+                parsed_msg = parsed_msg.replace(f"<{name}>", hyperlink)
+
+            time = message.created_at.strftime("%H:%M Uhr")
+            title = f"{message.author.display_name} um {time}"
+            embed = discord.Embed(description=parsed_msg)
+            embed.set_author(name=title, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+            await message.delete()
 
     @listener()
     async def on_command_completion(self, ctx):
@@ -84,73 +130,66 @@ class Listen(commands.Cog):
     @listener()
     async def on_command_error(self, ctx, error):
 
+        msg = None
         error = getattr(error, 'original', error)
+        if isinstance(error, self.silenced):
+            return
 
-        if isinstance(error, commands.CommandNotFound):
+        elif isinstance(error, commands.CommandNotFound):
             if len(ctx.invoked_with) == ctx.invoked_with.count(ctx.prefix):
                 return
             else:
                 data = random.choice(load.msg["noCommand"])
-                await ctx.send(data.format(f"{ctx.prefix}{ctx.invoked_with}"))
+                return await ctx.send(data.format(f"{ctx.prefix}{ctx.invoked_with}"))
+
+        elif isinstance(error, utils.WrongChannel):
+            channel = load.get_item(ctx.guild.id, "game")
+            return await ctx.send(f"<#{channel}>")
 
         elif isinstance(error, commands.NoPrivateMessage):
             msg = "Der Command ist leider nur auf einem Server verfügbar"
-            await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, (utils.PrivateOnly, commands.PrivateMessageOnly)):
             msg = "Der Command ist leider nur per private Message verfügbar"
-            await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, utils.DontPingMe):
             msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
-            await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, utils.WorldMissing):
             msg = "Der Server hat noch keine zugeordnete Welt\n" \
                   f"Dies kann nur der Admin mit `{ctx.prefix}set world`"
-            await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, utils.GameChannelMissing):
             msg = "Der Server hat keinen Game-Channel\n" \
                   f"Nutze `{ctx.prefix}set game` um einen festzulegen"
-            await ctx.send(embed=error_embed(msg))
-
-        elif isinstance(error, utils.WrongChannel):
-            channel = load.get_item(ctx.guild.id, "game")
-            await ctx.send(f"<#{channel}>")
 
         elif isinstance(error, commands.NotOwner):
             msg = "Diesen Command kann nur der Bot-Owner ausführen"
-            await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, commands.MissingPermissions):
             msg = "Diesen Command kann nur ein Server-Admin ausführen"
-            await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, commands.CommandOnCooldown):
-            msg = "Command Cooldown: Versuche es in {0:.1f} Sekunden erneut"
-            await ctx.send(embed=error_embed(msg.format(error.retry_after)))
+            raw = "Command Cooldown: Versuche es in {0:.1f} Sekunden erneut"
+            msg = raw.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):
             name = f"Casual {ctx.world}" if ctx.world < 50 else f"der `{ctx.world}`"
             msg = f"`{error.name}` konnte auf {name} nicht gefunden werden"
-            await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, utils.GuildUserNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
-            await ctx.send(embed=error_embed(msg))
 
         elif isinstance(error, commands.BotMissingPermissions):
             msg = f"Dem Bot fehlen folgende Rechte auf diesem Server:\n" \
                   f"`{', '.join(error.missing_perms)}`"
-            await ctx.send(embed=error_embed(msg))
 
-        elif isinstance(error, self.silenced):
-            return
-
-        elif isinstance(error, discord.Forbidden):
-            msg = f"Dem Bot fehlen benötigte Rechte:\n`{error.text}`"
-            await ctx.send(embed=error_embed(msg))
+        if msg:
+            try:
+                await ctx.send(embed=error_embed(msg))
+            except discord.Forbidden:
+                msg = "Dem Bot fehlen benötigte Rechte: `Embed Links`"
+                await ctx.safe_send(msg)
 
         else:
             cog = self.bot.get_cog(ctx.command.cog_name)

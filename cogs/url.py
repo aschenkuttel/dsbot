@@ -36,17 +36,6 @@ class Akte(commands.Cog):
         desc = f"https://de{casual(world)}.die-staemme.de/guest.php"
         await ctx.send(embed=discord.Embed(description=f"[{world}]({desc})"))
 
-    @visit_.error
-    async def visit_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Die gewünschte Welt fehlt"))
-
-    @akte_.error
-    async def akte_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Der gewünschte Spieler/Stamm fehlt"
-            await ctx.send(embed=error_embed(msg))
-
 
 def setup(bot):
     bot.add_cog(Akte(bot))

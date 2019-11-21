@@ -232,15 +232,6 @@ class VP(commands.Cog):
         await load.save_user_data(ctx.author.id, amount_won - bet)
         await self.game_end(ctx.guild.id)
 
-    @vp.error
-    async def vp_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Der gewünschte Einsatz(100-2000) fehlt"
-            return await ctx.send(embed=error_embed(msg))
-        if isinstance(error, commands.BadArgument):
-            msg = "Der gewünschte Einsatz(100-2000) fehlt"
-            return await ctx.send(embed=error_embed(msg))
-
 
 def setup(bot):
     bot.add_cog(VP(bot))

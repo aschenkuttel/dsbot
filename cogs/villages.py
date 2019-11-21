@@ -57,6 +57,10 @@ class Villages(commands.Cog):
         else:
             await ctx.author.send('\n'.join(result))
 
+    @commands.command(name="bb")
+    async def bb_(self, ctx, center, radius=20):
+        pass
+
     @villages.error
     async def villages_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):

@@ -134,6 +134,35 @@ class Set(commands.Cog):
         msg = f"{cas}{ctx.world}"
         await ctx.send(embed=complete_embed(msg))
 
+    @commands.command(name="worlds")
+    async def worlds_(self, ctx):
+
+        worlds = sorted(load.worlds.copy())
+        normal, casual = [], []
+        for world in worlds:
+            iterable = normal if world > 50 else casual
+            iterable.append(str(world))
+
+        result = []
+        for wlist in normal, casual:
+            cache = ""
+            counter = 0
+            for index, world in enumerate(wlist):
+                if counter == 3:
+                    cache += f"{world}\n"
+                    counter = 0
+                else:
+                    if world == wlist[-1]:
+                        cache += f"{world}"
+                    else:
+                        cache += f"{world}, "
+                    counter += 1
+            result.append(cache)
+
+        base = "**Normale Welten:**\n{0}\n**Casual:**\n{1}"
+        embed = discord.Embed(description=base.format(*result))
+        await ctx.send(embed=embed)
+
     @commands.group(name="conquer", invoke_without_command=True)
     async def conquer(self, ctx):
         msg = f"{ctx.prefix}conquer <add/remove/list/grey/clear>\n" \

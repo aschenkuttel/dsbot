@@ -31,14 +31,20 @@ class DSBot(commands.Bot):
         self.remove_command("help")
         self.session = None
         self._lock = True
+        self.conn = None
         self.setup_cogs()
 
     # setup functions
     async def on_ready(self):
 
         # db / aiohttp setup
-        session = await self.load.setup(self.loop)
-        self.session = session
+        if not self.session:
+            session = await self.load.setup(self.loop)
+            self.session = session
+
+        if not self.conn:
+            self.conn = await load.pool.acquire()
+            await self.conn.add_listener("log", self.callback)
 
         self._lock = False
         print("Erfolgreich Verbunden!")
@@ -65,6 +71,13 @@ class DSBot(commands.Bot):
             return
         ctx = await self.get_context(message, cls=DSContext)
         await self.invoke(ctx)
+
+    def callback(self, conn, pid, channel, payload):
+        print(conn)
+        print(pid)
+        print(channel)
+        print(payload)
+        owner = self.get_user(self.owner_id)
 
     # main conquer feed loop every new hour / world cache refresh
     async def conquer_loop(self):

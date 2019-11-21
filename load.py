@@ -17,17 +17,6 @@ import time
 import os
 import io
 
-options = {
-    "quiet": "",
-    "format": "png",
-    "quality": 100,
-    "encoding": "UTF-8",
-}
-
-fml = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0' \
-      ' Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">' \
-      '<html xmlns="http://www.w3.org/1999/xhtml">'
-
 
 class Load:
     def __init__(self):
@@ -43,8 +32,18 @@ class Load:
         self.url_val = "https://de{}.die-staemme.de/map/ally.txt"
         self.url_set = "https://de{}.die-staemme.de/page/settings"
         self.msg = json.load(open(f"{self.data_loc}msg.json"))
+        self.options = {
+            "quiet": "",
+            "format": "png",
+            "quality": 100,
+            "encoding": "UTF-8",
+        }
 
-    # Setup
+        self.fml = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "' \
+                   '-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/' \
+                   'TR/xhtml1/DTD/xhtml1-transitional.dtd"> <html xmlns=' \
+                   '"http://www.w3.org/1999/xhtml">'
+
     async def setup(self, loop):
         self.session = aiohttp.ClientSession(loop=loop)
         connections = await self.db_connect(loop)
@@ -55,11 +54,10 @@ class Load:
 
         # adds needed option for vps
         if os.name != "nt":
-            options['xvfb']: ""
+            self.options['xvfb']: ""
 
         return self.session
 
-    # DB Connect
     async def db_connect(self, loop):
         result = []
         database = 'tribaldata', 'userdata'
@@ -70,36 +68,31 @@ class Load:
             result.append(cache)
         return result
 
-    # Closes DB Connections
     async def close_db(self):
         await self.ress.close()
         await self.pool.close()
 
-    # World Check
     def is_valid(self, world):
         return world in self.worlds
 
-    # Config Load at Start
+    # Config Methods
     def config_setup(self):
         cache = json.load(open(f"{self.data_loc}config.json"))
         data = {int(key): value for key, value in cache.items()}
         self.config.update(data)
 
-    # Get Config Entry
     def get_item(self, guild_id, item):
         config = self.config.get(guild_id)
         if config is None:
             return
         return config.get(item)
 
-    # Change Config Entry
     def change_item(self, guild_id, item, value):
         if guild_id not in self.config:
             self.config[guild_id] = {}
         self.config[guild_id][item] = value
         self.save_config()
 
-    # Remove Config Entry
     def remove_item(self, guild_id, item):
         config = self.config.get(guild_id)
         if not config:
@@ -109,7 +102,6 @@ class Load:
             self.save_config()
         return job
 
-    # Get World if Main World
     def get_world(self, channel):
         con = self.config.get(channel.guild.id)
         if con is None:
@@ -122,7 +114,6 @@ class Load:
         world = chan.get(idc, main) if chan else main
         return world
 
-    # Get Server Main World
     def get_guild_world(self, guild, url=False):
         con = self.config.get(guild.id)
         if con is None:
@@ -132,7 +123,6 @@ class Load:
             return utils.casual(world)
         return world
 
-    # Remove all World Occurences
     def remove_world(self, world):
         for guild in self.config:
             config = self.config[guild]
@@ -144,7 +134,6 @@ class Load:
                     channel.pop(ch)
         self.save_config()
 
-    # Get Server Prefix
     def get_prefix(self, guild_id):
         config = self.config.get(guild_id)
         default = self.secrets["PRE"]
@@ -152,11 +141,10 @@ class Load:
             return default
         return config.get("prefix", default)
 
-    # Save Config File
     def save_config(self):
         json.dump(self.config, open(f"{self.data_loc}config.json", 'w'))
 
-    # Ress Data Update
+    # Iron Data / Cmd Usage Methods
     async def save_user_data(self, user_id, amount):
         statement = "SELECT * FROM iron_data WHERE id = $1"
         async with self.ress.acquire() as conn:
@@ -166,7 +154,6 @@ class Load:
             new_amount = data['amount'] + amount if data else amount
             await conn.execute(statement.format(user_id, new_amount))
 
-    # Ress Data Fetch
     async def get_user_data(self, user_id, info=False):
         statement = "SELECT * FROM iron_data"
         async with self.ress.acquire() as conn:
@@ -180,20 +167,18 @@ class Load:
         money = cache.get(user_id, 0)
         return (money, rank) if info else money
 
-    # Search Top
     async def get_user_top(self, amount, guild=None):
+        statement = 'SELECT * FROM iron_data ORDER BY amount DESC LIMIT $1'
+        args = [amount]
         if guild:
-            raw_statement = "SELECT * FROM iron_data WHERE id IN " \
-                            "({}) ORDER BY amount DESC LIMIT $1"
-            member = ', '.join([str(mem.id) for mem in guild.members])
-            statement = raw_statement.format(member)
-        else:
-            statement = "SELECT * FROM iron_data ORDER BY amount DESC LIMIT $1"
-        async with self.ress.acquire() as conn:
-            data = await conn.fetch(statement, amount)
-        return data
+            statement += 'WHERE id = ANY($2)'
+            member = [mem.id for mem in guild.members]
+            args.append(member)
 
-    # Save Command Usage
+        async with self.ress.acquire() as conn:
+            data = await conn.fetch(statement, *args)
+            return data
+
     async def save_usage_cmd(self, cmd):
         cmd = cmd.lower()
         statement = "SELECT * FROM usage_data WHERE name = $1"
@@ -204,7 +189,6 @@ class Load:
             new_usage = data['usage'] + 1 if data else 1
             await conn.execute(query, cmd, new_usage)
 
-    # Return Sorted Command Usage Stats
     async def get_usage(self):
         statement = "SELECT * FROM usage_data"
         async with self.ress.acquire() as conn:
@@ -212,10 +196,10 @@ class Load:
         cache = {r['name']: r['usage'] for r in data}
         return sorted(cache.items(), key=operator.itemgetter(1), reverse=True)
 
-    # Get all valid database worlds
+    # DS Database Methods
     async def refresh_worlds(self):
 
-        query = query = "SELECT world FROM tribe GROUP BY world"
+        query = "SELECT world FROM tribe GROUP BY world"
         async with self.pool.acquire() as conn:
             data = await conn.fetch(query)
 
@@ -231,34 +215,28 @@ class Load:
 
         self.worlds = cache
 
-    # Get a random player
     async def fetch_random(self, world, **kwargs):
         amount = kwargs.get("amount", 1)
         top = kwargs.get("top", 500)
-        tribe = kwargs.get("tribe", False)
+        dsobj = utils.DSType(kwargs.get("tribe", 0))
         least = kwargs.get("least", False)
-        table = "tribe" if tribe else "player"
 
-        statement = f"SELECT * FROM {table} WHERE world = $1 AND rank <= $2"
+        statement = f"SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2"
         async with self.pool.acquire() as conn:
             data = await conn.fetch(statement, world, top)
 
         result = []
         while len(result) < amount:
-            ds_obj = random.choice(data)
+            ds = random.choice(data)
             cur = [p.id for p in result]
-            if ds_obj['id'] not in cur:
-                if not tribe:
-                    result.append(utils.Player(ds_obj))
-                    continue
+            if ds['id'] not in cur:
                 if not least:
-                    result.append(utils.Tribe(ds_obj))
-                elif least and int(ds_obj['member']) > 3:
-                    result.append(utils.Tribe(ds_obj))
+                    result.append(dsobj.Class(ds))
+                elif ds['member'] > 3:
+                    result.append(dsobj.Class(ds))
 
         return result[0] if amount == 1 else result
 
-    # Search for village with coordinates or ID
     async def fetch_village(self, world, searchable, coord=False):
         if coord:
             x, y = searchable.split('|')
@@ -272,7 +250,6 @@ class Load:
             result = await conn.fetchrow(query, world, *searchable)
         return utils.Village(result) if result else None
 
-    # Search for player with name or ID
     async def fetch_player(self, world, searchable, name=False):
         if name:
             searchable = utils.converter(searchable, True)
@@ -284,7 +261,6 @@ class Load:
             result = await conn.fetchrow(query, world, searchable)
         return utils.Player(result) if result else None
 
-    # Search for tribe with name or ID
     async def fetch_tribe(self, world, searchable, name=False):
         if name:
             searchable = utils.converter(searchable, True)
@@ -297,7 +273,6 @@ class Load:
             result = await conn.fetchrow(query, world, searchable)
         return utils.Tribe(result) if result else None
 
-    # Search for both Tribe / Player
     async def fetch_both(self, world, name):
         player = await self.fetch_player(world, name, True)
         if player:
@@ -305,7 +280,6 @@ class Load:
         tribe = await self.fetch_tribe(world, name, True)
         return tribe
 
-    # Get all Tribe Member Objects
     async def fetch_tribe_member(self, world, allys, name=False):
         if not isinstance(allys, (tuple, list)):
             allys = [allys]
@@ -318,34 +292,37 @@ class Load:
             res = await conn.fetch(query, world, allys)
         return [utils.Player(rec) for rec in res]
 
-    # Get multiple Tribe Objects
-    async def fetch_bulk(self, world, iterable, table=None, *, name=False):
+    async def fetch_bulk(self, world, iterable, table=None, *, name=False, dic=False):
         dsobj = utils.DSType(table or 0)
-        base = f'SELECT * FROM {dsobj.table}'
-        if name:
-            iterable = [utils.converter(obj, True) for obj in iterable]
-            if table == "tribe":
-                query = f'{base} WHERE world = $1 AND ARRAY[LOWER(name), LOWER(tag)] && $2;'
-            else:
-                query = f'{base} WHERE world = $1 AND LOWER(name) = ANY($2)'
+        base = f'SELECT * FROM {dsobj.table} WHERE world = $1'
+
+        if not name:
+            query = f'{base} AND id = ANY($2);'
         else:
-            query = f'{base} WHERE world = $1 AND id = ANY($2);'
+            if dsobj.table == "village":
+                query = f'{base} AND CAST(x AS TEXT)||CAST(y as TEXT) = ANY($2)'
+            else:
+                iterable = [utils.converter(obj, True) for obj in iterable]
+                if dsobj.table == "tribe":
+                    query = f'{base} AND ARRAY[LOWER(name), LOWER(tag)] && $2;'
+                else:
+                    query = f'{base} AND LOWER(name) = ANY($2)'
 
         async with self.pool.acquire() as conn:
             res = await conn.fetch(query, world, iterable)
-
-        return [dsobj.type(rec) for rec in res]
+            if dic:
+                return {rec[1]: dsobj.Class(rec) for rec in res}
+            else:
+                return [dsobj.Class(rec) for rec in res]
 
     async def fetch_archive(self, world, idc, table=None, days=7):
         dsobj = utils.DSType(table or 0)
-
         table = f"{dsobj.table}{days}"
         query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
 
         async with self.pool.acquire() as conn:
             res = await conn.fetchrow(query, world, idc)
-
-        return dsobj.type(res) if res else None
+            return dsobj.Class(res) if res else None
 
     async def fetch_villages(self, obj, num, world, continent=None):
         if isinstance(obj, utils.Tribe):
@@ -384,7 +361,7 @@ class Load:
         file.seek(0)
         return file
 
-    # Conquer Main Function
+    # Conquer Feed
     async def conquer_feed(self, guilds):
         await self.update_conquer()
         for guild in guilds:
@@ -451,15 +428,10 @@ class Load:
                 conquer_cache.append(conquer)
 
             # Make all the API Calls
-            cache = await load.fetch_bulk(world, player_ids)
-            players = {obj.id: obj for obj in cache}
-
+            players = await load.fetch_bulk(world, player_ids, dic=True)
             tribe_ids = [obj.tribe_id for obj in players.values() if obj.tribe_id]
-            cache = await load.fetch_bulk(world, tribe_ids, "tribe")
-            tribes = {obj.id: obj for obj in cache}
-
-            cache = await load.fetch_bulk(world, village_ids, "village")
-            villages = {obj.id: obj for obj in cache}
+            tribes = await load.fetch_bulk(world, tribe_ids, "tribe", dic=True)
+            villages = await load.fetch_bulk(world, village_ids, "village", dic=True)
 
             for conquer in conquer_cache:
                 conquer.village = villages.get(conquer.id)
@@ -472,7 +444,6 @@ class Load:
 
             self.conquer[world] = conquer_cache
 
-    # Conquer Data Download
     async def fetch_conquer(self, world, sec=3600):
         cur = time.time() - sec
         base = "http://de{}.die-staemme.de/interface.php?func=get_conquer&since={}"
@@ -481,7 +452,6 @@ class Load:
             data = await r.text("utf-8")
         return data.split("\n")
 
-    # Seconds till next Hour
     def get_seconds(self, reverse=False, only=0):
         now = datetime.datetime.now()
         hours = -1 if reverse else 1
@@ -493,7 +463,6 @@ class Load:
         goal = (goal_time - start_time).seconds
         return goal if not only else start_time.timestamp()
 
-    # Parse Conquer Data
     async def conquer_parse(self, world, only_tribes, bb):
         data = self.conquer.get(world)
         if not data:
@@ -534,15 +503,15 @@ class Load:
 
         return date, result
 
-    # converts html to image and crops it till border
+    # Report HTML to Image Converter
     def html_lover(self, raw_data):
         soup = BeautifulSoup(raw_data, 'html.parser')
         tiles = soup.body.find_all(class_="vis")
         if len(tiles) < 2:
             return
-        main = f"{fml}<head></head>{tiles[1]}"  # don't ask me why...
+        main = f"{self.fml}<head></head>{tiles[1]}"  # don't ask me why...
         css = f"{self.data_loc}report.css"
-        img_bytes = imgkit.from_string(main, False, options=options, css=css)
+        img_bytes = imgkit.from_string(main, False, options=self.options, css=css)
 
         # crops empty background
         im = Image.open(io.BytesIO(img_bytes))
@@ -558,6 +527,19 @@ class Load:
         file.seek(0)
         return file
 
+    async def fetch_report(self, loop, content):
+
+        try:
+            async with self.session.get(content) as res:
+                data = await res.text()
+        except (aiohttp.InvalidURL, ValueError):
+            return
+
+        func = functools.partial(self.html_lover, data)
+        file = await loop.run_in_executor(None, func)
+        return file
+
+    # Map Methods
     async def create_map(self, loop, world, tribes=None):
         if tribes:
             tribe_list = await self.fetch_bulk(world, tribes, "tribe", name=True)
@@ -573,17 +555,16 @@ class Load:
         async with self.pool.acquire() as conn:
             query = f"SELECT * FROM village WHERE world = $1"
             cache = await conn.fetch(query, world)
-            all_villages = [utils.Village(vil) for vil in cache]
+            all_villages = [utils.MapVillage(vil) for vil in cache]
 
         func = functools.partial(self.draw_map, all_villages, tribes, players)
         image = await loop.run_in_executor(None, func)
         file = io.BytesIO()
-        image.save(file, "png", quality=90)
+        image.save(file, "png", quality=100)
         file.seek(0)
         return file
 
     def draw_map(self, world_villages, tribes, players):
-        t1 = datetime.datetime.now()
         image = np.array(Image.open(f"{self.data_loc}map.png"))
 
         low, high = 0, 2001
@@ -591,21 +572,18 @@ class Load:
         map_space = 20
 
         tribe_cache = []
-        for vil in world_villages:
-            vil.x = (vil.x + 500) + (vil.x - 500) * 4 + 1
-            vil.y = (vil.y + 500) + (vil.y - 500) * 4 + 1
-
+        brown, grey = self.colors.vil_brown, self.colors.bb_grey
         x_coords = [v.x for v in world_villages if low < v.x < high]
         y_coords = [v.y for v in world_villages if low < v.y < high]
 
-        first, second = min(x_coords),  min(y_coords)
-        third, fourth = max(y_coords), max(x_coords)
+        first, second = min(x_coords), min(y_coords)
+        third, fourth = max(x_coords), max(y_coords)
         a1 = low if (first - map_space) < low else first - map_space
         a2 = low if (second - map_space) < low else second - map_space
         b1 = high if (third + map_space) > high else third + map_space
         b2 = high if (fourth + map_space) > high else fourth + map_space
         bounds = [a1, a2, b1, b2]
-        t2 = datetime.datetime.now()
+
         for vil in world_villages:
 
             if not low <= vil.x < high:
@@ -614,52 +592,26 @@ class Load:
             if not low <= vil.y < high:
                 continue
 
-            if vil.player_id in players:
-                player = players[vil.player_id]
-                tribe = tribes[player.tribe_id]
+            if vil.player:
+                if vil.player in players:
+                    player = players[vil.player]
+                    tribe = tribes[player.tribe_id]
 
-                if tribe not in tribe_cache:
-                    tribe_cache.append(tribe)
+                    if tribe not in tribe_cache:
+                        tribe_cache.append(tribe)
 
-                index = tribe_cache.index(tribe)
-                color = colors[index]
-                for n in range(0, 4):
-                    image[vil.y + n, vil.x] = color
-                    image[vil.y + n, vil.x + 1] = color
-                    image[vil.y + n, vil.x + 2] = color
-                    image[vil.y + n, vil.x + 3] = color
-
-            else:
-                if vil.player_id:
-                    color = self.colors.vil_brown
+                    index = tribe_cache.index(tribe)
+                    color = colors[index]
                 else:
-                    color = self.colors.bb_grey
+                    color = brown
+            else:
+                color = grey
 
-                for n in range(0, 4):
-                    image[vil.y + n, vil.x] = color
-                    image[vil.y + n, vil.x + 1] = color
-                    image[vil.y + n, vil.x + 2] = color
-                    image[vil.y + n, vil.x + 3] = color
+            image[vil.y: vil.y + 4, vil.x: vil.x + 4] = color
 
         big = Image.fromarray(image)
         img = big.crop(bounds)
-        t3 = datetime.datetime.now()
-        print(t2-t1)
-        print(t3-t2)
         return img
-
-    # converts reports into images
-    async def fetch_report(self, loop, content):
-
-        try:
-            async with self.session.get(content) as res:
-                data = await res.text()
-        except (aiohttp.InvalidURL, ValueError):
-            return
-
-        func = functools.partial(self.html_lover, data)
-        file = await loop.run_in_executor(None, func)
-        return file
 
 
 # Main Class

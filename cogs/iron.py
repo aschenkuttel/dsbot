@@ -69,14 +69,6 @@ class Money(commands.Cog):
             msg = "Aktuell gibt es keine gespeicherten Scores!"
             return await ctx.send(msg)
 
-    @send.error
-    async def send_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            ctx.command.reset_cooldown(ctx)
-            msg = "Fehlerhafte Eingabe - Beispiel:\n" \
-                  "!iron send <100-20000> <username>"
-            await ctx.send(embed=error_embed(msg))
-
 
 def setup(bot):
     bot.add_cog(Money(bot))

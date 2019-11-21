@@ -127,14 +127,12 @@ class Graphic(commands.Cog):
                 break
             else:
                 msg = "Die maximale Anzahl von Versuchen wurden erreicht"
-                return await ctx.send(msg)
+                return await ctx.send(embed=error_embed(msg))
 
         async with self.bot.session.get(result['src']) as res2:
             img = await res2.read()
 
-        file = BytesIO()
-        file.write(img)
-        file.seek(0)
+        file = BytesIO(img)
         await ctx.send(file=discord.File(file, "userpic.gif"))
 
     @commands.command(name="emoji", aliases=["cancer"])
