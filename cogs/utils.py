@@ -1,4 +1,6 @@
-from utils import error_embed, private_hint
+import typing
+
+from utils import error_embed, private_hint, DSColor
 from datetime import datetime
 from discord.ext import commands
 from load import load
@@ -11,7 +13,12 @@ import re
 class Rm(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.duration = 300
         self.cap_dict = {}
+        self.color = load.colors
+        self.number = "{}\N{COMBINING ENCLOSING KEYCAP}"
+        # self.numbers = {1: "", 2: ":two:", 3: ":three:",
+        #                 4: ":four:", 5: ":five:", 6: ":six:"}
         self.troops = ["speer", "schwert", "axt", "bogen", "späher", "lkav", "berittene",
                        "skav", "ramme", "katapult", "paladin", "ag"]
         self.base = "javascript: var settings = Array" \
@@ -190,6 +197,57 @@ class Rm(commands.Cog):
             self.cap_dict.pop(ctx.author.id)
         else:
             self.cap_dict.update({ctx.author.id: cap_num - 1})
+
+    @commands.command(name="poll", aliases=["abstimmung"])
+    async def poll_(self, ctx, question, *options):
+
+        if len(options) > 9:
+            msg = "Die maximale Anzahl der Auswahlmöglichkeiten beträgt 9"
+            return await ctx.send(error_embed(msg))
+
+        parsed_options = ""
+        for index, opt in enumerate(options):
+            choice = f"\n`{index + 1}.` {opt}"
+            parsed_options += choice
+
+        title = f"**Abstimmung von {ctx.author.display_name}:**"
+        description = f"{title}\n{question}{parsed_options}"
+        embed = discord.Embed(description=description, color=discord.Color.purple())
+        embed.set_footer(text="Abstimmung endet in 15 Minuten")
+        poll = await ctx.send(embed=embed)
+
+        for num in range(len(options)):
+            emoji = self.number.format(num + 1)
+            await poll.add_reaction(emoji)
+
+        await ctx.safe_delete()
+        await asyncio.sleep(self.duration)
+
+        for time in [2, 1]:
+            cur = int(self.duration / 60) * time
+            embed.set_footer(text=f"Abstimmung endet in {cur} Minuten")
+            await poll.edit(embed=embed)
+            await asyncio.sleep(self.duration)
+
+        refetched = await ctx.channel.fetch_message(poll.id)
+        votes = sorted(refetched.reactions, key=lambda r: r.count, reverse=True)
+        color = discord.Color.red()
+
+        if [r.count for r in votes].count(1) == len(votes):
+            msg = "`Niemand hat an der Abstimmung teilgenommen`"
+
+        elif votes[0].count > votes[1].count:
+            color = discord.Color.green()
+            winner = refetched.reactions.index(votes[0])
+            msg = f"`{options[winner]} hat gewonnen`"
+
+        else:
+            msg = "`Es konnte kein klares Ergebnis erzielt werden`"
+
+        result = f"{title}\n{question}\n{msg}"
+        wimbed = discord.Embed(description=result, color=color)
+        wimbed.set_footer(text="Abstimmung beendet")
+        await poll.edit(embed=wimbed)
 
     @rz3_.error
     async def rz3_error(self, ctx, error):

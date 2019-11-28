@@ -120,8 +120,11 @@ class Listen(commands.Cog):
             title = f"{message.author.display_name} um {time}"
             embed = discord.Embed(description=parsed_msg)
             embed.set_author(name=title, icon_url=message.author.avatar_url)
-            await message.channel.send(embed=embed)
-            await message.delete()
+            try:
+                await message.channel.send(embed=embed)
+                await message.delete()
+            except discord.Forbidden:
+                pass
 
     @listener()
     async def on_command_completion(self, ctx):

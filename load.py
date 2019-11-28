@@ -1,5 +1,5 @@
 from data.naruto import TOKEN, pre, db_key, db_port, db_user, db_adress
-from PIL import Image, ImageChops
+from PIL import Image, ImageFont, ImageDraw, ImageChops
 from bs4 import BeautifulSoup
 import numpy as np
 import functools
@@ -215,6 +215,13 @@ class Load:
 
         self.worlds = cache
 
+    async def fetch_all(self, world, table=None):
+        dsobj = utils.DSType(table or 0)
+        async with self.pool.acquire() as conn:
+            query = f'SELECT * FROM {dsobj.table} WHERE world = $1'
+            cache = await conn.fetch(query, world)
+            return [dsobj.Class(rec) for rec in cache]
+
     async def fetch_random(self, world, **kwargs):
         amount = kwargs.get("amount", 1)
         top = kwargs.get("top", 500)
@@ -279,6 +286,14 @@ class Load:
             return player
         tribe = await self.fetch_tribe(world, name, True)
         return tribe
+
+    async def fetch_top(self, world, table=None, till=10):
+        dsobj = utils.DSType(table or 0)
+        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2'
+        async with self.pool.acquire() as conn:
+            top10 = await conn.fetch(query, world, till)
+            tribe_list = [dsobj.Class(rec) for rec in top10]
+            return tribe_list
 
     async def fetch_tribe_member(self, world, allys, name=False):
         if not isinstance(allys, (tuple, list)):
@@ -538,80 +553,6 @@ class Load:
         func = functools.partial(self.html_lover, data)
         file = await loop.run_in_executor(None, func)
         return file
-
-    # Map Methods
-    async def create_map(self, loop, world, tribes=None):
-        if tribes:
-            tribe_list = await self.fetch_bulk(world, tribes, "tribe", name=True)
-        else:
-            query = 'SELECT * FROM tribe WHERE world = $1 AND rank < 11'
-            async with self.pool.acquire() as conn:
-                top10 = await conn.fetch(query, world)
-                tribe_list = [utils.Tribe(rec) for rec in top10]
-
-        tribes = {tribe.id: tribe for tribe in tribe_list}
-        result = await self.fetch_tribe_member(world, tribes.keys())
-        players = {pl.id: pl for pl in result}
-        async with self.pool.acquire() as conn:
-            query = f"SELECT * FROM village WHERE world = $1"
-            cache = await conn.fetch(query, world)
-            all_villages = [utils.MapVillage(vil) for vil in cache]
-
-        func = functools.partial(self.draw_map, all_villages, tribes, players)
-        image = await loop.run_in_executor(None, func)
-        file = io.BytesIO()
-        image.save(file, "png", quality=100)
-        file.seek(0)
-        return file
-
-    def draw_map(self, world_villages, tribes, players):
-        image = np.array(Image.open(f"{self.data_loc}map.png"))
-
-        low, high = 0, 2001
-        colors = self.colors.top()
-        map_space = 20
-
-        tribe_cache = []
-        brown, grey = self.colors.vil_brown, self.colors.bb_grey
-        x_coords = [v.x for v in world_villages if low < v.x < high]
-        y_coords = [v.y for v in world_villages if low < v.y < high]
-
-        first, second = min(x_coords), min(y_coords)
-        third, fourth = max(x_coords), max(y_coords)
-        a1 = low if (first - map_space) < low else first - map_space
-        a2 = low if (second - map_space) < low else second - map_space
-        b1 = high if (third + map_space) > high else third + map_space
-        b2 = high if (fourth + map_space) > high else fourth + map_space
-        bounds = [a1, a2, b1, b2]
-
-        for vil in world_villages:
-
-            if not low <= vil.x < high:
-                continue
-
-            if not low <= vil.y < high:
-                continue
-
-            if vil.player:
-                if vil.player in players:
-                    player = players[vil.player]
-                    tribe = tribes[player.tribe_id]
-
-                    if tribe not in tribe_cache:
-                        tribe_cache.append(tribe)
-
-                    index = tribe_cache.index(tribe)
-                    color = colors[index]
-                else:
-                    color = brown
-            else:
-                color = grey
-
-            image[vil.y: vil.y + 4, vil.x: vil.x + 4] = color
-
-        big = Image.fromarray(image)
-        img = big.crop(bounds)
-        return img
 
 
 # Main Class

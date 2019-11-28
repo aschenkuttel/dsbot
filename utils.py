@@ -252,6 +252,12 @@ class DSContext(commands.Context):
         except discord.Forbidden:
             return
 
+    async def safe_delete(self):
+        try:
+            await self.message.delete()
+        except discord.Forbidden:
+            return
+
 
 # typhint converter which convertes to either tribe or player
 class DSObject(commands.Converter):
@@ -385,8 +391,8 @@ class Village:
 class MapVillage:
     def __init__(self, data):
         self.id = data['id']
-        self.x = 1001 + 5 * (data['x'] - 500)
-        self.y = 1001 + 5 * (data['y'] - 500)
+        self.x = 1501 + 5 * (data['x'] - 500)
+        self.y = 1501 + 5 * (data['y'] - 500)
         self.player = data['player']
 
 
@@ -424,16 +430,16 @@ class Conquer:
 class DSColor:
 
     def __init__(self):
-        self.red = [230, 40, 0]  # DONE
-        self.blue = [16, 52, 166]  # DONE
-        self.yellow = [255, 189, 32]  # DONE
-        self.turquoise = [64, 224, 208]  # DONE
-        self.pink = [255, 8, 127]  # DONE
+        self.red = [230, 40, 0]
+        self.blue = [16, 52, 166]
+        self.yellow = [255, 189, 32]
+        self.turquoise = [64, 224, 208]
+        self.pink = [255, 8, 127]
         self.orange = [253, 106, 2]
-        self.green = [152, 251, 152]  # DONE
-        self.purple = [192, 5, 248]  # DONE [47, 1, 40]
-        self.white = [245, 245, 245]  # DONE
-        self.black = [5, 5, 5]  # DONE
+        self.green = [152, 251, 152]
+        self.purple = [192, 5, 248]
+        self.white = [245, 245, 245]
+        self.dark_green = [0, 51, 0]
         self.bg_green = [88, 118, 27]
         self.bg_forrest = [73, 103, 21]
         self.vil_brown = [130, 60, 10]
@@ -445,12 +451,12 @@ class DSColor:
 
     def top(self):
         palette = [self.red, self.blue, self.yellow, self.turquoise, self.pink,
-                   self.orange, self.green, self.purple, self.white, self.black]
+                   self.orange, self.green, self.purple, self.white, self.dark_green]
         return palette
 
 
 class DSType:
-    classes = {'player': Player, 'tribe': Tribe, 'village': Village}
+    classes = {'player': Player, 'tribe': Tribe, 'village': Village, 'map': MapVillage}
 
     def __init__(self, arg):
         self.arg = arg
@@ -483,5 +489,7 @@ class DSType:
         self.Class = self.classes.get(arg)
         if self.Class:
             self.table = arg
+            if arg == 'map':
+                self.table = 'village'
             return True
         return False

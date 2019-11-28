@@ -12,6 +12,7 @@ cmds = [
     "`nude` | Profilbild von Spieler|Stamm oder zufällig",
     "`pin` | Help Embed für den Server",
     "`player` | Ingame-URL von Spieler|Stamm",
+    "`poll` | Simple Discord Abstimmung",
     "`recap` | Kurze Zusammenfassung der letzten Tage eines Spielers|Stammes",
     "`rm` | Rundmail Generator für mehrere Stämme",
     "`rz` | Ungefähre Verteilung der Truppen auf die Raubzugoptionen",

@@ -63,12 +63,6 @@ class Graphic(commands.Cog):
                 name = file.split(".")[0]
             self.emojis[name] = img
 
-    @commands.command(name="map", aliases=["karte"])
-    async def map_(self, ctx, *tribes):
-
-        img = await load.create_map(self.bot.loop, ctx.world, tribes)
-        await ctx.send(file=discord.File(img, "map.png"))
-
     @commands.command(name="avatar", aliases=["profilbild"])
     async def avatar_(self, ctx, url):
 
@@ -88,14 +82,15 @@ class Graphic(commands.Cog):
             om = next(frames)
             om.save(output_buffer, "gif", save_all=True, append_images=list(frames), quality=90)
             filename = "avatar.gif"
+
         else:
             func = functools.partial(self.img_resize, img)
             img = await self.bot.loop.run_in_executor(None, func)
             img.save(output_buffer, "png", quality=90)
             filename = "avatar.png"
+
         output_buffer.seek(0)
         file = discord.File(fp=output_buffer, filename=filename)
-
         await ctx.author.send(file=file)
         await private_hint(ctx)
 
