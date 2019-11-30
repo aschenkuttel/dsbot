@@ -140,19 +140,6 @@ async def silencer(coro):
         return
 
 
-# adds reaction hint and deletes it afterwards
-async def private_hint(ctx):
-    try:
-        await ctx.message.add_reaction("📨")
-    except discord.Forbidden:
-        pass
-    await asyncio.sleep(10)
-    try:
-        await ctx.message.delete()
-    except discord.Forbidden:
-        pass
-
-
 # converts names to innos version / normal
 def converter(name, dirty=False):
     dic = {value: key for key, value in dc.items()}
@@ -163,6 +150,32 @@ def converter(name, dirty=False):
     repl = (" ", "+") if dirty else ("+", " ")
     result = name.replace(*repl)
     return result.lower() if dirty else result
+
+
+def keyword(options, **kwargs):
+    troops = re.findall(r'[A-z]*=\d*', options or "")
+    cache = {}
+    for troop in troops:
+        key, value = troop.split("=")
+        try:
+            cache[key.lower()] = int(value)
+        except ValueError:
+            continue
+
+    for key, value in kwargs.items():
+        user_input = cache.get(key)
+        new_value = user_input
+        if isinstance(value, list):
+            default, maximum = value
+            if user_input is None:
+                new_value = default
+            elif user_input > maximum:
+                new_value = maximum
+        elif user_input is None:
+            new_value = value
+
+        kwargs[key] = new_value
+    return kwargs.values()
 
 
 # default embeds
@@ -257,6 +270,12 @@ class DSContext(commands.Context):
             await self.message.delete()
         except discord.Forbidden:
             return
+
+    async def private_hint(self):
+        try:
+            await self.message.add_reaction("📨")
+        except discord.Forbidden:
+            pass
 
 
 # typhint converter which convertes to either tribe or player

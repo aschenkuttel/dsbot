@@ -1,6 +1,6 @@
 import typing
 
-from utils import error_embed, private_hint, DSColor
+from utils import error_embed, DSColor
 from datetime import datetime
 from discord.ext import commands
 from load import load
@@ -87,7 +87,7 @@ class Rm(commands.Cog):
             await ctx.author.send(f"```js\n{msg}\n```")
 
         if ctx.guild:
-            await private_hint(ctx)
+            await ctx.private_hint()
 
     @commands.command(name="rz3", aliases=["rz4"])
     async def rz3_(self, ctx, *args: int):

@@ -1,48 +1,68 @@
-import io
-
-import discord
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
+from colour import Color
 from load import load
 import numpy as np
 import functools
+import discord
+import io
 
 
 class Map(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.low = 0
+        self.high = 3001
+        self.space = 20
+        self.white = Color('white')
+        self.yellow = Color('yellow')
+        self.red = Color('red')
+        self.image = Image.open(f"{load.data_loc}map.png")
+
+    def convert_to_255(self, iterable):
+        result = []
+        for color in iterable:
+            rgb = []
+            for v in color.rgb:
+                rgb.append(int(v * 255))
+            result.append(rgb)
+        return result
+
+    def get_bounds(self, villages):
+        x_coords = [v.x for v in villages if self.low < v.x < self.high]
+        y_coords = [v.y for v in villages if self.low < v.y < self.high]
+        first, second = min(x_coords), min(y_coords)
+        third, fourth = max(x_coords), max(y_coords)
+        a1 = self.low if (first - self.space) < self.low else first - self.space
+        a2 = self.low if (second - self.space) < self.low else second - self.space
+        b1 = self.high if (third + self.space) > self.high else third + self.space
+        b2 = self.high if (fourth + self.space) > self.high else fourth + self.space
+        return [a1, a2, b1, b2]
+
+    def outta_bounds(self, vil):
+        if not self.low <= vil.x < self.high:
+            return False
+        if not self.low <= vil.y < self.high:
+            return False
+        return True
 
     def create_basic_map(self, world_villages, tribes, players):
-        image = np.array(Image.open(f"{load.data_loc}map.png"))
 
-        low, high = 0, 3001
+        image = np.array(self.image)
         colors = load.colors.top()
-        map_space = 20
 
         tribe_cache = []
         village_cache = {t.id: [] for t in tribes.values()}
         brown, grey = load.colors.vil_brown, load.colors.bb_grey
 
-        # compute image boundaries with safe space
-        x_coords = [v.x for v in world_villages if low < v.x < high]
-        y_coords = [v.y for v in world_villages if low < v.y < high]
-        first, second = min(x_coords), min(y_coords)
-        third, fourth = max(x_coords), max(y_coords)
-        a1 = low if (first - map_space) < low else first - map_space
-        a2 = low if (second - map_space) < low else second - map_space
-        b1 = high if (third + map_space) > high else third + map_space
-        b2 = high if (fourth + map_space) > high else fourth + map_space
-        bounds = [a1, a2, b1, b2]
+        bounds = self.get_bounds(world_villages)
 
         # create overlay image for highlighting
         overlay = np.zeros((image.shape[0], image.shape[1], 4), dtype='uint8')
 
         for vil in world_villages:
 
-            if not low <= vil.x < high:
-                continue
-
-            if not low <= vil.y < high:
+            if not self.outta_bounds(vil):
                 continue
 
             if vil.player:
@@ -75,7 +95,7 @@ class Map(commands.Cog):
         legacy = Image.new('RGBA', background.size, (255, 255, 255, 0))
         draw = ImageDraw.Draw(legacy)
 
-        fontsize = int(75 * (third / high - 0.2))
+        fontsize = int(75 * (bounds[0] / bounds[2] - 0.2))
         font = ImageFont.truetype('verdanab', fontsize)
 
         reservation = []
@@ -110,6 +130,40 @@ class Map(commands.Cog):
         background.paste(legacy, mask=legacy)
         return background.crop(bounds)
 
+    def create_bash_map(self, all_villages, player, state):
+        top = sorted(player.values(), key=lambda p: getattr(p, state))
+        top_bash = int(sum([getattr(p, state) for p in top][-25:]) / 25)
+
+        first = list(self.white.range_to(self.yellow, 11))
+        second = list(self.yellow.range_to(self.red, 10))
+        color_scheme = self.convert_to_255(first[:-1] + second)
+
+        percentage = {}
+        for pl in player.values():
+            bash = getattr(pl, state)
+            per = int((bash / top_bash) * len(color_scheme))
+            if per > 19:
+                per = 19
+            elif per > 0:
+                per -= 1
+
+            percentage[pl.id] = per
+
+        image = np.array(self.image)
+        for vil in all_villages:
+
+            per = percentage.get(vil.player)
+            if per is None:
+                color = load.colors.bb_grey
+            else:
+                color = color_scheme[per]
+
+            image[vil.y: vil.y + 4, vil.x: vil.x + 4] = color
+
+        background = Image.fromarray(image)
+        bounds = self.get_bounds(all_villages)
+        return background.crop(bounds)
+
     @commands.command(name="map", aliases=["karte"])
     async def map_(self, ctx, *tribe_names):
 
@@ -124,6 +178,20 @@ class Map(commands.Cog):
         players = {pl.id: pl for pl in result}
 
         func = functools.partial(self.create_basic_map, all_villages, tribes, players)
+        image = await self.bot.loop.run_in_executor(None, func)
+        file = io.BytesIO()
+        image.save(file, "png", quality=100)
+        file.seek(0)
+        await ctx.send(file=discord.File(file, "map.png"))
+
+    @commands.command(name="bashmap")
+    async def bashmap_(self, ctx, bashstate="all_bash"):
+
+        cache = await load.fetch_all(ctx.world)
+        players = {pl.id: pl for pl in cache}
+        all_villages = await load.fetch_all(ctx.world, "map")
+
+        func = functools.partial(self.create_bash_map, all_villages, players, bashstate)
         image = await self.bot.loop.run_in_executor(None, func)
         file = io.BytesIO()
         image.save(file, "png", quality=100)

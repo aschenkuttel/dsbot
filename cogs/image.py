@@ -1,4 +1,4 @@
-from utils import error_embed, DSObject, private_hint
+from utils import error_embed, DSObject
 from PIL import Image, ImageSequence
 from discord.ext import commands
 from bs4 import BeautifulSoup
@@ -92,7 +92,7 @@ class Graphic(commands.Cog):
         output_buffer.seek(0)
         file = discord.File(fp=output_buffer, filename=filename)
         await ctx.author.send(file=file)
-        await private_hint(ctx)
+        await ctx.private_hint()
 
     @commands.command(name="nude", aliases=["nacktfoto"])
     @commands.cooldown(1, 10.0, commands.BucketType.user)

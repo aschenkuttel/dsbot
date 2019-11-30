@@ -398,7 +398,7 @@ class Load:
             counter = 0
 
             for sen in data[1]:
-                if counter + len(sen) > 2000:
+                if counter + len(sen) > 2048:
                     embed = discord.Embed(title=once, description='\n'.join(res_cache))
                     await utils.silencer(channel.send(embed=embed))
                     res_cache.clear()
