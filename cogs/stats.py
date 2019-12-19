@@ -85,7 +85,7 @@ class Bash(commands.Cog):
         else:
             dsobj = await load.fetch_both(ctx.world, ' '.join(args))
         if not dsobj:
-            raise DSUserNotFound(args)
+            raise DSUserNotFound(' '.join(args))
 
         if not 30 > time > 0:
             msg = "Das Maximum für den Recap Command sind 29 Tage"
@@ -179,21 +179,6 @@ class Bash(commands.Cog):
             embed = discord.Embed(description=msg, color=discord.Color.red())
 
         await ctx.send(embed=embed)
-
-    @bash.error
-    async def bash_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Der gewünschte Spieler/Stamm fehlt"))
-
-    @allbash.error
-    async def allbash_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Die gewünschten Spieler/Stämme fehlen"))
-
-    @recap.error
-    async def recap_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed("Der gewünschte Spieler/Stamm fehlt"))
 
 
 def setup(bot):

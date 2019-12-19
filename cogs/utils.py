@@ -1,11 +1,10 @@
-import typing
-
 from utils import error_embed, DSColor
 from datetime import datetime
 from discord.ext import commands
 from load import load
 import discord
 import asyncio
+import typing
 import math
 import re
 
@@ -253,12 +252,6 @@ class Rm(commands.Cog):
     async def rz3_error(self, ctx, error):
         if isinstance(error, commands.BadArgument):
             msg = "Truppenangaben dürfen nur aus Zahlen bestehen"
-            await ctx.send(embed=error_embed(msg))
-
-    @time_.error
-    async def time_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = f"Die gewünschte Uhrzeit/Dauer fehlt"
             await ctx.send(embed=error_embed(msg))
 
 

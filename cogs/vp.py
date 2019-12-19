@@ -1,8 +1,9 @@
+from utils import error_embed, game_channel_only
 from discord.ext import commands
 from load import load
-from utils import error_embed, game_channel_only
 import asyncio
 import random
+
 
 l1 = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
 l2 = ["h", "d", "c", "s"]

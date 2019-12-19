@@ -17,7 +17,7 @@ class Map(commands.Cog):
         self.white = Color('white')
         self.yellow = Color('yellow')
         self.red = Color('red')
-        self.image = Image.open(f"{load.data_loc}map.png")
+        self.image = Image.open(f"{load.data_path}/map.png")
 
     def convert_to_255(self, iterable):
         result = []
@@ -95,11 +95,13 @@ class Map(commands.Cog):
         legacy = Image.new('RGBA', background.size, (255, 255, 255, 0))
         draw = ImageDraw.Draw(legacy)
 
+        # FONTSIZE PROBLEM
         fontsize = int(75 * (bounds[0] / bounds[2] - 0.2))
-        font = ImageFont.truetype('verdanab', fontsize)
+        font = ImageFont.truetype('data/bebas.ttf', fontsize)
 
         reservation = []
         for tribe in tribes.values():
+            print(tribe.name)
             villages = village_cache[tribe.id]
             if not villages:
                 continue
@@ -110,7 +112,6 @@ class Map(commands.Cog):
             third, fourth = min(vil_y), max(vil_y)
 
             posi = [int((third + fourth) / 2) - 80, int((first + second) / 2) - 20]
-
             for pos in reservation:
 
                 for n in range(2):
@@ -164,9 +165,11 @@ class Map(commands.Cog):
         bounds = self.get_bounds(all_villages)
         return background.crop(bounds)
 
+    async def create_diplomacy_map(self, tribes, conquers):
+        pass
+
     @commands.command(name="map", aliases=["karte"])
     async def map_(self, ctx, *tribe_names):
-
         if not tribe_names:
             tribes = await load.fetch_top(ctx.world, "tribe")
         else:

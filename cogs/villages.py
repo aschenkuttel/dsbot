@@ -1,8 +1,8 @@
 from discord.ext import commands
 from load import load
-import utils
 import discord
 import random
+import utils
 import io
 import re
 import os
@@ -114,12 +114,6 @@ class Villages(commands.Cog):
             result = await conn.fetch(query, *arguments)
 
         await self.send_coords(ctx, result)
-
-    @villages_.error
-    async def villages_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte K55**"
-            await ctx.send(embed=utils.error_embed(msg))
 
 
 def setup(bot):

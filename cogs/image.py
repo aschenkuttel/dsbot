@@ -7,7 +7,6 @@ from load import load
 import functools
 import discord
 import aiohttp
-
 import os
 
 
@@ -143,8 +142,6 @@ class Graphic(commands.Cog):
 
     @avatar_.error
     async def avatar_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Du musst eine URL angeben"))
         if hasattr(error, "original"):
             badboys = ValueError, OSError, aiohttp.InvalidURL
             if isinstance(error.original, badboys):

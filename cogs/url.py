@@ -1,7 +1,7 @@
-import discord
-from discord.ext import commands
 from utils import error_embed, DSObject, DSUserNotFound, casual
+from discord.ext import commands
 from load import load
+import discord
 
 
 class Akte(commands.Cog):

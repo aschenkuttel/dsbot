@@ -1,6 +1,6 @@
+from utils import error_embed, GuildUser
 from discord.ext import commands
 from load import load
-from utils import error_embed, GuildUser
 import discord
 import asyncio
 import random
@@ -147,25 +147,6 @@ class Enjoy(commands.Cog):
     @commands.command(name="suicide")
     async def suicide_(self, ctx):
         await ctx.send("`0800/111 0 111`")
-
-    @duali_.error
-    async def love_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Der gewünschte Discord-User fehlt."
-            return await ctx.send(embed=error_embed(msg))
-
-    @orakel_.error
-    async def orakel_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Du musst auch eine Frage stellen: "
-            "`!orakel Werde ich heute endlich adeln?`"
-            await ctx.send(embed=error_embed(msg))
-
-    @ddos_.error
-    async def ddos_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = f"Der gewünschte Discord-User fehlt."
-            await ctx.send(embed=error_embed(msg))
 
 
 def setup(bot):

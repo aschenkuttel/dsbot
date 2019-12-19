@@ -1,6 +1,7 @@
 from discord.ext import commands
 import discord
 
+
 cmds = [
     "`akte` | Twstats-URL von Spieler|Stamm",
     "`avatar` | Konvertiert Bild auf vorgeschriebene DS-Maße",

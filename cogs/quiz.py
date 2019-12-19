@@ -1,10 +1,11 @@
-import asyncio
-from bs4 import BeautifulSoup
-from discord.ext import commands
 from utils import game_channel_only, error_embed, pcv
+from discord.ext import commands
+from bs4 import BeautifulSoup
 from load import load
-import random
+import asyncio
 import discord
+import random
+
 
 stat = {"id": "ID",
         "rank": "Rang",
