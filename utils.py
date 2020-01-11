@@ -155,35 +155,40 @@ class DSContext(commands.Context):
             pass
 
 
-# typhint converter which convertes to either tribe or player
+# typhint converter which converts to either tribe or player
 class DSObject(commands.Converter):
     __slots__ = (
-        'id', 'x', 'y', 'world', 'url', 'alone', 'name', 'tag', 'tribe_id', 'villages', 'points',
-        'rank', 'player', 'att_bash', 'att_rank', 'def_bash', 'def_rank', 'all_bash', 'all_rank',
-        'ut_bash', 'member', 'all_points', 'guest_url', 'ingame_url', 'twstats_url')
+        'id', 'x', 'y', 'world', 'url', 'alone',
+        'name', 'tag', 'tribe_id', 'villages',
+        'points', 'rank', 'player', 'att_bash',
+        'att_rank', 'def_bash', 'def_rank',
+        'all_bash', 'all_rank', 'ut_bash',
+        'member', 'all_points', 'guest_url',
+        'ingame_url', 'twstats_url')
 
     async def convert(self, ctx, searchable):
+        # conquer add/remove needs guild world
+        if str(ctx.command).startswith("conquer"):
+            ctx.world = load.get_guild_world(ctx.guild)
+
         obj = await load.fetch_both(ctx.world, searchable)
         if not obj:
             raise DSUserNotFound(searchable)
         return obj
 
 
-# own case insensitive member converter
+# own case insensitive member converter / don't judge about slots ty
 class GuildUser(commands.Converter):
-    def __init__(self):
-        self.id = None
-        self.name = None
-        self.display_name = None
-        self.avatar_url = None
+    __slots__ = ('id', 'name', 'display_name', 'avatar_url')
 
     async def convert(self, ctx, arg):
         if re.match(r'<@!?([0-9]+)>$', arg):
             raise DontPingMe
+        name = arg.lower()
         for m in ctx.guild.members:
-            if m.display_name.lower() == arg.lower():
+            if name == m.display_name.lower():
                 return m
-            if m.name.lower() == arg.lower():
+            if name == m.name.lower():
                 return m
         else:
             raise GuildUserNotFound(arg)
@@ -349,7 +354,7 @@ class DSColor:
         self.pink = [255, 8, 127]
         self.orange = [253, 106, 2]
         self.green = [152, 251, 152]
-        self.purple = [192, 5, 248]
+        self.purple = [128, 0, 128]  # [192, 5, 248]
         self.white = [245, 245, 245]
         self.dark_green = [0, 51, 0]
         self.bg_green = [88, 118, 27]

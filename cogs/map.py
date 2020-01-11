@@ -1,4 +1,5 @@
 from PIL import Image, ImageFont, ImageDraw
+from scipy.cluster.vq import kmeans, whiten
 from discord.ext import commands
 from colour import Color
 from load import load
@@ -17,7 +18,8 @@ class Map(commands.Cog):
         self.white = Color('white')
         self.yellow = Color('yellow')
         self.red = Color('red')
-        self.image = Image.open(f"{load.data_path}/map.png")
+        self.max_font_size = 280
+        self.img = Image.open(f"{load.data_path}/map.png")
 
     def convert_to_255(self, iterable):
         result = []
@@ -46,15 +48,49 @@ class Map(commands.Cog):
             return False
         return True
 
+    def label_map(self, image, village_cache, bounds, leg):
+        reservation = []
+        font_size = int(self.max_font_size * (bounds[2] - bounds[0] - 250) / self.high)
+        most_villages = len(sorted(village_cache.items(), key=lambda l: len(l[1]))[-1][1])
+        for tribe, villages in village_cache.items():
+            if not villages:
+                continue
+
+            # double textsize for improved quality = doubled coords for right position
+            vil_x = [v[0] * 2 for v in villages]
+            vil_y = [v[1] * 2 for v in villages]
+            centroid = sum(vil_y) / len(villages), sum(vil_x) / len(villages)
+
+            # font creation
+            factor = (len(villages) / most_villages) * (font_size / 3)
+            size = int(font_size - (font_size / 3) + factor)
+            font = ImageFont.truetype('data/lemon.otf', size)
+            font_widht, font_height = image.textsize(tribe.tag, font=font)
+            position = int(centroid[0] - font_widht / 2), int(centroid[1] - font_height / 2)
+
+            area = []
+            space = int(centroid[0] - font_widht / 2), int(centroid[1] - font_height / 2)
+            for y in range(space[0], space[0] + font_widht):
+                for x in range(space[1], space[1] + font_height):
+                    area.append((y, x))
+                    leg[int(x / 2), int(y / 2)] = [255, 255, 255]
+
+            if position in reservation:
+                y, x = position
+                shared = set(reservation).intersection(area)
+                collision = set([l[1] for l in shared])
+                position = y, x + len(collision)
+
+            # draw title and shadow / index tribe color
+            image.text([position[0] + 8, position[1] + 8], tribe.tag, (0, 0, 0, 255), font)
+            image.text(position, tribe.tag, tuple(tribe.color + [255]), font)
+
+            reservation.extend(area)
+
     def create_basic_map(self, world_villages, tribes, players):
-
-        image = np.array(self.image)
-        colors = load.colors.top()
-
-        tribe_cache = []
-        village_cache = {t.id: [] for t in tribes.values()}
+        image = np.array(self.img)
+        village_cache = {t: [] for t in tribes.values()}
         brown, grey = load.colors.vil_brown, load.colors.bb_grey
-
         bounds = self.get_bounds(world_villages)
 
         # create overlay image for highlighting
@@ -69,16 +105,9 @@ class Map(commands.Cog):
                 if vil.player in players:
                     player = players[vil.player]
                     tribe = tribes[player.tribe_id]
-
-                    if tribe not in tribe_cache:
-                        tribe_cache.append(tribe)
-
-                    index = tribe_cache.index(tribe)
-                    color = colors[index]
-
+                    color = tribe.color
                     overlay[vil.y - 6:vil.y + 10, vil.x - 6:vil.x + 10] = color + [75]
-
-                    village_cache[player.tribe_id].append([vil.y, vil.x])
+                    village_cache[tribe].append([vil.y, vil.x])
 
                 else:
                     color = brown
@@ -92,40 +121,12 @@ class Map(commands.Cog):
         foreground = Image.fromarray(overlay)
         background.paste(foreground, mask=foreground)
 
-        legacy = Image.new('RGBA', background.size, (255, 255, 255, 0))
+        # create legacy which is double in size for improved text quality
+        legacy = Image.new('RGBA', (6002, 6002), (255, 255, 255, 0))
         draw = ImageDraw.Draw(legacy)
+        self.label_map(draw, village_cache, bounds, image)
 
-        # FONTSIZE PROBLEM
-        fontsize = int(75 * (bounds[0] / bounds[2] - 0.2))
-        font = ImageFont.truetype('data/bebas.ttf', fontsize)
-
-        reservation = []
-        for tribe in tribes.values():
-            print(tribe.name)
-            villages = village_cache[tribe.id]
-            if not villages:
-                continue
-
-            vil_x = [v[0] for v in villages]
-            vil_y = [v[1] for v in villages]
-            first, second = min(vil_x), max(vil_x)
-            third, fourth = min(vil_y), max(vil_y)
-
-            posi = [int((third + fourth) / 2) - 80, int((first + second) / 2) - 20]
-            for pos in reservation:
-
-                for n in range(2):
-                    if posi[n] in range(pos[n], pos[n] + 25):
-                        posi[n] = pos[n] + 50
-                    elif posi[n] in range(pos[n] - 25, pos[n]):
-                        posi[n] = pos[n] - 50
-
-            # draw title and shadow / index tribe color
-            index = tribe_cache.index(tribe)
-            draw.text((posi[0] + 3, posi[1] + 3), tribe.tag, font=font, fill=(0, 0, 0, 255))
-            draw.text(tuple(posi), tribe.tag, font=font, fill=tuple(colors[index] + [255]))
-
-            reservation.append(posi)
+        legacy = legacy.resize(background.size, Image.ANTIALIAS)
 
         # append legace overlay to base image
         background.paste(legacy, mask=legacy)
@@ -150,7 +151,7 @@ class Map(commands.Cog):
 
             percentage[pl.id] = per
 
-        image = np.array(self.image)
+        image = np.array(self.img)
         for vil in all_villages:
 
             per = percentage.get(vil.player)
@@ -169,11 +170,41 @@ class Map(commands.Cog):
         pass
 
     @commands.command(name="map", aliases=["karte"])
-    async def map_(self, ctx, *tribe_names):
+    async def map_(self, ctx, *, tribe_names=None):
+
+        color_map = []
         if not tribe_names:
             tribes = await load.fetch_top(ctx.world, "tribe")
         else:
-            tribes = await load.fetch_bulk(ctx.world, tribe_names, "tribe", name=True)
+            all_tribes = []
+            fractions = tribe_names.split('&')
+
+            if len(fractions) == 1:
+                fractions = fractions[0].split(' ')
+
+            for index, team in enumerate(fractions):
+
+                if not team:
+                    continue
+
+                names = team.split(' ')
+                color_map.append(names)
+                all_tribes.extend(names)
+
+            tribes = await load.fetch_bulk(ctx.world, all_tribes, "tribe", name=True)
+
+        colors = load.colors.top().copy()
+        for tribe in tribes:
+            for index, group in enumerate(color_map):
+                names = [t.lower() for t in group]
+                if tribe.tag.lower() in names:
+                    tribe.color = colors[index]
+                    break
+            else:
+                if tribe_names:
+                    tribes.remove(tribe)
+                else:
+                    tribe.color = colors.pop(0)
 
         tribes = {tribe.id: tribe for tribe in tribes}
         result = await load.fetch_tribe_member(ctx.world, tribes.keys())

@@ -13,9 +13,9 @@ class Villages(commands.Cog):
         self.bot = bot
 
     async def send_coords(self, ctx, result):
-        coords = [f"{rec['x']}|{rec['y']}" for rec in result]
+        coords = [f"{i}. {r['x']}|{r['y']}" for i, r in enumerate(result, 1)]
 
-        if len(coords) < 281:
+        if len(coords) < 181:
             await ctx.author.send('\n'.join(coords))
         else:
             file = io.StringIO()
