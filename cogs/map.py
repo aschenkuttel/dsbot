@@ -1,5 +1,4 @@
 from PIL import Image, ImageFont, ImageDraw
-from scipy.cluster.vq import kmeans, whiten
 from discord.ext import commands
 from colour import Color
 from load import load
@@ -18,7 +17,7 @@ class Map(commands.Cog):
         self.white = Color('white')
         self.yellow = Color('yellow')
         self.red = Color('red')
-        self.max_font_size = 280
+        self.max_font_size = 300
         self.img = Image.open(f"{load.data_path}/map.png")
 
     def convert_to_255(self, iterable):
@@ -48,7 +47,15 @@ class Map(commands.Cog):
             return False
         return True
 
-    def label_map(self, image, village_cache, bounds, leg):
+    def watermark(self, image):
+        watermark = Image.new('RGBA', image.size, (255, 255, 255, 0))
+        board = ImageDraw.Draw(watermark)
+        font = ImageFont.truetype('data/water.otf', 75)
+        position = image.size[0] - 200, image.size[1] - 116
+        board.text(position, "dsBot", (255, 255, 255, 50), font)
+        image.paste(watermark, mask=watermark)
+
+    def label_map(self, image, village_cache, bounds):
         reservation = []
         font_size = int(self.max_font_size * (bounds[2] - bounds[0] - 250) / self.high)
         most_villages = len(sorted(village_cache.items(), key=lambda l: len(l[1]))[-1][1])
@@ -57,14 +64,14 @@ class Map(commands.Cog):
                 continue
 
             # double textsize for improved quality = doubled coords for right position
-            vil_x = [v[0] * 2 for v in villages]
-            vil_y = [v[1] * 2 for v in villages]
+            vil_x = [int(v[0] * 1.5) for v in villages]
+            vil_y = [int(v[1] * 1.5) for v in villages]
             centroid = sum(vil_y) / len(villages), sum(vil_x) / len(villages)
 
             # font creation
             factor = (len(villages) / most_villages) * (font_size / 3)
             size = int(font_size - (font_size / 3) + factor)
-            font = ImageFont.truetype('data/lemon.otf', size)
+            font = ImageFont.truetype('data/bebas.ttf', size)
             font_widht, font_height = image.textsize(tribe.tag, font=font)
             position = int(centroid[0] - font_widht / 2), int(centroid[1] - font_height / 2)
 
@@ -73,7 +80,6 @@ class Map(commands.Cog):
             for y in range(space[0], space[0] + font_widht):
                 for x in range(space[1], space[1] + font_height):
                     area.append((y, x))
-                    leg[int(x / 2), int(y / 2)] = [255, 255, 255]
 
             if position in reservation:
                 y, x = position
@@ -82,7 +88,7 @@ class Map(commands.Cog):
                 position = y, x + len(collision)
 
             # draw title and shadow / index tribe color
-            image.text([position[0] + 8, position[1] + 8], tribe.tag, (0, 0, 0, 255), font)
+            image.text([position[0] + 6, position[1] + 6], tribe.tag, (0, 0, 0, 255), font)
             image.text(position, tribe.tag, tuple(tribe.color + [255]), font)
 
             reservation.extend(area)
@@ -122,30 +128,30 @@ class Map(commands.Cog):
         background.paste(foreground, mask=foreground)
 
         # create legacy which is double in size for improved text quality
-        legacy = Image.new('RGBA', (6002, 6002), (255, 255, 255, 0))
+        legacy = Image.new('RGBA', (4501, 4501), (255, 255, 255, 0))
         draw = ImageDraw.Draw(legacy)
-        self.label_map(draw, village_cache, bounds, image)
-
-        legacy = legacy.resize(background.size, Image.ANTIALIAS)
+        self.label_map(draw, village_cache, bounds)
+        legacy = legacy.resize(background.size, Image.LANCZOS)
 
         # append legace overlay to base image
         background.paste(legacy, mask=legacy)
-        return background.crop(bounds)
+        result = background.crop(bounds)
+        self.watermark(result)
+        return result
 
     def create_bash_map(self, all_villages, player, state):
         top = sorted(player.values(), key=lambda p: getattr(p, state))
         top_bash = int(sum([getattr(p, state) for p in top][-25:]) / 25)
 
-        first = list(self.white.range_to(self.yellow, 11))
-        second = list(self.yellow.range_to(self.red, 10))
+        first = list(self.white.range_to(self.yellow, 26))
+        second = list(self.yellow.range_to(self.red, 25))
         color_scheme = self.convert_to_255(first[:-1] + second)
-
         percentage = {}
         for pl in player.values():
             bash = getattr(pl, state)
             per = int((bash / top_bash) * len(color_scheme))
-            if per > 19:
-                per = 19
+            if per > 49:
+                per = 49
             elif per > 0:
                 per -= 1
 
@@ -171,6 +177,8 @@ class Map(commands.Cog):
 
     @commands.command(name="map", aliases=["karte"])
     async def map_(self, ctx, *, tribe_names=None):
+
+        await ctx.trigger_typing()
 
         color_map = []
         if not tribe_names:
