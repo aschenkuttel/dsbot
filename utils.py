@@ -25,9 +25,11 @@ async def silencer(coro):
         return
 
 
+# quote_plus doesn't convert tildes somehow :(
 def converter(name, php=False):
     if php:
         encoded = quote_plus(name)
+        encoded = encoded.replace('~', '%7E')
         return encoded.lower()
     else:
         return unquote_plus(name)
@@ -347,12 +349,12 @@ class Conquer:
 class DSColor:
 
     def __init__(self):
-        self.red = [230, 40, 0]
         self.blue = [16, 52, 166]
-        self.yellow = [255, 189, 32]
+        self.red = [230, 40, 0]
         self.turquoise = [64, 224, 208]
-        self.pink = [255, 8, 127]
+        self.yellow = [255, 189, 32]
         self.orange = [253, 106, 2]
+        self.pink = [255, 8, 127]
         self.green = [152, 251, 152]
         self.purple = [128, 0, 128]  # [192, 5, 248]
         self.white = [245, 245, 245]
