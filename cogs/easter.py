@@ -12,7 +12,6 @@ class Enjoy(commands.Cog):
 
     @commands.command(name="orakel")
     async def orakel_(self, ctx, *, args):
-
         if args == args.upper() and not args == args.lower():
             return await ctx.send(random.choice(load.msg["fearOrakel"]))
 
@@ -71,8 +70,7 @@ class Enjoy(commands.Cog):
 
     @commands.command(name="duali", aliases=["mitspieler"])
     async def duali_(self, ctx, *, user: GuildUser):
-
-        if user == ctx.bot.user:
+        if user == self.bot.user:
             em = discord.Embed()
             url = "http://media1.tenor.com/images/561e3f9a9c6c" \
                   "1912e2edc4c1055ff13e/tenor.gif?itemid=9601551"

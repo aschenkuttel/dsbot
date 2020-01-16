@@ -91,9 +91,14 @@ class Bash(commands.Cog):
             msg = "Das Maximum für den Recap Command sind 29 Tage"
             return await ctx.send(embed=error_embed(msg))
 
-        if ctx.invoked_with.lower() == "tagebuch":
+        try:
             table = "player" if dsobj.alone else "tribe"
             dsobj8 = await load.fetch_archive(ctx.world, dsobj.id, table, time)
+
+            if dsobj8 is None:
+                obj = "Spieler" if dsobj.alone else "Stamm"
+                msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
+                return await ctx.send(msg)
 
             point1 = dsobj.points
             point8 = dsobj8.points
@@ -104,7 +109,8 @@ class Bash(commands.Cog):
             bash1 = dsobj.all_bash
             bash8 = dsobj8.all_bash
 
-        else:
+        except Exception as error:
+            print(f"Recap Error: {error}")
             page_link = f"{dsobj.twstats_url}&mode=history"
             async with self.bot.session.get(page_link) as r:
                 soup = BeautifulSoup(await r.read(), "html.parser")

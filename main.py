@@ -72,12 +72,19 @@ class DSBot(commands.Bot):
         ctx = await self.get_context(message, cls=DSContext)
         await self.invoke(ctx)
 
-    def callback(self, conn, pid, channel, payload):
-        print(conn)
-        print(pid)
-        print(channel)
-        print(payload)
+    async def report_to_owner(self, msg):
         owner = self.get_user(self.owner_id)
+        await owner.send(msg)
+
+    def callback(self, conn, pid, channel, payload):
+        print(f"Payload received: {payload}")
+        if payload == "404":
+            msg = "database script ended with a failure"
+        elif payload == "400":
+            msg = "engine broke once, restarting"
+        else:
+            msg = "unknown payload"
+        self.loop.create_task(self.report_to_owner(msg))
 
     # main conquer feed loop every new hour / world cache refresh
     async def conquer_loop(self):

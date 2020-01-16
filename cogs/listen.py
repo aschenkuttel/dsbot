@@ -104,8 +104,9 @@ class Listen(commands.Cog):
                     found_names[dsobj.name.lower()] = dsobj
                 else:
                     found_names[dsobj.tag.lower()] = dsobj
+                    found_names[dsobj.name.lower()] = dsobj
 
-            for index, name in enumerate(names):
+            for name in names:
                 dsobj = found_names.get(name.lower())
                 if not dsobj:
                     parsed_msg = parsed_msg.replace(f"<{name}>", "[Unknown]")

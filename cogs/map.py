@@ -81,11 +81,14 @@ class Map(commands.Cog):
                 for x in range(space[1], space[1] + font_height):
                     area.append((y, x))
 
-            if position in reservation:
-                y, x = position
-                shared = set(reservation).intersection(area)
+            y, x = position
+            shared = set(reservation).intersection(area)
+            if shared:
                 collision = set([l[1] for l in shared])
-                position = y, x + len(collision)
+                if min(area, key=lambda c: c[1]) in shared:
+                    position = y, x + len(collision)
+                else:
+                    position = y, x - len(collision)
 
             # draw title and shadow / index tribe color
             image.text([position[0] + 6, position[1] + 6], tribe.tag, (0, 0, 0, 255), font)
@@ -170,19 +173,22 @@ class Map(commands.Cog):
 
         background = Image.fromarray(image)
         bounds = self.get_bounds(all_villages)
-        return background.crop(bounds)
+        result = background.crop(bounds)
+        self.watermark(result)
+        return result
 
     async def create_diplomacy_map(self, tribes, conquers):
         pass
 
     @commands.command(name="map", aliases=["karte"])
+    @commands.cooldown(1, 30, commands.BucketType.user)
     async def map_(self, ctx, *, tribe_names=None):
 
         await ctx.trigger_typing()
 
         color_map = []
         if not tribe_names:
-            tribes = await load.fetch_top(ctx.world, "tribe")
+            tribes = await load.fetch_top(ctx.world, "tribe", till=10)
         else:
             all_tribes = []
             fractions = tribe_names.split('&')
@@ -227,6 +233,7 @@ class Map(commands.Cog):
         await ctx.send(file=discord.File(file, "map.png"))
 
     @commands.command(name="bashmap")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     async def bashmap_(self, ctx, bashstate="all_bash"):
 
         cache = await load.fetch_all(ctx.world)

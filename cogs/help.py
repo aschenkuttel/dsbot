@@ -1,15 +1,15 @@
 from discord.ext import commands
 import discord
 
-
 cmds = [
     "`akte` | Twstats-URL von Spieler|Stamm",
     "`avatar` | Konvertiert Bild auf vorgeschriebene DS-Maße",
     "`bash` | Zusammenfassung der Bashpoints von Spieler/Stamm",
-    "`bb` | Erhalte BB-Koords aus Umgebung",
+    "`bb` | Erhalte die BB-Koords aus der Umgebung eines Dorfes",
     "`conquer` | Administrator-Commands für den Conquer Channel",
     "`daily` | Top 5 der \"An einem Tag\"-Ranglisten",
     "`emoji` | Fügt dem Server eine Reihe von DS-Emojis hinzu",
+    "`map` | Erstellt eine Custom oder Top 10 Karte der Welt",
     "`nude` | Profilbild von Spieler|Stamm oder zufällig",
     "`pin` | Help Embed für den Server",
     "`player` | Ingame-URL von Spieler|Stamm",
@@ -176,6 +176,24 @@ class Help(commands.Cog):
         await ctx.author.send(embed=await self.cmd_embed(data, ctx))
         await ctx.private_hint()
 
+    @help.command(name="map")
+    async def map_(self, ctx):
+        title = "`~map` - `~karte`"
+        desc = "Erstellt eine Karte der Welt und markiert angegebene Stämme. " \
+               "Falls keine angegeben werden erhält man eine Darstellung der Top 10. " \
+               "Des weiteren kann man mit einem & Zeichen zwischen mehreren Stämmen diese " \
+               "gruppieren und einheitlich in einer Farbe anzeigen lassen."
+        cmd_type = "Server Command"
+        cmd_inp = ["`~map`",
+                   "`~map <tribe> <tribe> <tribe>`",
+                   "`~map <tribe> <tribe> & <tribe> <tribe>`"]
+        example = ["`~map`",
+                   "`~map <300> <W-Inc>`",
+                   "`~map <300> <W-Inc> & <SPARTA>`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
+        await ctx.private_hint()
+
     @help.command(name="nude")
     async def nude_(self, ctx):
         title = "`~nude` - `~nacktbild`"
@@ -206,11 +224,22 @@ class Help(commands.Cog):
     async def player_(self, ctx):
         title = "`~player` - `~spieler` - `~tribe` - `~stamm`"
         desc = "Erhalte den Gastlogin-Link eines Spieler oder Stammes."
-        cmd_type = "Server/PM Command"
+        cmd_type = "Server Command"
         cmd_inp = ["`~player <playername>`",
                    "`~tribe <tribename>`"]
         example = ["`~player Philson Cardoso`",
                    "`~tribe Milf!`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
+        await ctx.private_hint()
+
+    @help.command(name="poll")
+    async def poll_(self, ctx):
+        title = "`~poll` - `~abstimmung`"
+        desc = "Erstelle eine Abstimmung mit bis zu 9 Auswahlmöglichkeiten"
+        cmd_type = "Server Command"
+        cmd_inp = ["`~poll \"<question>\" <option> <option> ...`"]
+        example = ["`~poll \"Sollen wir das BND beenden?\" Ja Nein Vielleicht`"]
         data = title, desc, cmd_type, cmd_inp, example
         await ctx.author.send(embed=await self.cmd_embed(data, ctx))
         await ctx.private_hint()

@@ -151,6 +151,8 @@ class DSContext(commands.Context):
             return
 
     async def private_hint(self):
+        if self.guild:
+            return
         try:
             await self.message.add_reaction("📨")
         except discord.Forbidden:
@@ -347,7 +349,6 @@ class Conquer:
 
 
 class DSColor:
-
     def __init__(self):
         self.blue = [16, 52, 166]
         self.red = [230, 40, 0]
@@ -359,6 +360,9 @@ class DSColor:
         self.purple = [128, 0, 128]  # [192, 5, 248]
         self.white = [245, 245, 245]
         self.dark_green = [0, 51, 0]
+        self.bright_yellow = [254, 254, 127]
+        self.bright_red = [254, 127, 127]
+        self.bright_blue = [0, 127, 254]
         self.bg_green = [88, 118, 27]
         self.bg_forrest = [73, 103, 21]
         self.vil_brown = [130, 60, 10]
@@ -370,7 +374,8 @@ class DSColor:
 
     def top(self):
         palette = [self.red, self.blue, self.yellow, self.turquoise, self.pink,
-                   self.orange, self.green, self.purple, self.white, self.dark_green]
+                   self.orange, self.green, self.purple, self.white, self.dark_green,
+                   self.bright_yellow, self.bright_red, self.bright_blue]
         return palette
 
 

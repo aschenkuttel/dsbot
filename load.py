@@ -128,7 +128,7 @@ class Load:
             if config.get('world') == world:
                 config.pop('world')
             channel = config.get('channel', {})
-            for ch in channel:
+            for ch in channel.copy():
                 if channel[ch] == world:
                     channel.pop(ch)
         self.save_config()
