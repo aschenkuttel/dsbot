@@ -1,4 +1,5 @@
 from discord.ext import commands
+from datetime import timedelta
 from load import load
 import traceback
 import discord
@@ -33,8 +34,7 @@ class Listen(commands.Cog):
 
         # Report Converter
         if message.content.__contains__("public_report"):
-
-            file = await load.fetch_report(self.bot.loop, message.content)
+            file = await load.fetch_report(self.bot, message.content)
             if file is None:
                 return await utils.silencer(message.add_reaction('❌'))
             try:
@@ -88,12 +88,20 @@ class Listen(commands.Cog):
 
         # DS Player/Tribe Converter
         names = re.findall(r'<(.*?)>', message.clean_content)
+        emojis = re.findall(r'<a?:[a-zA-Z0-9_]+:([0-9]+)>', message.content)
+
+        for idc in emojis:
+            for name in names.copy():
+                if idc in name:
+                    names.remove(name)
+
         if names:
             world = load.get_world(message.channel)
             if not world:
                 return
 
-            parsed_msg = message.clean_content
+            names = names[:10]
+            parsed_msg = message.clean_content.replace("`", "")
             ds_objects = await load.fetch_bulk(world, names, name=True)
             cache = await load.fetch_bulk(world, names, 1, name=True)
             ds_objects.extend(cache)
@@ -116,7 +124,8 @@ class Listen(commands.Cog):
                 hyperlink = f"[{correct_name}]({dsobj.ingame_url})"
                 parsed_msg = parsed_msg.replace(f"<{name}>", hyperlink)
 
-            time = message.created_at.strftime("%H:%M Uhr")
+            current = message.created_at + timedelta(hours=1)
+            time = current.strftime("%H:%M Uhr")
             title = f"{message.author.display_name} um {time}"
             embed = discord.Embed(description=parsed_msg)
             embed.set_author(name=title, icon_url=message.author.avatar_url)

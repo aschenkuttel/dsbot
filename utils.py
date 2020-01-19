@@ -151,7 +151,7 @@ class DSContext(commands.Context):
             return
 
     async def private_hint(self):
-        if self.guild:
+        if self.guild is None:
             return
         try:
             await self.message.add_reaction("📨")

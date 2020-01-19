@@ -218,7 +218,9 @@ class Set(commands.Cog):
             await ctx.send(embed=error_embed(msg))
             return
 
-        cache = await load.fetch_tribes(ctx.world, filter_list)
+        world = load.get_guild_world(ctx.guild)
+
+        cache = await load.fetch_bulk(world, filter_list, "tribe")
         data = [obj.name for obj in cache]
         name = "Stamm" if len(data) == 1 else "Stämme"
         title = f"{len(data)} {name} insgesamt"

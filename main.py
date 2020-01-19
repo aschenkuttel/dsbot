@@ -1,7 +1,9 @@
 from data.naruto import pm_commands, default_cogs
 from utils import WorldMissing, DSContext
 from discord.ext import commands
+import concurrent.futures
 from load import load
+import functools
 import discord
 import asyncio
 import os
@@ -85,6 +87,15 @@ class DSBot(commands.Bot):
         else:
             msg = "unknown payload"
         self.loop.create_task(self.report_to_owner(msg))
+
+    # don't ask
+    async def execute(self, func, *args):
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            package = functools.partial(func, *args)
+            result = await self.loop.run_in_executor(pool, package)
+
+        pool.shutdown()
+        return result
 
     # main conquer feed loop every new hour / world cache refresh
     async def conquer_loop(self):

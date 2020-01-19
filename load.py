@@ -1,7 +1,6 @@
 from data.naruto import TOKEN, pre, db_key, db_port, db_user, db_adress
 from PIL import Image, ImageChops
 from bs4 import BeautifulSoup
-import functools
 import datetime
 import operator
 import asyncpg
@@ -409,7 +408,7 @@ class Load:
             counter = 0
 
             for sen in data[1]:
-                if counter + len(sen) > 2048:
+                if counter + len(sen) > 2000:
                     embed = discord.Embed(title=once, description='\n'.join(res_cache))
                     await utils.silencer(channel.send(embed=embed))
                     res_cache.clear()
@@ -476,7 +475,7 @@ class Load:
         url = base.format(utils.casual(world), cur)
         async with self.session.get(url) as r:
             data = await r.text('utf-8')
-        return data.split('\n')
+            return data.split('\n')
 
     def get_seconds(self, reverse=False, only=0):
         now = datetime.datetime.now()
@@ -553,16 +552,14 @@ class Load:
         file.seek(0)
         return file
 
-    async def fetch_report(self, loop, content):
-
+    async def fetch_report(self, bot, content):
         try:
             async with self.session.get(content) as res:
                 data = await res.text()
         except (aiohttp.InvalidURL, ValueError):
             return
 
-        func = functools.partial(self.html_lover, data)
-        file = await loop.run_in_executor(None, func)
+        file = await bot.execute(self.html_lover, data)
         return file
 
 

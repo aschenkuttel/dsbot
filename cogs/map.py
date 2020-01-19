@@ -1,3 +1,5 @@
+import concurrent.futures
+
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 from colour import Color
@@ -48,12 +50,12 @@ class Map(commands.Cog):
         return True
 
     def watermark(self, image):
-        watermark = Image.new('RGBA', image.size, (255, 255, 255, 0))
-        board = ImageDraw.Draw(watermark)
-        font = ImageFont.truetype('data/water.otf', 75)
-        position = image.size[0] - 200, image.size[1] - 116
-        board.text(position, "dsBot", (255, 255, 255, 50), font)
-        image.paste(watermark, mask=watermark)
+        with Image.new('RGBA', image.size, (255, 255, 255, 0)) as watermark:
+            board = ImageDraw.Draw(watermark)
+            font = ImageFont.truetype(f'{load.data_path}/water.otf', 75)
+            position = image.size[0] - 200, image.size[1] - 116
+            board.text(position, "dsBot", (255, 255, 255, 50), font)
+            image.paste(watermark, mask=watermark)
 
     def label_map(self, image, village_cache, bounds):
         reservation = []
@@ -71,7 +73,7 @@ class Map(commands.Cog):
             # font creation
             factor = (len(villages) / most_villages) * (font_size / 3)
             size = int(font_size - (font_size / 3) + factor)
-            font = ImageFont.truetype('data/bebas.ttf', size)
+            font = ImageFont.truetype(f'{load.data_path}/bebas.ttf', size)
             font_widht, font_height = image.textsize(tribe.tag, font=font)
             position = int(centroid[0] - font_widht / 2), int(centroid[1] - font_height / 2)
 
@@ -127,18 +129,21 @@ class Map(commands.Cog):
 
         # append highligh overlay to base image
         background = Image.fromarray(image)
-        foreground = Image.fromarray(overlay)
-        background.paste(foreground, mask=foreground)
+        with Image.fromarray(overlay) as foreground:
+            background.paste(foreground, mask=foreground)
 
         # create legacy which is double in size for improved text quality
-        legacy = Image.new('RGBA', (4501, 4501), (255, 255, 255, 0))
-        draw = ImageDraw.Draw(legacy)
-        self.label_map(draw, village_cache, bounds)
-        legacy = legacy.resize(background.size, Image.LANCZOS)
+        if tribes:
+            with Image.new('RGBA', (4501, 4501), (255, 255, 255, 0)) as legacy:
+                draw = ImageDraw.Draw(legacy)
+                self.label_map(draw, village_cache, bounds)
+                legacy = legacy.resize(background.size, Image.LANCZOS)
+                background.paste(legacy, mask=legacy)
+                legacy.close()
 
-        # append legace overlay to base image
-        background.paste(legacy, mask=legacy)
         result = background.crop(bounds)
+        background.close()
+
         self.watermark(result)
         return result
 
@@ -171,10 +176,11 @@ class Map(commands.Cog):
 
             image[vil.y: vil.y + 4, vil.x: vil.x + 4] = color
 
-        background = Image.fromarray(image)
-        bounds = self.get_bounds(all_villages)
-        result = background.crop(bounds)
-        self.watermark(result)
+        with Image.fromarray(image) as background:
+            bounds = self.get_bounds(all_villages)
+            result = background.crop(bounds)
+            self.watermark(result)
+
         return result
 
     async def create_diplomacy_map(self, tribes, conquers):
@@ -207,6 +213,9 @@ class Map(commands.Cog):
 
             tribes = await load.fetch_bulk(ctx.world, all_tribes, "tribe", name=True)
 
+        if len(color_map) > 10:
+            return await ctx.send("Du kannst nur bis zu 10 Stämme angeben")
+
         colors = load.colors.top().copy()
         for tribe in tribes:
             for index, group in enumerate(color_map):
@@ -225,12 +234,14 @@ class Map(commands.Cog):
         all_villages = await load.fetch_all(ctx.world, "map")
         players = {pl.id: pl for pl in result}
 
-        func = functools.partial(self.create_basic_map, all_villages, tribes, players)
-        image = await self.bot.loop.run_in_executor(None, func)
-        file = io.BytesIO()
-        image.save(file, "png", quality=100)
-        file.seek(0)
-        await ctx.send(file=discord.File(file, "map.png"))
+        args = (all_villages, tribes, players)
+        image = await self.bot.execute(self.create_basic_map, *args)
+
+        with io.BytesIO() as file:
+            image.save(file, "png", quality=100)
+            image.close()
+            file.seek(0)
+            await ctx.send(file=discord.File(file, "map.png"))
 
     @commands.command(name="bashmap")
     @commands.cooldown(1, 30, commands.BucketType.user)
@@ -240,12 +251,14 @@ class Map(commands.Cog):
         players = {pl.id: pl for pl in cache}
         all_villages = await load.fetch_all(ctx.world, "map")
 
-        func = functools.partial(self.create_bash_map, all_villages, players, bashstate)
-        image = await self.bot.loop.run_in_executor(None, func)
-        file = io.BytesIO()
-        image.save(file, "png", quality=100)
-        file.seek(0)
-        await ctx.send(file=discord.File(file, "map.png"))
+        args = (all_villages, players, bashstate)
+        image = await self.bot.execute(self.create_bash_map, *args)
+
+        with io.BytesIO() as file:
+            image.save(file, "png", quality=100)
+            image.close()
+            file.seek(0)
+            await ctx.send(file=discord.File(file, "map.png"))
 
 
 def setup(bot):
