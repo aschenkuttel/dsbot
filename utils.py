@@ -300,6 +300,11 @@ class MapVillage:
         self.y = 1501 + 5 * (data['y'] - 500)
         self.player = data['player']
 
+    def reposition(self, difference):
+        self.x -= difference[0]
+        self.y -= difference[1]
+        return self.x, self.y
+
 
 class World:
     def __init__(self, world):
