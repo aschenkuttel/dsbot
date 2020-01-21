@@ -1,6 +1,6 @@
-from load import load
 from utils import game_channel_only
 from discord.ext import commands
+from load import load
 import datetime
 import asyncio
 import random

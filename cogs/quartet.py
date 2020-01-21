@@ -1,9 +1,10 @@
+from utils import IngameError, error_embed, pcv, game_channel_only
 from discord.ext import commands
 from load import load
-from utils import IngameError, error_embed, pcv, game_channel_only
+import operator
 import discord
 import asyncio
-import operator
+
 
 prop = {"id": "ID", "rang": "Rang", "punkte": "Punkte", "dörfer": "Dörfer",
         "off": "Off", "def": "Def", "unt": "Unt", "insgesamt": "Insgesamt"}
@@ -366,9 +367,6 @@ class Quartet(commands.Cog):
     async def play_error(self, ctx, error):
         if isinstance(error, IngameError):
             msg = "Du nimmst aktuell an keiner aktiven dsQuartett-Runde teil!"
-            return await ctx.send(embed=error_embed(msg))
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Die gewünschte Karte/Eigenschaft fehlt."
             return await ctx.send(embed=error_embed(msg))
 
 

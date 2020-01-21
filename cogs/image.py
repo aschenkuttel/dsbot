@@ -7,7 +7,6 @@ from load import load
 import functools
 import discord
 import aiohttp
-
 import os
 
 
@@ -77,15 +76,13 @@ class Graphic(commands.Cog):
         output_buffer = BytesIO()
         if img.format == "GIF":
             frames = ImageSequence.Iterator(img)
-            func = functools.partial(self.gif_resize, frames)
-            frames = await self.bot.loop.run_in_executor(None, func)
+            frames = await self.bot.execute(self.gif_resize, frames)
             om = next(frames)
             om.save(output_buffer, "gif", save_all=True, append_images=list(frames), quality=90)
             filename = "avatar.gif"
 
         else:
-            func = functools.partial(self.img_resize, img)
-            img = await self.bot.loop.run_in_executor(None, func)
+            img = await self.bot.execute(self.img_resize, img)
             img.save(output_buffer, "png", quality=90)
             filename = "avatar.png"
 
@@ -129,6 +126,7 @@ class Graphic(commands.Cog):
 
         file = BytesIO(img)
         await ctx.send(file=discord.File(file, "userpic.gif"))
+        file.close()
 
     @commands.command(name="emoji", aliases=["cancer"])
     @commands.bot_has_permissions(manage_emojis=True)
@@ -143,8 +141,6 @@ class Graphic(commands.Cog):
 
     @avatar_.error
     async def avatar_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=error_embed(f"Du musst eine URL angeben"))
         if hasattr(error, "original"):
             badboys = ValueError, OSError, aiohttp.InvalidURL
             if isinstance(error.original, badboys):

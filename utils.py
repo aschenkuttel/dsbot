@@ -1,127 +1,12 @@
+from urllib.parse import quote_plus, unquote_plus
 from discord.ext import commands
+from datetime import datetime
 from load import load
-import datetime
 import discord
-import asyncio
 import re
 
 twstats = "https://de.twstats.com/de{}/index.php?page={}&id={}"
 ingame = "https://de{}.die-staemme.de/{}.php?screen=info_{}&id={}"
-
-dc = {
-    "!": "%21",
-    "#": "%23",
-    "$": "%24",
-    "&": "%26",
-    "'": "%27",
-    "(": "%28",
-    ")": "%29",
-    "*": "%2A",
-    "+": "%2B",
-    "/": "%2F",
-    ":": "%3A",
-    ";": "%3B",
-    "<": "%3C",
-    "=": "%3D",
-    ">": "%3E",
-    "?": "%3F",
-    "@": "%40",
-    "{": "%7B",
-    "|": "%7C",
-    "}": "%7D",
-    "~": "%7E",
-    "[": "%5B",
-    "]": "%5D",
-    "¢": "%C2%A2",
-    "£": "%C2%A3",
-    "¥": "%C2%A5",
-    "¦": "%C2%A6",
-    "§": "%C2%A7",
-    "¨": "%C2%A8",
-    "©": "%C2%A9",
-    "ª": "%C2%AA",
-    "«": "%C2%AB",
-    "¬": "%C2%AC",
-    "®": "%C2%AE",
-    "¯": "%C2%AF",
-    "°": "%C2%B0",
-    "±": "%C2%B1",
-    "²": "%C2%B2",
-    "³": "%C2%B3",
-    "´": "%C2%B4",
-    "µ": "%C2%B5",
-    "¶": "%C2%B6",
-    "·": "%C2%B7",
-    "¸": "%C2%B8",
-    "¹": "%C2%B9",
-    "º": "%C2%BA",
-    "»": "%C2%BB",
-    "¼": "%C2%BC",
-    "½": "%C2%BD",
-    "¾": "%C2%BE",
-    "¿": "%C2%BF",
-    "À": "%C3%80",
-    "Á": "%C3%81",
-    "Â": "%C3%82",
-    "Ã": "%C3%83",
-    "Ä": "%C3%84",
-    "Å": "%C3%85",
-    "Æ": "%C3%86",
-    "Ç": "%C3%87",
-    "È": "%C3%88",
-    "É": "%C3%89",
-    "Ê": "%C3%8A",
-    "Ë": "%C3%8B",
-    "Ì": "%C3%8C",
-    "Í": "%C3%8D",
-    "Î": "%C3%8E",
-    "Ï": "%C3%8F",
-    "Ð": "%C3%90",
-    "Ñ": "%C3%91",
-    "Ò": "%C3%92",
-    "Ó": "%C3%93",
-    "Ô": "%C3%94",
-    "Õ": "%C3%95",
-    "Ö": "%C3%96",
-    "×": "%C3%97",
-    "Ø": "%C3%98",
-    "Ù": "%C3%99",
-    "Ú": "%C3%9A",
-    "Û": "%C3%9B",
-    "Ü": "%C3%9C",
-    "Ý": "%C3%9D",
-    "Þ": "%C3%9E",
-    "ß": "%C3%9F",
-    "ã": "%C3%A3",
-    "ä": "%C3%A4",
-    "å": "%C3%A5",
-    "æ": "%C3%A6",
-    "ç": "%C3%A7",
-    "è": "%C3%A8",
-    "é": "%C3%A9",
-    "ê": "%C3%AA",
-    "ë": "%C3%AB",
-    "ì": "%C3%AC",
-    "í": "%C3%AD",
-    "î": "%C3%AE",
-    "ï": "%C3%AF",
-    "ð": "%C3%B0",
-    "ñ": "%C3%B1",
-    "ò": "%C3%B2",
-    "ó": "%C3%B3",
-    "ô": "%C3%B4",
-    "õ": "%C3%B5",
-    "ö": "%C3%B6",
-    "÷": "%C3%B7",
-    "ø": "%C3%B8",
-    "ù": "%C3%B9",
-    "ú": "%C3%BA",
-    "û": "%C3%BB",
-    "ü": "%C3%BC",
-    "ý": "%C3%BD",
-    "þ": "%C3%BE",
-    "ÿ": "%C3%BF"
-}
 
 
 def pcv(number):
@@ -140,16 +25,14 @@ async def silencer(coro):
         return
 
 
-# converts names to innos version / normal
-def converter(name, dirty=False):
-    dic = {value: key for key, value in dc.items()}
-    destination = dc if dirty else dic
-    for key, value in destination.items():
-        if key in name:
-            name = name.replace(key, value)
-    repl = (" ", "+") if dirty else ("+", " ")
-    result = name.replace(*repl)
-    return result.lower() if dirty else result
+# quote_plus doesn't convert tildes somehow :(
+def converter(name, php=False):
+    if php:
+        encoded = quote_plus(name)
+        encoded = encoded.replace('~', '%7E')
+        return encoded.lower()
+    else:
+        return unquote_plus(name)
 
 
 def keyword(options, **kwargs):
@@ -219,10 +102,6 @@ class WorldMissing(commands.CheckFailure):
         return "missing world"
 
 
-class PrivateOnly(commands.CheckFailure):
-    pass
-
-
 class IngameError(commands.CheckFailure):
     pass
 
@@ -272,41 +151,48 @@ class DSContext(commands.Context):
             return
 
     async def private_hint(self):
+        if self.guild is None:
+            return
         try:
             await self.message.add_reaction("📨")
         except discord.Forbidden:
             pass
 
 
-# typhint converter which convertes to either tribe or player
+# typhint converter which converts to either tribe or player
 class DSObject(commands.Converter):
     __slots__ = (
-        'id', 'x', 'y', 'world', 'url', 'alone', 'name', 'tag', 'tribe_id', 'villages', 'points',
-        'rank', 'player', 'att_bash', 'att_rank', 'def_bash', 'def_rank', 'all_bash', 'all_rank',
-        'ut_bash', 'member', 'all_points', 'guest_url', 'ingame_url', 'twstats_url')
+        'id', 'x', 'y', 'world', 'url', 'alone',
+        'name', 'tag', 'tribe_id', 'villages',
+        'points', 'rank', 'player', 'att_bash',
+        'att_rank', 'def_bash', 'def_rank',
+        'all_bash', 'all_rank', 'ut_bash',
+        'member', 'all_points', 'guest_url',
+        'ingame_url', 'twstats_url')
 
     async def convert(self, ctx, searchable):
+        # conquer add/remove needs guild world
+        if str(ctx.command).startswith("conquer"):
+            ctx.world = load.get_guild_world(ctx.guild)
+
         obj = await load.fetch_both(ctx.world, searchable)
         if not obj:
             raise DSUserNotFound(searchable)
         return obj
 
 
-# own case insensitive member converter
+# own case insensitive member converter / don't judge about slots ty
 class GuildUser(commands.Converter):
-    def __init__(self):
-        self.id = None
-        self.name = None
-        self.display_name = None
-        self.avatar_url = None
+    __slots__ = ('id', 'name', 'display_name', 'avatar_url')
 
     async def convert(self, ctx, arg):
         if re.match(r'<@!?([0-9]+)>$', arg):
             raise DontPingMe
+        name = arg.lower()
         for m in ctx.guild.members:
-            if m.display_name.lower() == arg.lower():
+            if name == m.display_name.lower():
                 return m
-            if m.name.lower() == arg.lower():
+            if name == m.name.lower():
                 return m
         else:
             raise GuildUserNotFound(arg)
@@ -414,6 +300,28 @@ class MapVillage:
         self.y = 1501 + 5 * (data['y'] - 500)
         self.player = data['player']
 
+    def reposition(self, difference):
+        self.x -= difference[0]
+        self.y -= difference[1]
+        return self.x, self.y
+
+
+class World:
+    def __init__(self, world):
+        self.world = world
+        if self.world < 50:
+            self.casual = True
+            self.name = "Casual"
+        else:
+            self.casual = False
+            self.name = "Welt"
+
+    def __str__(self):
+        if self.casual:
+            return f"p{self.world}"
+        else:
+            return str(self.world)
+
 
 class Conquer:
     def __init__(self, world, data):
@@ -430,8 +338,7 @@ class Conquer:
 
     @property
     def time(self):
-        date = datetime.datetime.fromtimestamp(self.unix)
-        return date
+        return datetime.fromtimestamp(self.unix)
 
     @property
     def player_ids(self):
@@ -447,18 +354,20 @@ class Conquer:
 
 
 class DSColor:
-
     def __init__(self):
-        self.red = [230, 40, 0]
         self.blue = [16, 52, 166]
-        self.yellow = [255, 189, 32]
+        self.red = [230, 40, 0]
         self.turquoise = [64, 224, 208]
-        self.pink = [255, 8, 127]
+        self.yellow = [255, 189, 32]
         self.orange = [253, 106, 2]
+        self.pink = [255, 8, 127]
         self.green = [152, 251, 152]
-        self.purple = [192, 5, 248]
+        self.purple = [128, 0, 128]  # [192, 5, 248]
         self.white = [245, 245, 245]
         self.dark_green = [0, 51, 0]
+        self.bright_yellow = [254, 254, 127]
+        self.bright_red = [254, 127, 127]
+        self.bright_blue = [0, 127, 254]
         self.bg_green = [88, 118, 27]
         self.bg_forrest = [73, 103, 21]
         self.vil_brown = [130, 60, 10]
@@ -470,7 +379,8 @@ class DSColor:
 
     def top(self):
         palette = [self.red, self.blue, self.yellow, self.turquoise, self.pink,
-                   self.orange, self.green, self.purple, self.white, self.dark_green]
+                   self.orange, self.green, self.purple, self.white, self.dark_green,
+                   self.bright_yellow, self.bright_red, self.bright_blue]
         return palette
 
 

@@ -19,10 +19,14 @@ class Admin(commands.Cog):
                                        activity=discord.Game(name=args))
         await ctx.send("Presence verändert")
 
-    @commands.command(name="guild_game")
-    async def guild_game_(self, ctx, guild_id: int, new_game: int):
-        load.change_game_channel(guild_id, new_game)
-        return await ctx.send("Neuer Game-Channel registriert")
+    @commands.command(name="reload")
+    async def reload_(self, ctx, cog):
+        try:
+            self.bot.reload_extension(f"cogs.{cog}")
+            await ctx.send("Extension erfolgreich neu geladen")
+            print("-- Extension reloaded --")
+        except Exception as error:
+            await ctx.send(error)
 
     @commands.command(name="guild_reset")
     async def guild_reset_(self, ctx, guild_id: int):
@@ -32,10 +36,9 @@ class Admin(commands.Cog):
         else:
             await ctx.send(embed=error_embed("Keine Daten gefunden"))
 
-    @commands.command(name="ursula_haverbeck", aliases=["ursula"])
-    async def ursula_haverbeck_(self, ctx):
-        res = [guild.name for guild in ctx.bot.guilds[0:10]]
-        await ctx.send(f"{len(ctx.bot.guilds)}\n{', '.join(res)}")
+    @commands.command(name="ursula")
+    async def ursula_(self, ctx):
+        await ctx.send(f"{len(ctx.bot.guilds)}")
 
     @commands.command(name="stats")
     async def stats_(self, ctx):

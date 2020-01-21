@@ -1,6 +1,6 @@
+from utils import error_embed, GuildUser
 from discord.ext import commands
 from load import load
-from utils import error_embed, GuildUser
 import discord
 import asyncio
 import random
@@ -12,7 +12,6 @@ class Enjoy(commands.Cog):
 
     @commands.command(name="orakel")
     async def orakel_(self, ctx, *, args):
-
         if args == args.upper() and not args == args.lower():
             return await ctx.send(random.choice(load.msg["fearOrakel"]))
 
@@ -71,8 +70,7 @@ class Enjoy(commands.Cog):
 
     @commands.command(name="duali", aliases=["mitspieler"])
     async def duali_(self, ctx, *, user: GuildUser):
-
-        if user == ctx.bot.user:
+        if user == self.bot.user:
             em = discord.Embed()
             url = "http://media1.tenor.com/images/561e3f9a9c6c" \
                   "1912e2edc4c1055ff13e/tenor.gif?itemid=9601551"
@@ -147,25 +145,6 @@ class Enjoy(commands.Cog):
     @commands.command(name="suicide")
     async def suicide_(self, ctx):
         await ctx.send("`0800/111 0 111`")
-
-    @duali_.error
-    async def love_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Der gewünschte Discord-User fehlt."
-            return await ctx.send(embed=error_embed(msg))
-
-    @orakel_.error
-    async def orakel_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Du musst auch eine Frage stellen: "
-            "`!orakel Werde ich heute endlich adeln?`"
-            await ctx.send(embed=error_embed(msg))
-
-    @ddos_.error
-    async def ddos_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = f"Der gewünschte Discord-User fehlt."
-            await ctx.send(embed=error_embed(msg))
 
 
 def setup(bot):

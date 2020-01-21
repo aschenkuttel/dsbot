@@ -1,8 +1,8 @@
 from discord.ext import commands
 from load import load
-import utils
 import discord
 import random
+import utils
 import io
 import re
 import os
@@ -13,9 +13,9 @@ class Villages(commands.Cog):
         self.bot = bot
 
     async def send_coords(self, ctx, result):
-        coords = [f"{rec['x']}|{rec['y']}" for rec in result]
+        coords = [f"{i}. {r['x']}|{r['y']}" for i, r in enumerate(result, 1)]
 
-        if len(coords) < 281:
+        if len(coords) < 181:
             await ctx.author.send('\n'.join(coords))
         else:
             file = io.StringIO()
@@ -30,12 +30,11 @@ class Villages(commands.Cog):
 
         if not amount.isdigit() and amount.lower() != "all":
             msg = "Die Anzahl der gewünschten Dörfer muss entweder eine Zahl oder `all` sein."
-            await ctx.send(embed=utils.error_embed(msg))
-            return
+            return await ctx.send(embed=utils.error_embed(msg))
 
         if not args:
             msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte K55**"
-            await ctx.send(embed=utils.error_embed(msg))
+            return await ctx.send(embed=utils.error_embed(msg))
 
         con = None
         if len(args) == 1:
@@ -113,13 +112,11 @@ class Villages(commands.Cog):
         async with load.pool.acquire() as conn:
             result = await conn.fetch(query, *arguments)
 
-        await self.send_coords(ctx, result)
-
-    @villages_.error
-    async def villages_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte K55**"
-            await ctx.send(embed=utils.error_embed(msg))
+        if not result:
+            msg = "Es sind keine Barbarendörfer in Reichweite"
+            await ctx.send(utils.error_embed(msg))
+        else:
+            await self.send_coords(ctx, result)
 
 
 def setup(bot):
