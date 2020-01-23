@@ -18,7 +18,6 @@ cmds = [
     "`rm` | Rundmail Generator für mehrere Stämme",
     "`rz` | Ungefähre Verteilung der Truppen auf die Raubzugoptionen",
     "`set` | Administrator-Commands für Einstellungen",
-    "`sl` | Generiert Truppen-Einfügen SL Script für angegebene Dörfer",
     "`time` | Erinnerung zu gewünschter Uhrzeit per PN",
     "`villages` | Liste von Koordinaten von Spieler|Stamm",
     "`visit` | Gastlogin-Url von gewünschter|Server-Welt",

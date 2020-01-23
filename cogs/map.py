@@ -19,6 +19,56 @@ class Map(commands.Cog):
         self.red = Color('red')
         self.max_font_size = 300
         self.img = Image.open(f"{load.data_path}/map.png")
+        self.conquer_cache = {}
+        user = commands.BucketType.user
+        self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
+
+    async def cog_check(self, ctx):
+        bucket = self._cd.get_bucket(ctx.message)
+        retry_after = bucket.update_rate_limit()
+
+        if retry_after:
+            raise commands.CommandOnCooldown(self._cd, retry_after)
+        else:
+            return True
+
+    async def map_creation(self):
+
+        for world in load.worlds:
+
+            tribes = await load.fetch_top(world, "tribe", till=10)
+
+            colors = load.colors.top().copy()
+            for tribe in tribes:
+                tribe.color = colors.pop(0)
+
+            tribes = {tribe.id: tribe for tribe in tribes}
+            result = await load.fetch_tribe_member(world, tribes.keys())
+            all_villages = await load.fetch_all(world, "map")
+            players = {pl.id: pl for pl in result}
+
+            history = {}
+            for day in range(20):
+                query = f'SELECT * FROM village{day + 1} WHERE world = $1'
+                async with load.pool.acquire() as conn:
+                    res = await conn.fetch(query, world)
+                    old_villages = {rec[1]: MapVillage(rec) for rec in res}
+
+                    another = f'SELECT * FROM player{day + 1} WHERE world = $1'
+                    res = await conn.fetch(another, world)
+                    old_player = {rec[1]: rec for rec in res}
+
+                history[day + 1] = {'village': old_villages, 'player': old_player}
+
+            args = (all_villages, tribes, players, history)
+            image = await self.bot.execute(self.create_conquer_map, *args)
+
+            file = io.BytesIO()
+            image.save(file, "png", quality=100)
+            image.close()
+            file.seek(0)
+
+            self.conquer_cache[world] = file
 
     def convert_to_255(self, iterable):
         result = []
@@ -129,7 +179,7 @@ class Map(commands.Cog):
             if not self.outta_bounds(vil):
                 continue
 
-            if vil.player == 0:
+            elif vil.player == 0:
                 color = load.colors.bb_grey
 
             elif vil.player not in players:
@@ -156,62 +206,29 @@ class Map(commands.Cog):
         self.watermark(result)
         return result
 
-    def create_bash_map(self, all_villages, player, state):
-        top = sorted(player.values(), key=lambda p: getattr(p, state))
-        top_bash = int(sum([getattr(p, state) for p in top][-25:]) / 25)
-        first = list(self.white.range_to(self.yellow, 26))
-        second = list(self.yellow.range_to(self.red, 25))
-        color_scheme = self.convert_to_255(first[:-1] + second)
-
-        percentage = {}
-        for pl in player.values():
-            bash = getattr(pl, state)
-            per = int((bash / top_bash) * len(color_scheme))
-            if per > 49:
-                per = 49
-            elif per > 0:
-                per -= 1
-
-            percentage[pl.id] = per
-
-        base, difference = self.create_base(all_villages)
-        for vil in all_villages:
-
-            x, y = vil.reposition(difference)
-
-            per = percentage.get(vil.player)
-            if per is None:
-                color = load.colors.bb_grey
-            else:
-                color = color_scheme[per]
-
-            base[y: y + 4, x: x + 4] = color
-
-        result = Image.fromarray(base)
-        self.watermark(result)
-        return result
-
-    def create_heat_map(self, new_villages, old_villages, tribes, newbies, oldies):
+    def create_conquer_map(self, new_villages, tribes, newbies, history):
         base, difference = self.create_base(new_villages)
         overlay = np.zeros((base.shape[0], base.shape[1], 4), dtype='uint8')
         highlight = np.zeros((base.shape[0], base.shape[1], 4), dtype='uint8')
 
         old_tribe_tree = {}
-        for player in oldies.values():
-            trid = player['tribe_id']
-            if trid not in tribes:
-                continue
-            if trid not in old_tribe_tree:
-                old_tribe_tree[trid] = [player['id']]
-            else:
-                old_tribe_tree[trid].append(player['id'])
+        for day in history:
+            old_tribe_tree[day] = {}
+            for player in history[day]['player'].values():
+                trid = player['tribe_id']
+                if trid not in tribes:
+                    continue
+                if trid not in old_tribe_tree[day]:
+                    old_tribe_tree[day][trid] = [player['id']]
+                else:
+                    old_tribe_tree[day][trid].append(player['id'])
 
         for vil in new_villages:
 
             # repositions coords based on base crop
             x, y = vil.reposition(difference)
 
-            opac = [90]
+            opac = [111]
             if not self.outta_bounds(vil):
                 continue
 
@@ -226,15 +243,17 @@ class Map(commands.Cog):
                 tribe = tribes[player.tribe_id]
                 color = tribe.color
 
-                old = old_villages.get(vil.id)
-                if old and old.player != vil.player:
+                for day in history:
 
-                    for idc, pids in old_tribe_tree.items():
-                        if player.tribe_id == idc:
-                            continue
-                        if old.player in pids:
-                            opac = [255]
-                            highlight[y - 6:y + 10, x - 6:x + 10] = color + [100]
+                    old = history[day]['village'].get(vil.id)
+                    if old and old.player != vil.player:
+
+                        for idc, pids in old_tribe_tree[day].items():
+                            if player.tribe_id == idc:
+                                continue
+                            if old.player in pids:
+                                opac = [255]
+                                highlight[y - 6:y + 10, x - 6:x + 10] = color + [100]
 
             overlay[y: y + 4, x: x + 4] = color + opac
 
@@ -299,57 +318,6 @@ class Map(commands.Cog):
 
         args = (all_villages, tribes, players)
         image = await self.bot.execute(self.create_basic_map, *args)
-
-        with io.BytesIO() as file:
-            image.save(file, "png", quality=100)
-            image.close()
-            file.seek(0)
-            await ctx.send(file=discord.File(file, "map.png"))
-
-    @commands.command(name="bashmap")
-    @commands.cooldown(1, 30, commands.BucketType.user)
-    async def bashmap_(self, ctx, bashstate="all_bash"):
-
-        cache = await load.fetch_all(ctx.world)
-        players = {pl.id: pl for pl in cache}
-        all_villages = await load.fetch_all(ctx.world, "map")
-
-        args = (all_villages, players, bashstate)
-        image = await self.bot.execute(self.create_bash_map, *args)
-
-        with io.BytesIO() as file:
-            image.save(file, "png", quality=100)
-            image.close()
-            file.seek(0)
-            await ctx.send(file=discord.File(file, "map.png"))
-
-    @commands.command(name="heatmap")
-    async def heatmap_(self, ctx, days: int = 7):
-
-        await ctx.trigger_typing()
-
-        tribes = await load.fetch_top(ctx.world, "tribe", till=10)
-
-        colors = load.colors.top().copy()
-        for tribe in tribes:
-            tribe.color = colors.pop(0)
-
-        tribes = {tribe.id: tribe for tribe in tribes}
-        result = await load.fetch_tribe_member(ctx.world, tribes.keys())
-        all_villages = await load.fetch_all(ctx.world, "map")
-        players = {pl.id: pl for pl in result}
-
-        query = f'SELECT * FROM village{days} WHERE world = $1'
-        async with load.pool.acquire() as conn:
-            res = await conn.fetch(query, ctx.world)
-            old_villages = {rec[1]: MapVillage(rec) for rec in res}
-
-            another = f'SELECT * FROM player{days} WHERE world = $1'
-            res = await conn.fetch(another, ctx.world)
-            old_player = {rec[1]: rec for rec in res}
-
-        args = (all_villages, old_villages, tribes, players, old_player)
-        image = await self.bot.execute(self.create_heat_map, *args)
 
         with io.BytesIO() as file:
             image.save(file, "png", quality=100)

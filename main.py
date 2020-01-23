@@ -78,7 +78,8 @@ class DSBot(commands.Bot):
         owner = self.get_user(self.owner_id)
         await owner.send(msg)
 
-    def callback(self, conn, pid, channel, payload):
+    def callback(self, *args):
+        payload = args[-1]
         print(f"Payload received: {payload}")
         if payload == "404":
             msg = "database script ended with a failure"
