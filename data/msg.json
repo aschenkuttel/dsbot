@@ -317,5 +317,28 @@
     ["Welche Farbe hat der Bericht eines Angriffs mit Verlusten?", "Gelb"],
     ["Wie viel Kontinente hat eine Welt?", "100"],
     ["Welche Seite ist bekannt f\u00fcr die Top 10 Weltenkarten (ohne www/.de)", "dsreal"]
-  ]
+  ],
+  "mapOptions": {
+    "<:center:672875546773946369>": {
+      "title": "Zoom",
+      "default": "0"},
+    "<:dsmap:672912316240756767>": {
+      "title": "Zentrum",
+      "default": "500|500"
+    },
+    "<:friend:672875516117778503>": {
+      "title": "Spieler",
+      "default": ""},
+    "<:tribe:672862439074693123>": {
+      "title": "St\u00e4mme",
+      "default": ""},
+    "<:report:672862439242465290>": {
+      "title": "Markierung",
+      "default": "Aus"},
+    "<:old:672862439112441879>": {
+      "title": "Barbarend\u00f6rfer",
+      "default": "An"},
+    "<:button:672910606700904451>": {
+      "title": "Karte erstellen"}
+    }
 }

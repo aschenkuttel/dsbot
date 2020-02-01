@@ -219,9 +219,9 @@ class Set(commands.Cog):
             return
 
         world = load.get_guild_world(ctx.guild)
-
         cache = await load.fetch_bulk(world, filter_list, "tribe")
         data = [obj.name for obj in cache]
+
         name = "Stamm" if len(data) == 1 else "Stämme"
         title = f"{len(data)} {name} insgesamt"
         embed = discord.Embed(title=title, description='\n'.join(data[:10]))

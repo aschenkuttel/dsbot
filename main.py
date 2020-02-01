@@ -27,7 +27,7 @@ class DSBot(commands.Bot):
         self.white = pm_commands
         self.owner_id = 211836670666997762
         self.path = os.path.dirname(__file__)
-        self.activity = discord.Activity(type=1, name="!help [1.6]")
+        self.activity = discord.Activity(type=1, name="!help [1.8]")
         self.loop.create_task(self.conquer_loop())
         self.add_check(self.global_world)
         self.remove_command("help")

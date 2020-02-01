@@ -298,7 +298,7 @@ class MapVillage:
         self.id = data['id']
         self.x = 1501 + 5 * (data['x'] - 500)
         self.y = 1501 + 5 * (data['y'] - 500)
-        self.player = data['player']
+        self.player_id = data['player']
 
     def reposition(self, difference):
         self.x -= difference[0]
@@ -327,13 +327,11 @@ class Conquer:
     def __init__(self, world, data):
         self.id = data[0]
         self.unix = data[1]
-        self.new = data[2]
-        self.old = data[3]
+        self.new_id = data[2]
+        self.old_id = data[3]
         self.world = world
         self.old_tribe = None
         self.new_tribe = None
-        self.old_player = None
-        self.new_player = None
         self.village = None
 
     @property
@@ -342,11 +340,11 @@ class Conquer:
 
     @property
     def player_ids(self):
-        return self.new, self.old
+        return self.new_id, self.old_id
 
     @property
     def grey(self):
-        return 0 in (self.new, self.old)
+        return 0 in (self.new_id, self.old_id)
 
     @property
     def coords(self):

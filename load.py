@@ -168,13 +168,15 @@ class Load:
         return (money, rank) if info else money
 
     async def get_user_top(self, amount, guild=None):
-        query = 'SELECT * FROM iron_data ORDER BY amount DESC LIMIT $1'
+        base = 'SELECT * FROM iron_data'
         args = [amount]
 
         if guild:
-            query += 'WHERE id = ANY($2)'
+            base += ' WHERE id = ANY($2)'
             member = [mem.id for mem in guild.members]
             args.append(member)
+
+        query = base + ' ORDER BY amount DESC LIMIT $1'
 
         async with self.ress.acquire() as conn:
             data = await conn.fetch(query, *args)
@@ -274,8 +276,8 @@ class Load:
     async def fetch_tribe(self, world, searchable, name=False):
         if name:
             searchable = utils.converter(searchable, True)
-            query = 'SELECT * FROM tribe WHERE world = $1' \
-                    'AND LOWER(tag) = $2 OR LOWER(name) = $2'
+            query = 'SELECT * FROM tribe WHERE world = $1 ' \
+                    'AND (LOWER(tag) = $2 OR LOWER(name) = $2)'
         else:
             query = 'SELECT * FROM tribe WHERE world = $1 AND id = $2'
 
@@ -390,13 +392,16 @@ class Load:
     async def conquer_feed(self, guilds):
         await self.update_conquer()
         for guild in guilds:
+
             world = self.get_guild_world(guild)
             if not world:
                 continue
+
             channel_id = self.get_item(guild.id, 'conquer')
             channel = guild.get_channel(channel_id)
             if not channel:
                 continue
+
             tribes = self.get_item(guild.id, 'filter')
             grey = self.get_item(guild.id, 'bb')
             data = await self.conquer_parse(world, tribes, grey)
@@ -460,8 +465,8 @@ class Load:
 
             for conquer in conquer_cache:
                 conquer.village = villages.get(conquer.id)
-                conquer.old_player = players.get(conquer.old)
-                conquer.new_player = players.get(conquer.new)
+                conquer.old_player = players.get(conquer.old_id)
+                conquer.new_player = players.get(conquer.new_id)
                 if conquer.old_player:
                     conquer.old_tribe = tribes.get(conquer.old_player.tribe_id)
                 if conquer.new_player:

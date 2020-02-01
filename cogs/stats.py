@@ -71,11 +71,10 @@ class Bash(commands.Cog):
 
     @commands.command(name="recap", aliases=["tagebuch"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recap(self, ctx, *args):
+    async def recap(self, ctx, *, args):
 
-        if not args:
-            raise commands.MissingRequiredArgument('nothing')
         time = 7
+        args = args.split(' ')
         if args[-1].isdigit():
             dsobj = await load.fetch_both(ctx.world, ' '.join(args[:-1]))
             if dsobj:
