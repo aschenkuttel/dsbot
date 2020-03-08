@@ -1,7 +1,6 @@
 from utils import game_channel_only, error_embed, pcv
 from discord.ext import commands
 from bs4 import BeautifulSoup
-from load import load
 import asyncio
 import discord
 import random
@@ -85,7 +84,7 @@ class Quiz(commands.Cog):
         switch = random.choice([True, False])
         gravity = random.choice([True, False])
         top = 15 if switch else 100
-        data = await load.fetch_random(ctx.world, top=top, amount=5, tribe=switch)
+        data = await self.bot.fetch_random(ctx.world, top=top, amount=5, tribe=switch)
         base = f"Welcher dieser 5 {'Stämme' if switch else 'Spieler'} hat"
         witcher = tr_options if switch else pl_options
         key = random.choice(list(witcher))
@@ -112,7 +111,7 @@ class Quiz(commands.Cog):
 
     # Module Two
     async def general_ask(self, ctx, rounds):
-        raw_question, answer = random.choice(load.msg["generalQuestion"])
+        raw_question, answer = random.choice(self.bot.msg["generalQuestion"])
         splitted = raw_question.split(" ")
         mid = int((len(splitted) + 1) / 2)
         first_half, second_half = ' '.join(splitted[:mid]), ' '.join(splitted[mid:])
@@ -123,11 +122,11 @@ class Quiz(commands.Cog):
 
     # Module Three
     async def tribe_quiz(self, ctx, rounds):
-        tribes = await load.fetch_random(ctx.world, amount=5, top=15, tribe=True)
+        tribes = await self.bot.fetch_random(ctx.world, amount=5, top=15, tribe=True)
         positive = random.choice([True, False])
         target, rest = tribes[0].id, [obj.id for obj in tribes[1:]]
         foo, bar = (rest, target) if positive else (target, rest)
-        data = await load.fetch_tribe_member(ctx.world, foo)
+        data = await self.bot.fetch_tribe_member(ctx.world, foo)
 
         fake_list = []
         while len(fake_list) < 4:
@@ -135,7 +134,7 @@ class Quiz(commands.Cog):
             if player not in fake_list:
                 fake_list.append(player)
 
-        data = await load.fetch_tribe_member(ctx.world, bar)
+        data = await self.bot.fetch_tribe_member(ctx.world, bar)
         target_player = random.choice(data)
         result = fake_list + [target_player]
         random.shuffle(result)
@@ -156,7 +155,7 @@ class Quiz(commands.Cog):
     async def image_guess(self, ctx, rounds):
         state = random.choice([True, False])
         top = 15 if state else 100
-        obj_list = await load.fetch_random(ctx.world, amount=top, top=top, tribe=state)
+        obj_list = await self.bot.fetch_random(ctx.world, amount=top, top=top, tribe=state)
         random.shuffle(obj_list)
         for obj in obj_list:
             async with self.bot.session.get(obj.guest_url) as resp:
@@ -259,9 +258,9 @@ class Quiz(commands.Cog):
             for user, points in ranking:
                 msg = f"`{points}` | **{user.display_name}**"
                 if points == ranking[0][1]:
-                    won = 1500 * points
-                    msg = f"{msg} `[{won} Eisen]`"
-                    await load.save_user_data(user.id, won)
+                    amount = 1500 * points
+                    msg = f"{msg} `[{amount} Eisen]`"
+                    await self.bot.save_user_data(user.id, amount)
                 result_msg.append(msg)
 
             if not pool:

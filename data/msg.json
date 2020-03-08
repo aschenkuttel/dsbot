@@ -263,7 +263,19 @@
     "Schwertkampf",
     "Phalanx",
     "Befestigung",
-    "Kochendes \u00f6l"
+    "Kochendes \u00f6l",
+    "Retime",
+    "Tabben",
+    "Timing",
+    "Ag-Train",
+    "Millisekunde",
+    "Script",
+    "Stammesmitglieder",
+    "Innogames",
+    "Minimap",
+    "Diplomatie",
+    "Ausmusterung",
+    "Massen-Rekrutierung"
   ],
   "generalQuestion": [
     ["In welchem Jahr wurde DS ver\u00f6ffentlicht?", "2003"],

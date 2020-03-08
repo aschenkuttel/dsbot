@@ -1,10 +1,8 @@
-from utils import error_embed, DSColor
-from datetime import datetime
 from discord.ext import commands
-from load import load
+from datetime import datetime
 import discord
 import asyncio
-import typing
+import utils
 import math
 import re
 
@@ -14,10 +12,7 @@ class Rm(commands.Cog):
         self.bot = bot
         self.duration = 300
         self.cap_dict = {}
-        self.color = load.colors
         self.number = "{}\N{COMBINING ENCLOSING KEYCAP}"
-        # self.numbers = {1: "", 2: ":two:", 3: ":three:",
-        #                 4: ":four:", 5: ":five:", 6: ":six:"}
         self.troops = ["speer", "schwert", "axt", "bogen", "späher", "lkav", "berittene",
                        "skav", "ramme", "katapult", "paladin", "ag"]
         self.base = "javascript: var settings = Array" \
@@ -28,18 +23,46 @@ class Rm(commands.Cog):
 
     @commands.command(aliases=["rundmail"])
     async def rm(self, ctx, *tribes: str):
-
         if len(tribes) > 10:
             msg = "Der RM Command unterstützt aktuell nur " \
                   "maximal `10 Stämme` per Command"
             return await ctx.send(msg)
 
-        data = await load.fetch_tribe_member(ctx.world, tribes, True)
+        data = await self.bot.fetch_tribe_member(ctx.world, tribes, True)
         if isinstance(data, str):
             return await ctx.send(f"Der Stamm `{data}` existiert so nicht")
         result = [obj.name for obj in data]
         await ctx.author.send(f"```\n{';'.join(result)}\n```")
         await ctx.message.add_reaction("📨")
+
+    @commands.command(name="akte", aliases=["twstats"])
+    async def akte_(self, ctx, *, user: utils.DSObject):
+        akte = discord.Embed(title=user.name, url=user.twstats_url)
+        await ctx.send(embed=akte)
+
+    @commands.command(name="player", aliases=["spieler", "tribe", "stamm"])
+    async def ingame_(self, ctx, *, username):
+        if ctx.invoked_with.lower() in ("player", "spieler"):
+            dsobj = await self.bot.fetch_player(ctx.world, username, True)
+        else:
+            dsobj = await self.bot.fetch_tribe(ctx.world, username, True)
+        if not dsobj:
+            raise utils.DSUserNotFound(username)
+        profile = discord.Embed(title=dsobj.name, url=dsobj.ingame_url)
+        await ctx.send(embed=profile)
+
+    @commands.command(name="guest")
+    async def guest_(self, ctx, *, user: utils.DSObject):
+        guest = discord.Embed(title=user.name, url=user.guest_url)
+        await ctx.send(embed=guest)
+
+    @commands.command(name="visit", aliases=["besuch"])
+    async def visit_(self, ctx, world: int):
+        if not self.bot.check_world(world):
+            msg = "Diese Welt existiert nicht"
+            return await ctx.send(embed=utils.error_embed(msg))
+        desc = f"https://de{utils.casual(world)}.die-staemme.de/guest.php"
+        await ctx.send(embed=discord.Embed(description=f"[{world}]({desc})"))
 
     @commands.command(name="sl")
     async def sl_(self, ctx, *, args):
@@ -92,8 +115,7 @@ class Rm(commands.Cog):
     async def rz3_(self, ctx, *args: int):
         if len(args) > 7:
             msg = "Das Maximum von 7 verschiedenen Truppentypen wurde überschritten"
-            await ctx.send(embed=error_embed(msg))
-            return
+            return await ctx.send(embed=utils.error_embed(msg))
 
         three = ctx.invoked_with.lower() == "rz3"
 
@@ -145,7 +167,7 @@ class Rm(commands.Cog):
         if not self.check_time(thyme):
             msg = "Benutze folgende Zeitangaben: " \
                   "`!time 9h23m14s` oder `!time 18:45:24`"
-            return await ctx.send(embed=error_embed(msg))
+            return await ctx.send(embed=utils.error_embed(msg))
         num = 0
 
         # ----- Max Cap Check ----- #
@@ -153,7 +175,7 @@ class Rm(commands.Cog):
         if cap_num >= 5:
             msg = "Du hast dein Limit erreicht - " \
                   "Pro User nur maximal 5 aktive Timer!"
-            return await ctx.author.send(embed=error_embed(msg))
+            return await ctx.author.send(embed=utils.error_embed(msg))
 
         if thyme.__contains__(":"):
             thym = thyme.split(":")
@@ -199,10 +221,9 @@ class Rm(commands.Cog):
 
     @commands.command(name="poll", aliases=["abstimmung"])
     async def poll_(self, ctx, question, *options):
-
         if len(options) > 9:
             msg = "Die maximale Anzahl der Auswahlmöglichkeiten beträgt 9"
-            return await ctx.send(error_embed(msg))
+            return await ctx.send(utils.error_embed(msg))
 
         parsed_options = ""
         for index, opt in enumerate(options):
@@ -252,7 +273,7 @@ class Rm(commands.Cog):
     async def rz3_error(self, ctx, error):
         if isinstance(error, commands.BadArgument):
             msg = "Truppenangaben dürfen nur aus Zahlen bestehen"
-            await ctx.send(embed=error_embed(msg))
+            await ctx.send(embed=utils.error_embed(msg))
 
 
 def setup(bot):

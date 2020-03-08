@@ -1,6 +1,5 @@
 from utils import game_channel_only
 from discord.ext import commands
-from load import load
 import datetime
 import asyncio
 import random
@@ -32,7 +31,7 @@ class Anagram(commands.Cog):
 
         word = None
         while not word:
-            cache = random.choice(load.msg["hangman"])
+            cache = random.choice(self.bot.msg["hangman"])
             if len(cache.split()) == 1:
                 word = cache.strip()
 
@@ -68,13 +67,15 @@ class Anagram(commands.Cog):
                 return
 
         end_time = datetime.datetime.now()
-        str_time = "%.1f" % (end_time-start_time).total_seconds()
-        amount_won = int(250 * (len(word)) * (1 - float(str_time) / 60 + 1))
+        diff = float("%.1f" % (end_time-start_time).total_seconds())
+        spec_bonus = (60 - diff) * (50 * (1 - diff / 60)) * (1 - diff / 60)
+        amount_won = int((150 * len(word) + spec_bonus) * (1 - diff / 60 + 1))
+
         await ctx.send(
             f"`{msg.author.display_name}` hat das Wort in "
-            f"`{str_time} Sekunden` erraten.\n"
+            f"`{diff} Sekunden` erraten.\n"
             f"`{amount_won} Eisen` gewonnen (15s Cooldown)")
-        await load.save_user_data(msg.author.id, amount_won)
+        await self.bot.save_user_data(msg.author.id, amount_won)
         self.data[ctx.guild.id] = False
         await asyncio.sleep(15)
         self.data.pop(ctx.guild.id)

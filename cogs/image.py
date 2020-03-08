@@ -3,8 +3,6 @@ from PIL import Image, ImageSequence
 from discord.ext import commands
 from bs4 import BeautifulSoup
 from io import BytesIO
-from load import load
-import functools
 import discord
 import aiohttp
 import os
@@ -55,7 +53,7 @@ class Graphic(commands.Cog):
             yield pic
 
     def setup_emojis(self):
-        path = f"{self.bot.path}/data/emojis/"
+        path = f"{self.bot.data_path}/emojis/"
         for file in os.listdir(path):
             with open(f"{path}/{file}", 'rb') as pic:
                 img = bytearray(pic.read())
@@ -107,7 +105,7 @@ class Graphic(commands.Cog):
         else:
             await ctx.trigger_typing()
             for _ in range(0, 30):
-                user = await load.fetch_random(ctx.world)
+                user = await self.bot.fetch_random(ctx.world)
                 async with self.bot.session.get(user.guest_url) as res:
                     data = await res.read()
                 soup = BeautifulSoup(data, "html.parser")
@@ -126,7 +124,6 @@ class Graphic(commands.Cog):
 
         file = BytesIO(img)
         await ctx.send(file=discord.File(file, "userpic.gif"))
-        file.close()
 
     @commands.command(name="emoji", aliases=["cancer"])
     @commands.bot_has_permissions(manage_emojis=True)

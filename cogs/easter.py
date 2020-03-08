@@ -1,6 +1,5 @@
-from utils import error_embed, GuildUser
 from discord.ext import commands
-from load import load
+from utils import GuildUser
 import discord
 import asyncio
 import random
@@ -13,13 +12,13 @@ class Enjoy(commands.Cog):
     @commands.command(name="orakel")
     async def orakel_(self, ctx, *, args):
         if args == args.upper() and not args == args.lower():
-            return await ctx.send(random.choice(load.msg["fearOrakel"]))
+            return await ctx.send(random.choice(self.bot.msg["fearOrakel"]))
 
         else:
 
             num = random.randint(1, 500)
             if num not in [300, 400, 500]:
-                await ctx.send(random.choice(load.msg["cleanOrakel"]))
+                await ctx.send(random.choice(self.bot.msg["cleanOrakel"]))
 
             elif num == 300:
 

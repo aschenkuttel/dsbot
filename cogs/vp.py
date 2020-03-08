@@ -1,6 +1,5 @@
-from utils import error_embed, game_channel_only
+from utils import game_channel_only
 from discord.ext import commands
-from load import load
 import asyncio
 import random
 
@@ -148,7 +147,7 @@ class VP(commands.Cog):
             await ctx.send("Fehlerhafte Eingabe: `!vp <100-2000>`")
             return
 
-        credit = await load.get_user_data(ctx.author.id)
+        credit = await self.bot.fetch_user_data(ctx.author.id)
         if credit - money < 0:
             await ctx.send("Du kannst nicht um Geld spielen welches du nicht besitzt...")
             return
@@ -173,7 +172,7 @@ class VP(commands.Cog):
                         content="Die maximale Wartezeit von einer Minute"
                                 " des `!vp` Commands ist abgelaufen.")
                     bet = self.data[ctx.guild.id]['bet']
-                    await load.save_user_data(ctx.author.id, - bet)
+                    await self.bot.save_user_data(ctx.author.id, - bet)
                     await self.game_end(ctx.guild.id)
 
     @commands.command(aliases=["ziehen"])
@@ -221,7 +220,7 @@ class VP(commands.Cog):
             await ctx.send(f"{end_msg}\n**Du hast nichts und damit"
                            f" deinen Einsatz verloren** *(15s Cooldown)*")
             # --- Money Lose --- #
-            await load.save_user_data(ctx.author.id, -self.data[ctx.guild.id]['bet'])
+            await self.bot.save_user_data(ctx.author.id, -self.data[ctx.guild.id]['bet'])
             return await self.game_end(ctx.guild.id)
 
         # --- Result if WON --- #
@@ -230,7 +229,7 @@ class VP(commands.Cog):
         await ctx.send(f"{end_msg}\nDu hast {result_msg} - `{amount_won}"
                        f" Eisen` gewonnen *(15s Cooldown)*")
         bet = self.data[ctx.guild.id]['bet']
-        await load.save_user_data(ctx.author.id, amount_won - bet)
+        await self.bot.save_user_data(ctx.author.id, amount_won - bet)
         await self.game_end(ctx.guild.id)
 
 

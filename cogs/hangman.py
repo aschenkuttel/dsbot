@@ -1,6 +1,5 @@
 from utils import error_embed, game_channel_only
 from discord.ext import commands
-from load import load
 import asyncio
 import random
 import re
@@ -43,7 +42,7 @@ class Hangman(commands.Cog):
             f"Herzlichen Glückwunsch `{ctx.author.display_name}`\n"
             f"Du hast `{amount_won} Eisen` gewonnen "
             f":trophy: *(15s Cooldown)*")
-        await load.save_user_data(ctx.author.id, amount_won)
+        await self.bot.save_user_data(ctx.author.id, amount_won)
         return await self.game_end(ctx.guild.id)
 
     # subtracts 1 life and ends the game if no lifes left
@@ -70,7 +69,7 @@ class Hangman(commands.Cog):
         if data is False:
             return
         if data is None:
-            word = random.choice(load.msg["hangman"])
+            word = random.choice(self.bot.msg["hangman"])
             life = int(len(word) * (50 - len(word)) / 50)
             blanks = list(re.sub(r'[\w]', '_', word))
             game = {'guessed': [], 'blanks': blanks, 'solution': word, 'life': life}

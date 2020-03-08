@@ -1,13 +1,17 @@
+from PIL import Image, ImageChops
 from discord.ext import commands
 from datetime import timedelta
-from load import load
+from bs4 import BeautifulSoup
 import traceback
 import discord
 import aiohttp
+import imgkit
 import random
 import utils
 import sys
+import io
 import re
+
 
 listener = commands.Cog.listener
 error_embed = utils.error_embed
@@ -22,19 +26,53 @@ class Listen(commands.Cog):
                          discord.Forbidden,
                          utils.IngameError)
 
+    # Report HTML to Image Converter
+    def html_lover(self, raw_data):
+        soup = BeautifulSoup(raw_data, 'html.parser')
+        tiles = soup.body.find_all(class_='vis')
+        if len(tiles) < 2:
+            return
+        main = f"{utils.whymtl}<head></head>{tiles[1]}"
+        css = f"{self.bot.data_path}/report.css"
+        img_bytes = imgkit.from_string(main, False, options=utils.imgkit, css=css)
+
+        # crops empty background
+        im = Image.open(io.BytesIO(img_bytes))
+        bg = Image.new(im.mode, im.size, im.getpixel((0, 0)))
+        diff = ImageChops.difference(im, bg)
+        diff = ImageChops.add(diff, diff, 2.0, -100)
+        im = im.crop(diff.getbbox())
+
+        # crops border and saves to FileIO
+        result = im.crop((2, 2, im.width - 2, im.height - 2))
+        file = io.BytesIO()
+        result.save(file, 'png')
+        file.seek(0)
+        return file
+
+    async def fetch_report(self, bot, content):
+        try:
+            async with self.bot.session.get(content) as res:
+                data = await res.text()
+        except (aiohttp.InvalidURL, ValueError):
+            return
+
+        file = await bot.execute(self.html_lover, data)
+        return file
+
     @listener()
     async def on_message(self, message):
 
         if not message.guild or message.author.bot:
             return
 
-        world = load.get_world(message.channel)
+        world = self.bot.config.get_world(message.channel)
         if not world:
             return
 
         # Report Converter
         if message.content.__contains__("public_report"):
-            file = await load.fetch_report(self.bot, message.content)
+            file = await self.bot.fetch_report(self.bot, message.content)
             if file is None:
                 return await utils.silencer(message.add_reaction('❌'))
             try:
@@ -50,15 +88,14 @@ class Listen(commands.Cog):
         if result:
 
             result = set(result)
-            pre = load.get_prefix(message.guild.id)
+            pre = self.bot.config.get_prefix(message.guild.id)
             if message.content.lower().startswith(pre.lower()):
                 return
 
             coords = [obj.replace('|', '') for obj in result]
-            villages = await load.fetch_bulk(world, coords, "village", name=True)
+            villages = await self.bot.fetch_bulk(world, coords, "village", name=True)
             player_ids = [obj.player_id for obj in villages]
-            players = await load.fetch_bulk(world, player_ids, dic=True)
-
+            players = await self.bot.fetch_bulk(world, player_ids, dic=True)
             good = []
             for vil in villages:
 
@@ -96,23 +133,21 @@ class Listen(commands.Cog):
                     names.remove(name)
 
         if names:
-            world = load.get_world(message.channel)
+            world = self.bot.get_world(message.channel)
             if not world:
                 return
 
             names = names[:10]
             parsed_msg = message.clean_content.replace("`", "")
-            ds_objects = await load.fetch_bulk(world, names, name=True)
-            cache = await load.fetch_bulk(world, names, 1, name=True)
+            ds_objects = await self.bot.fetch_bulk(world, names, name=True)
+            cache = await self.bot.fetch_bulk(world, names, 1, name=True)
             ds_objects.extend(cache)
 
             found_names = {}
             for dsobj in ds_objects:
-                if dsobj.alone:
-                    found_names[dsobj.name.lower()] = dsobj
-                else:
+                found_names[dsobj.name.lower()] = dsobj
+                if not dsobj.alone:
                     found_names[dsobj.tag.lower()] = dsobj
-                    found_names[dsobj.name.lower()] = dsobj
 
             for name in names:
                 dsobj = found_names.get(name.lower())
@@ -137,7 +172,7 @@ class Listen(commands.Cog):
 
     @listener()
     async def on_command_completion(self, ctx):
-        await load.save_usage_cmd(ctx.invoked_with)
+        await self.bot.save_usage_cmd(ctx.invoked_with)
 
     @listener()
     async def on_command_error(self, ctx, error):
@@ -150,7 +185,7 @@ class Listen(commands.Cog):
             if len(ctx.invoked_with) == ctx.invoked_with.count(ctx.prefix):
                 return
             else:
-                data = random.choice(load.msg["noCommand"])
+                data = random.choice(self.bot.msg["noCommand"])
                 return await ctx.send(data.format(f"{ctx.prefix}{ctx.invoked_with}"))
 
         elif isinstance(error, commands.MissingRequiredArgument):
@@ -171,8 +206,11 @@ class Listen(commands.Cog):
             msg = "Der Server hat noch keine zugeordnete Welt\n" \
                   f"Dies kann nur der Admin mit `{ctx.prefix}set world`"
 
+        elif isinstance(error, utils.UnknownWorld):
+            msg = "Die Welt wurde bereits geschlossen / existiert noch nicht"
+
         elif isinstance(error, utils.WrongChannel):
-            channel = load.get_item(ctx.guild.id, "game")
+            channel = self.bot.get_item(ctx.guild.id, "game")
             return await ctx.send(f"<#{channel}>")
 
         elif isinstance(error, utils.GameChannelMissing):

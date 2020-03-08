@@ -1,6 +1,5 @@
 from utils import pcv, error_embed, GuildUser
 from discord.ext import commands
-from load import load
 import discord
 
 
@@ -17,14 +16,14 @@ class Money(commands.Cog):
         if ctx.invoked_subcommand:
             return
 
-        money, rank = await load.get_user_data(ctx.author.id, True)
+        money, rank = await self.bot.fetch_user_data(ctx.author.id, True)
         return await ctx.send(f"**Dein Speicher:** `{pcv(money)} "
                               f"Eisen`\n**Globaler Rang:** `{rank}`")
 
     @iron_.command()
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def send(self, ctx, amount: int, *, user: GuildUser):
-        cur = await load.get_user_data(ctx.author.id)
+        cur = await self.bot.fetch_user_data(ctx.author.id)
         if cur < amount:
             await ctx.send(f"Du hast nur `{cur} Eisen` auf dem Konto")
             return ctx.command.reset_cooldown(ctx)
@@ -32,8 +31,8 @@ class Money(commands.Cog):
             await ctx.send("Du kannst nur `100-20.000 Eisen` überweisen")
             return ctx.command.reset_cooldown(ctx)
 
-        await load.save_user_data(ctx.author.id, -amount)
-        await load.save_user_data(user.id, amount)
+        await self.bot.save_user_data(ctx.author.id, -amount)
+        await self.bot.save_user_data(user.id, amount)
 
         return await ctx.send(
             f"Du hast `{user.display_name}` erfolgreich "
@@ -41,7 +40,7 @@ class Money(commands.Cog):
 
     @iron_.command(name="top")
     async def top_(self, ctx):
-        data = await load.get_user_top(5, ctx.guild)
+        data = await self.bot.fetch_user_top(5, ctx.guild)
         msg = f""
         for index, record in enumerate(data):
             player = self.bot.get_user(int(record['id']))
@@ -56,7 +55,7 @@ class Money(commands.Cog):
 
     @iron_.command(name="global")
     async def global_(self, ctx):
-        data = await load.get_user_top(5)
+        data = await self.bot.fetch_user_top(5)
         msg = f""
         for index, record in enumerate(data):
             player = self.bot.get_user(int(record['id']))

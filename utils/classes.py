@@ -1,123 +1,12 @@
-from urllib.parse import quote_plus, unquote_plus
 from discord.ext import commands
 from datetime import datetime
-from load import load
 import discord
+import utils
 import re
 
 twstats = "https://de.twstats.com/de{}/index.php?page={}&id={}"
 ingame = "https://de{}.die-staemme.de/{}.php?screen=info_{}&id={}"
-
-
-def pcv(number):
-    return "{0:,}".format(number).replace(",", ".")
-
-
-def casual(world):
-    return str(world) if world > 50 else f"p{world}"
-
-
-# ignores missing perm error
-async def silencer(coro):
-    try:
-        await coro
-    except discord.Forbidden:
-        return
-
-
-# quote_plus doesn't convert tildes somehow :(
-def converter(name, php=False):
-    if php:
-        encoded = quote_plus(name)
-        encoded = encoded.replace('~', '%7E')
-        return encoded.lower()
-    else:
-        return unquote_plus(name)
-
-
-def keyword(options, **kwargs):
-    troops = re.findall(r'[A-z]*=\d*', options or "")
-    cache = {}
-    for troop in troops:
-        key, value = troop.split("=")
-        try:
-            cache[key.lower()] = int(value)
-        except ValueError:
-            continue
-
-    for key, value in kwargs.items():
-        user_input = cache.get(key)
-        new_value = user_input
-        if isinstance(value, list):
-            default, maximum = value
-            if user_input is None:
-                new_value = default
-            elif user_input > maximum:
-                new_value = maximum
-        elif user_input is None:
-            new_value = value
-
-        kwargs[key] = new_value
-    return kwargs.values()
-
-
-# default embeds
-def error_embed(text, ctx=None):
-    embed = discord.Embed(description=text, color=discord.Color.red())
-    if ctx:
-        help_text = f"Erklärung und Beispiel mit {ctx.prefix}help {ctx.command}"
-        embed.set_footer(text=help_text)
-    return embed
-
-
-def complete_embed(text):
-    return discord.Embed(description=text, color=discord.Color.green())
-
-
-def game_channel_only():
-    def predicate(ctx):
-        chan = load.get_item(ctx.guild.id, "game")
-        if not chan:
-            raise GameChannelMissing()
-        if chan == ctx.channel.id:
-            return True
-        raise WrongChannel()
-
-    return commands.check(predicate)
-
-
-# custom errors
-class GameChannelMissing(commands.CheckFailure):
-    def __str__(self):
-        return "missing channel"
-
-
-class WrongChannel(commands.CheckFailure):
-    def __str__(self):
-        return "wrong channel"
-
-
-class WorldMissing(commands.CheckFailure):
-    def __str__(self):
-        return "missing world"
-
-
-class IngameError(commands.CheckFailure):
-    pass
-
-
-class DontPingMe(commands.CheckFailure):
-    pass
-
-
-class DSUserNotFound(commands.CheckFailure):
-    def __init__(self, searchable):
-        self.name = searchable
-
-
-class GuildUserNotFound(commands.CheckFailure):
-    def __init__(self, searchable):
-        self.name = searchable
+guest = "https://de{}.die-staemme.de/guest.php"
 
 
 # custom context for simple world implementation
@@ -136,7 +25,7 @@ class DSContext(commands.Context):
 
     @property
     def url(self):
-        return casual(self._world)
+        return utils.casual(self._world)
 
     async def safe_send(self, content=None, *, embed=None, file=None, delete_after=None):
         try:
@@ -173,11 +62,11 @@ class DSObject(commands.Converter):
     async def convert(self, ctx, searchable):
         # conquer add/remove needs guild world
         if str(ctx.command).startswith("conquer"):
-            ctx.world = load.get_guild_world(ctx.guild)
+            ctx.world = ctx.get_guild_world(ctx.guild)
 
-        obj = await load.fetch_both(ctx.world, searchable)
+        obj = await ctx.bot.fetch_both(ctx.world, searchable)
         if not obj:
-            raise DSUserNotFound(searchable)
+            raise utils.DSUserNotFound(searchable)
         return obj
 
 
@@ -187,7 +76,7 @@ class GuildUser(commands.Converter):
 
     async def convert(self, ctx, arg):
         if re.match(r'<@!?([0-9]+)>$', arg):
-            raise DontPingMe
+            raise utils.DontPingMe
         name = arg.lower()
         for m in ctx.guild.members:
             if name == m.display_name.lower():
@@ -195,7 +84,7 @@ class GuildUser(commands.Converter):
             if name == m.name.lower():
                 return m
         else:
-            raise GuildUserNotFound(arg)
+            raise utils.GuildUserNotFound(arg)
 
 
 # default tribal wars classes
@@ -204,8 +93,8 @@ class Player:
         self.id = data['id']
         self.alone = True
         self.world = data['world']
-        self.url = casual(self.world)
-        self.name = converter(data['name'])
+        self.url = utils.casual(self.world)
+        self.name = utils.converter(data['name'])
         self.tribe_id = data['tribe_id']
         self.villages = data['villages']
         self.points = data['points']
@@ -236,9 +125,9 @@ class Tribe:
         self.id = int(data['id'])
         self.alone = False
         self.world = data['world']
-        self.url = casual(self.world)
-        self.name = converter(data['name'])
-        self.tag = converter(data['tag'])
+        self.url = utils.casual(self.world)
+        self.name = utils.converter(data['name'])
+        self.tag = utils.converter(data['tag'])
         self.member = data['member']
         self.villages = data['villages']
         self.points = data['points']
@@ -267,14 +156,14 @@ class Tribe:
 class Village:
     def __init__(self, data):
         self.id = int(data['id'])
-        self.name = converter(data['name'])
+        self.name = utils.converter(data['name'])
         self.x = data['x']
         self.y = data['y']
         self.player_id = data['player']
         self.points = data['points']
         self.rank = data['rank']
         self.world = data['world']
-        self.url = casual(self.world)
+        self.url = utils.casual(self.world)
 
     @property
     def coords(self):
@@ -306,21 +195,59 @@ class MapVillage:
         return self.x, self.y
 
 
-class World:
-    def __init__(self, world):
-        self.world = world
-        if self.world < 50:
-            self.casual = True
-            self.name = "Casual"
-        else:
-            self.casual = False
-            self.name = "Welt"
+class World(commands.Converter):
+    def __init__(self, number=None):
+        self.number = number
+        self.casual = False
+        self.pronoun = "Welt"
+
+        if self.number:
+            self.gender()
 
     def __str__(self):
-        if self.casual:
-            return f"p{self.world}"
+        return f"{self.pronoun} {self.number}"
+
+    def __eq__(self, other):
+        return self.number == other
+
+    @property
+    def guest_url(self):
+        return guest.format(self.url())
+
+    def url(self):
+        cas = "p" if self.casual else ""
+        return f"{cas}{self.number}"
+
+    def gender(self):
+        # we don't talk about this
+        if self.number < 50:
+            self.casual = True
+            self.pronoun = "Casual"
+
+    def parse_world(self, raw_world):
+        if isinstance(raw_world, int):
+            self.number = raw_world
+        if isinstance(raw_world, str):
+            if raw_world.isdigit():
+                world = int(raw_world)
+            else:
+                basket = re.findall(r'\D+(\d{2,3})', raw_world)
+                if not basket:
+                    return
+                world = int(basket[0])
+            self.number = world
+
+        self.gender()
+
+    def is_active(self, bot):
+        return self.number in bot.worlds
+
+    async def convert(self, ctx, searchable):
+        self.parse_world(searchable)
+        if self.is_active(ctx.bot):
+            return self
         else:
-            return str(self.world)
+            raise utils.UnknownWorld(searchable)
 
 
 class Conquer:

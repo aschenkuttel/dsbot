@@ -1,6 +1,5 @@
 from utils import game_channel_only
 from discord.ext import commands
-from load import load
 import asyncio
 import time
 
@@ -18,7 +17,7 @@ class Blackjack(commands.Cog):
             await ctx.send("Fehlerhafte Eingabe: `!bj <100-100000>`")
             return
 
-        credit = await load.get_user_data(ctx.author.id)
+        credit = await self.bot.fetch_user_data(ctx.author.id)
         if credit - amount < 0:
             await ctx.send("Du kannst nicht um Geld spielen welches du nicht besitzt.")
             return

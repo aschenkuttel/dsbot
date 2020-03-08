@@ -1,6 +1,5 @@
 from utils import IngameError, error_embed, pcv, game_channel_only
 from discord.ext import commands
-from load import load
 import operator
 import discord
 import asyncio
@@ -146,7 +145,7 @@ class Quartet(commands.Cog):
         players = []
         for player in user:
             players.append(player)
-        cards = await load.fetch_random(world, amount=len(user) * num, top=250)
+        cards = await self.bot.fetch_random(world, amount=len(user) * num, top=250)
         play_num = 0
         for card in cards:
             if num == 1:
@@ -168,7 +167,7 @@ class Quartet(commands.Cog):
             msg = "Es läuft bereits eine Runde auf dem Server!"
             return await ctx.send(msg)
 
-        pre = load.get_prefix(ctx.guild.id)
+        pre = self.bot.get_prefix(ctx.guild.id)
         self.game_basic(ctx.guild.id, ctx.author.id)
         msg = await ctx.send(f"`{ctx.author.name}` möchte eine Partie "
                              f"**dsQuartett** spielen!\nTrete der Runde "
@@ -313,8 +312,9 @@ class Quartet(commands.Cog):
                                     key=operator.itemgetter(1), reverse=True)
                     for index, (dude, points) in enumerate(winner):
                         if f"`{points}`" in end_txt:
-                            end_txt = end_txt.replace(" mit `{points}`", f"und "
-                            f"{self.bot.get_user(dude).name} mit `{points}`")
+                            end_txt = end_txt.replace(
+                                " mit `{points}`", f"und "
+                                f"{self.bot.get_user(dude).name} mit `{points}`")
                         else:
                             place = len(end_txt.split("\n"))
                             end_txt += f"**Platz {place}:** " \
