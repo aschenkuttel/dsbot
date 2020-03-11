@@ -352,5 +352,16 @@
       "default": "An"},
     "<:button:672910606700904451>": {
       "title": "Karte erstellen"}
-    }
+    },
+  "vpMessage": {
+    "Paar": "ein",
+    "Doppel-Paar": "ein",
+    "Drilling": "einen",
+    "Straße": "eine",
+    "Flush": "einen",
+    "Full House": "ein",
+    "Vierling": "wirklich einen",
+    "Straight Flush": "'nen fucking",
+    "Royal Flush": "legit einen..."
+  }
 }

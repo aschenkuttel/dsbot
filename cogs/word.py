@@ -1,0 +1,202 @@
+from utils import game_channel_only
+from discord.ext import commands
+import datetime
+import asyncio
+import random
+import os
+import re
+
+
+class WordGames(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.anagram = {}
+        self.hangman = {}
+
+    async def victory_royale(self, ctx):
+        data = self.hangman[ctx.guild.id]
+        length = len(data['solution'])
+        amount = int(250 * length * float(data['life'] / length + 1))
+
+        base = "Herzlichen Glückwunsch `{}`{}Du hast `{} Eisen` gewonnen :trophy: (15s Cooldown)"
+        msg = base.format(ctx.author.display_name, os.linesep, amount)
+        await ctx.send(msg)
+
+        await self.bot.save_user_data(ctx.author.id, amount)
+        return await self.happy_end(ctx.guild.id)
+
+    async def wrong_choice(self, ctx, title, loss=1):
+        data = self.hangman[ctx.guild.id]
+        data['life'] -= loss
+        if data['life'] <= 0:
+            base = "**Game Over** | Lösungswort:{}`{}` (15s Cooldown)"
+            msg = base.format(os.linesep, data['solution'])
+            await ctx.send(msg)
+            await self.happy_end(ctx.guild.id)
+
+        else:
+            guessed = "` `".join(data['guessed'])
+            base = "{}: `noch {} Leben`{}Bereits versucht: `{}`"
+            msg = base.format(title, data['life'], os.linesep, guessed)
+            await ctx.send(msg)
+
+    def blender(self, id_or_blanks):
+        if isinstance(id_or_blanks, int):
+            blanks = self.hangman[id_or_blanks]['blanks']
+        else:
+            blanks = id_or_blanks
+        return f"`{' '.join(blanks)}`"
+
+    async def happy_end(self, guild_id, hangman=True):
+        data = self.hangman if hangman else self.anagram
+        data[guild_id] = False
+        await asyncio.sleep(15)
+        data.pop(guild_id)
+
+    @commands.command(name="anagram", aliases=["ag"])
+    @game_channel_only()
+    async def anagram_(self, ctx):
+        data = self.anagram.get(ctx.guild.id)
+        if data is False:
+            return
+
+        elif data:
+            hint = data.get('hint')
+            comment = f"| `{hint}` " if hint else ""
+            now = (datetime.datetime.now() - data['time']).seconds
+            msg = f"`{data['word']}` {comment}*(noch {60 - now}s)*"
+            return await ctx.send(msg)
+
+        word = None
+        while not word:
+            cache = random.choice(self.bot.msg["hangman"])
+            if len(cache.split()) == 1:
+                word = cache.strip()
+
+        word_list = list(word)
+        while ''.join(word_list) == word:
+            random.shuffle(word_list)
+
+        show = ' '.join(word_list).upper()
+        hint_list = list(word[:int(len(word) / 4)].upper())
+        hint = f"{' '.join(hint_list)} . . ."
+
+        start_time = datetime.datetime.now()
+        data = {'word': show, 'win': word, 'time': start_time}
+        self.anagram[ctx.guild.id] = data
+        start_msg = await ctx.send(f"`{show}` (60s Timeout)")
+
+        def check(m):
+            if m.channel == ctx.channel:
+                if m.content.lower() == word.lower():
+                    return True
+
+        try:
+            win_msg = await self.bot.wait_for('message', check=check, timeout=30)
+        except asyncio.TimeoutError:
+            try:
+                self.anagram[ctx.guild.id]['hint'] = hint
+                stuff = f"`{show}` | `{hint}`"
+                await start_msg.edit(content=f"{stuff}(noch 30s)")
+                win_msg = await self.bot.wait_for('message', check=check, timeout=30)
+            except asyncio.TimeoutError:
+                await ctx.send(f"Die Zeit ist abgelaufen: `{word}`")
+                self.anagram.pop(ctx.guild.id)
+                return
+
+        end_time = datetime.datetime.now()
+        diff = float("%.1f" % (end_time - start_time).total_seconds())
+        spec_bonus = (60 - diff) * (50 * (1 - diff / 60)) * (1 - diff / 60)
+        amount_won = int((150 * len(word) + spec_bonus) * (1 - diff / 60 + 1))
+
+        base = "`{}` hat das Wort in `{} Sekunden` erraten.{}`{} Eisen` gewonnen (15s Cooldown)"
+        msg = base.format(win_msg.author.display_name, diff, os.linesep, amount_won)
+        await ctx.send(msg)
+
+        await self.bot.save_user_data(win_msg.author.id, amount_won)
+        await self.happy_end(ctx.guild.id, False)
+
+    @commands.command(name="hangman", aliases=["galgenmännchen"])
+    @game_channel_only()
+    async def hangman(self, ctx):
+        data = self.hangman.get(ctx.guild.id)
+        if data is False:
+            return
+
+        if data is None:
+            word = random.choice(self.bot.msg["hangman"])
+            life = int(len(word) * (50 - len(word)) / 50)
+            blanks = list(re.sub(r'[\w]', '_', word))
+            data = {'guessed': [], 'blanks': blanks, 'solution': word, 'life': life}
+            self.hangman[ctx.guild.id] = data
+
+            base = "Das Spiel wurde gestartet, errate mit **{}guess**:{}{}"
+            board = f"{self.blender(blanks)} - `{life} Leben`"
+            msg = base.format(ctx.prefix, os.linesep, board)
+            await ctx.send(msg)
+
+        else:
+
+            base = "Es läuft bereits ein Spiel:{}{}"
+            msg = base.format(os.linesep, self.blender(ctx.guild.id))
+            await ctx.send(msg)
+
+    @commands.command(name="guess", aliases=["raten"])
+    @game_channel_only()
+    async def guess(self, ctx, *, args):
+        data = self.hangman.get(ctx.guild.id)
+        if data is False:
+            return
+
+        if data is None:
+            base = "Aktuell ist kein Spiel im Gange.{}Starte mit `{}hangman`"
+            msg = base.format(os.linesep, ctx.prefix)
+            return await ctx.send(msg)
+
+        guess = args.lower()
+        win = data['solution']
+        check = data['guessed']
+        blanks = data['blanks']
+
+        # checks for direct win
+        if guess == win.lower():
+            return await self.victory_royale(ctx)
+
+        # checks for valid input (1 character)
+        if not len(guess) == 1:
+            msg = "Falsches Lösungswort"
+            return await self.wrong_choice(ctx, msg, 2)
+
+        # checks if character was already guessed
+        if guess in check:
+            msg = "Der Buchstabe wurde bereits versucht"
+            return await self.wrong_choice(ctx, msg)
+
+        data['guessed'].append(guess)
+
+        word_list = list(win.lower())
+        positions = []
+        while guess in word_list:
+            pos = ''.join(word_list).find(guess)
+            positions.append(pos + len(positions))
+            word_list.remove(guess)
+
+        # replaces placeholders with guess characters
+        for num in positions:
+            blanks[num] = list(win)[num]
+
+        # nothing was found
+        if not positions:
+            msg = "Leider nicht der richtige Buchstabe"
+            return await self.wrong_choice(ctx, msg)
+
+        # last character was found
+        if blanks == list(win):
+            return await self.victory_royale(ctx)
+
+        # sends new blanks with the found chars in it
+        await ctx.send(self.blender(blanks))
+
+
+def setup(bot):
+    bot.add_cog(WordGames(bot))
