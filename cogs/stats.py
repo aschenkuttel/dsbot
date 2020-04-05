@@ -8,7 +8,7 @@ class Bash(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        self.base = "https://de{}.die-staemme.de/guest.php?village" \
+        self.base = "https://{}.die-staemme.de/guest.php?village" \
                     "=null&screen=ranking&mode=in_a_day&type={}"
         self.keys = {"bash": "kill_att", "def": "kill_def", "ut": "kill_sup", "farm": "loot_res",
                      "villages": "loot_vil", "scavenge": "scavenge", "conquer": "conquer"}
@@ -42,8 +42,8 @@ class Bash(commands.Cog):
 
         else:
 
-            s1 = await self.bot.fetch_both(ctx.world, player1)
-            s2 = await self.bot.fetch_both(ctx.world, player2)
+            s1 = await self.bot.fetch_both(ctx.server, player1)
+            s2 = await self.bot.fetch_both(ctx.server, player2)
 
             if not s1 and not s2:
                 msg = f"Auf der `{ctx.world}` gibt es weder einen Stamm noch " \
@@ -74,13 +74,13 @@ class Bash(commands.Cog):
         time = 7
         args = args.split(' ')
         if args[-1].isdigit():
-            dsobj = await self.bot.fetch_both(ctx.world, ' '.join(args[:-1]))
+            dsobj = await self.bot.fetch_both(ctx.server, ' '.join(args[:-1]))
             if dsobj:
                 time = int(args[-1])
             else:
-                dsobj = await self.bot.fetch_both(ctx.world, ' '.join(args))
+                dsobj = await self.bot.fetch_both(ctx.server, ' '.join(args))
         else:
-            dsobj = await self.bot.fetch_both(ctx.world, ' '.join(args))
+            dsobj = await self.bot.fetch_both(ctx.server, ' '.join(args))
         if not dsobj:
             raise DSUserNotFound(' '.join(args))
 
@@ -90,7 +90,7 @@ class Bash(commands.Cog):
 
         try:
             table = "player" if dsobj.alone else "tribe"
-            dsobj8 = await self.bot.fetch_archive(ctx.world, dsobj.id, table, time)
+            dsobj8 = await self.bot.fetch_archive(ctx.server, dsobj.id, table, time)
 
             if dsobj8 is None:
                 obj = "Spieler" if dsobj.alone else "Stamm"
@@ -107,7 +107,9 @@ class Bash(commands.Cog):
             bash8 = dsobj8.all_bash
 
         except Exception as error:
-            print(f"Recap Error: {error}")
+            if "relation" not in str(error):
+                print(f"RECAP ERROR: {error}")
+
             page_link = f"{dsobj.twstats_url}&mode=history"
             async with self.bot.session.get(page_link) as r:
                 soup = BeautifulSoup(await r.read(), "html.parser")
@@ -153,7 +155,7 @@ class Bash(commands.Cog):
     @daily_.command(name="bash", aliases=["def", "ut", "farm", "villages", "conquer", "scavenge"])
     async def types_(self, ctx):
         key = self.keys[ctx.invoked_with.lower()]
-        res_link = self.base.format(ctx.url, key)
+        res_link = self.base.format(ctx.server, key)
 
         async with self.bot.session.get(res_link) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
@@ -167,7 +169,7 @@ class Bash(commands.Cog):
             for row in rows[1:6]:
                 vanity = row.find('a')['href']
                 player_id = int(vanity.split("=")[-1])
-                player = await self.bot.fetch_player(ctx.world, player_id)
+                player = await self.bot.fetch_player(ctx.server, player_id)
                 name = player.name if player else "Unknown"
                 url = player.guest_url if player else self.never
                 points = row.findAll("td")[3].text

@@ -184,7 +184,7 @@ class Quartet(commands.Cog):
         else:
             self.data[ctx.guild.id]["running"] = 1
             self.data[ctx.guild.id]["channel"] = ctx.message.channel
-            await self.start_game(ctx.world, ctx.guild.id)
+            await self.start_game(ctx.server, ctx.guild.id)
             for player in self.data[ctx.guild.id]["player"]:
                 if player == ctx.author.id:
                     embed = self.embed_create(self.data[ctx.guild.id], player, 1)

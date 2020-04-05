@@ -21,15 +21,11 @@ def pcv(number):
     return "{0:,}".format(number).replace(",", ".")
 
 
-def casual(world):
-    return str(world) if world > 50 else f"p{world}"
-
-
 # ignores missing perm error
 async def silencer(coro):
     try:
         await coro
-    except discord.Forbidden:
+    except (discord.Forbidden, discord.HTTPException):
         return
 
 
@@ -73,13 +69,34 @@ def keyword(options, **kwargs):
 def error_embed(text, ctx=None):
     embed = discord.Embed(description=text, color=discord.Color.red())
     if ctx:
-        help_text = f"Erklärung und Beispiel mit {ctx.prefix}help {ctx.command}"
+        command = ctx.command.parent or ctx.command
+        help_text = f"Erklärung und Beispiel mit {ctx.prefix}help {command}"
         embed.set_footer(text=help_text)
     return embed
 
 
 def complete_embed(text):
     return discord.Embed(description=text, color=discord.Color.green())
+
+
+def escape(word):
+    return word.replace("*", "\\*")
+
+
+def show_list(iterable, seperator=",", line_break=2):
+    cache = []
+    result = ""
+    for word in iterable:
+        cache.append(word)
+        last = word == iterable[-1]
+        if len(cache) == line_break or last:
+            print(cache)
+            enter = "" if last else "\n"
+            line = f"{seperator} ".join(cache)
+            result += f"{line}{enter}"
+            cache.clear()
+
+    return result
 
 
 def game_channel_only():

@@ -42,10 +42,10 @@ class Villages(commands.Cog):
             name = ' '.join(args[:-1])
         else:
             name = ' '.join(args)
-        dsobj = await self.bot.fetch_both(ctx.world, name)
+        dsobj = await self.bot.fetch_both(ctx.server, name)
         if not dsobj:
             if con:
-                dsobj = await self.bot.fetch_both(ctx.world, f"{name} {con}")
+                dsobj = await self.bot.fetch_both(ctx.server, f"{name} {con}")
                 if not dsobj:
                     raise utils.DSUserNotFound(name)
             else:
@@ -54,12 +54,12 @@ class Villages(commands.Cog):
         if isinstance(dsobj, utils.Tribe):
             query = "SELECT * FROM player WHERE world = $1 AND tribe_id = $2;"
             async with self.bot.pool.acquire() as conn:
-                cache = await conn.fetch(query, ctx.world, dsobj.id)
+                cache = await conn.fetch(query, ctx.server, dsobj.id)
             id_list = [rec['id'] for rec in cache]
         else:
             id_list = [dsobj.id]
 
-        arguments = [ctx.world, id_list]
+        arguments = [ctx.server, id_list]
         query = "SELECT * FROM village WHERE world = $1 AND player = ANY($2)"
         if con:
             query = query + ' AND LEFT(CAST(x AS TEXT), 1) = $3' \

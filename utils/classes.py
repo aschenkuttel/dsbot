@@ -4,28 +4,17 @@ import discord
 import utils
 import re
 
-twstats = "https://de.twstats.com/de{}/index.php?page={}&id={}"
-ingame = "https://de{}.die-staemme.de/{}.php?screen=info_{}&id={}"
-guest = "https://de{}.die-staemme.de/guest.php"
+twstats = "https://de.twstats.com/{}/index.php?page={}&id={}"
+ingame = "https://{}.die-staemme.de/{}.php?screen=info_{}&id={}"
+guest = "https://{}.die-staemme.de/guest.php"
+
+world_titles = {'de': "Welt", 'dep': "Casual", 'dec': "High Performance", 'des': "SDS"}
 
 
 # custom context for simple world implementation
 class DSContext(commands.Context):
     def __init__(self, **attrs):
         super().__init__(**attrs)
-        self._world = None
-
-    @property
-    def world(self):
-        return self._world
-
-    @world.setter
-    def world(self, world):
-        self._world = world
-
-    @property
-    def url(self):
-        return utils.casual(self._world)
 
     async def safe_send(self, content=None, *, embed=None, file=None, delete_after=None):
         try:
@@ -44,6 +33,7 @@ class DSContext(commands.Context):
             return
         try:
             await self.message.add_reaction("📨")
+            return True
         except discord.Forbidden:
             pass
 
@@ -62,9 +52,10 @@ class DSObject(commands.Converter):
     async def convert(self, ctx, searchable):
         # conquer add/remove needs guild world
         if str(ctx.command).startswith("conquer"):
-            ctx.world = ctx.get_guild_world(ctx.guild)
+            raw_world = ctx.get_guild_world(ctx.guild)
+            ctx.world = utils.World(raw_world)
 
-        obj = await ctx.bot.fetch_both(ctx.world, searchable)
+        obj = await ctx.bot.fetch_both(ctx.server, searchable)
         if not obj:
             raise utils.DSUserNotFound(searchable)
         return obj
@@ -93,7 +84,6 @@ class Player:
         self.id = data['id']
         self.alone = True
         self.world = data['world']
-        self.url = utils.casual(self.world)
         self.name = utils.converter(data['name'])
         self.tribe_id = data['tribe_id']
         self.villages = data['villages']
@@ -109,15 +99,15 @@ class Player:
 
     @property
     def guest_url(self):
-        return ingame.format(self.url, 'guest', 'player', self.id)
+        return ingame.format(self.world, 'guest', 'player', self.id)
 
     @property
     def ingame_url(self):
-        return ingame.format(self.url, 'game', 'player', self.id)
+        return ingame.format(self.world, 'game', 'player', self.id)
 
     @property
     def twstats_url(self):
-        return twstats.format(self.url, 'player', self.id)
+        return twstats.format(self.world, 'player', self.id)
 
 
 class Tribe:
@@ -125,7 +115,6 @@ class Tribe:
         self.id = int(data['id'])
         self.alone = False
         self.world = data['world']
-        self.url = utils.casual(self.world)
         self.name = utils.converter(data['name'])
         self.tag = utils.converter(data['tag'])
         self.member = data['member']
@@ -142,15 +131,15 @@ class Tribe:
 
     @property
     def guest_url(self):
-        return ingame.format(self.url, 'guest', 'ally', self.id)
+        return ingame.format(self.world, 'guest', 'ally', self.id)
 
     @property
     def ingame_url(self):
-        return ingame.format(self.url, 'game', 'ally', self.id)
+        return ingame.format(self.world, 'game', 'ally', self.id)
 
     @property
     def twstats_url(self):
-        return twstats.format(self.url, 'tribe', self.id)
+        return twstats.format(self.world, 'tribe', self.id)
 
 
 class Village:
@@ -163,7 +152,6 @@ class Village:
         self.points = data['points']
         self.rank = data['rank']
         self.world = data['world']
-        self.url = utils.casual(self.world)
 
     @property
     def coords(self):
@@ -171,15 +159,15 @@ class Village:
 
     @property
     def guest_url(self):
-        return ingame.format(self.url, 'guest', 'village', self.id)
+        return ingame.format(self.world, 'guest', 'village', self.id)
 
     @property
     def ingame_url(self):
-        return ingame.format(self.url, 'game', 'village', self.id)
+        return ingame.format(self.world, 'game', 'village', self.id)
 
     @property
     def twstats_url(self):
-        return twstats.format(self.url, 'village', self.id)
+        return twstats.format(self.world, 'village', self.id)
 
 
 class MapVillage:
@@ -188,6 +176,7 @@ class MapVillage:
         self.x = 1501 + 5 * (data['x'] - 500)
         self.y = 1501 + 5 * (data['y'] - 500)
         self.player_id = data['player']
+        self.rank = data['rank']
 
     def reposition(self, difference):
         self.x -= difference[0]
@@ -196,58 +185,47 @@ class MapVillage:
 
 
 class World(commands.Converter):
-    def __init__(self, number=None):
-        self.number = number
-        self.casual = False
-        self.pronoun = "Welt"
+    def __init__(self, searchable=None):
+        self.prefix = None
+        self.number = None
+        self.title = None
+        self.server = None
 
-        if self.number:
-            self.gender()
+        if searchable:
+            self.parse_world(searchable)
 
     def __str__(self):
-        return f"{self.pronoun} {self.number}"
+        return f"{self.title} {self.number}"
 
     def __eq__(self, other):
-        return self.number == other
+        return self.server == other
 
     @property
     def guest_url(self):
-        return guest.format(self.url())
+        return guest.format(self.server)
 
-    def url(self):
-        cas = "p" if self.casual else ""
-        return f"{cas}{self.number}"
+    def parse_world(self, searchable):
+        result = re.findall(r'(de[\D]?)(\d+)', searchable)
+        if not result:
+            return
 
-    def gender(self):
-        # we don't talk about this
-        if self.number < 50:
-            self.casual = True
-            self.pronoun = "Casual"
-
-    def parse_world(self, raw_world):
-        if isinstance(raw_world, int):
-            self.number = raw_world
-        if isinstance(raw_world, str):
-            if raw_world.isdigit():
-                world = int(raw_world)
-            else:
-                basket = re.findall(r'\D+(\d{2,3})', raw_world)
-                if not basket:
-                    return
-                world = int(basket[0])
-            self.number = world
-
-        self.gender()
-
-    def is_active(self, bot):
-        return self.number in bot.worlds
+        self.prefix, self.number = result[0]
+        self.title = world_titles.get(self.prefix)
+        self.server = f"{self.prefix}{self.number}"
 
     async def convert(self, ctx, searchable):
         self.parse_world(searchable)
-        if self.is_active(ctx.bot):
+        if self.server in ctx.bot.worlds:
             return self
         else:
-            raise utils.UnknownWorld(searchable)
+            possible = ""
+            numbers = re.findall(r'\d+', searchable)
+            if numbers and not self.number:
+                for world in ctx.bot.worlds:
+                    if numbers[0] in world:
+                        possible = world
+
+            raise utils.UnknownWorld(possible)
 
 
 class Conquer:
@@ -287,7 +265,7 @@ class DSColor:
         self.orange = [253, 106, 2]
         self.pink = [255, 8, 127]
         self.green = [152, 251, 152]
-        self.purple = [128, 0, 128]  # [192, 5, 248]
+        self.purple = [128, 0, 128]
         self.white = [245, 245, 245]
         self.dark_green = [0, 51, 0]
         self.bright_yellow = [254, 254, 127]

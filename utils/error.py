@@ -17,8 +17,19 @@ class WorldMissing(commands.CheckFailure):
 
 
 class UnknownWorld(commands.CheckFailure):
-    def __init__(self, searchable):
-        self.name = searchable
+    def __init__(self, possible):
+        self.possible = possible
+
+
+class MissingGucci(commands.CheckFailure):
+    def __init__(self, purse):
+        self.purse = purse
+
+
+class InvalidBet(commands.CheckFailure):
+    def __init__(self, low, high):
+        self.low = low
+        self.high = high
 
 
 class IngameError(commands.CheckFailure):

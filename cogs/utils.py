@@ -28,14 +28,14 @@ class Rm(commands.Cog):
                   "maximal `10 Stämme` per Command"
             return await ctx.send(msg)
 
-        data = await self.bot.fetch_tribe_member(ctx.world, tribes, True)
+        data = await self.bot.fetch_tribe_member(ctx.server, tribes, True)
         if isinstance(data, str):
             return await ctx.send(f"Der Stamm `{data}` existiert so nicht")
         result = [obj.name for obj in data]
         await ctx.author.send(f"```\n{';'.join(result)}\n```")
         await ctx.message.add_reaction("📨")
 
-    @commands.command(name="akte", aliases=["twstats"])
+    @commands.command(name="twstats", aliases=["akte"])
     async def akte_(self, ctx, *, user: utils.DSObject):
         akte = discord.Embed(title=user.name, url=user.twstats_url)
         await ctx.send(embed=akte)
@@ -43,9 +43,9 @@ class Rm(commands.Cog):
     @commands.command(name="player", aliases=["spieler", "tribe", "stamm"])
     async def ingame_(self, ctx, *, username):
         if ctx.invoked_with.lower() in ("player", "spieler"):
-            dsobj = await self.bot.fetch_player(ctx.world, username, True)
+            dsobj = await self.bot.fetch_player(ctx.server, username, True)
         else:
-            dsobj = await self.bot.fetch_tribe(ctx.world, username, True)
+            dsobj = await self.bot.fetch_tribe(ctx.server, username, True)
         if not dsobj:
             raise utils.DSUserNotFound(username)
         profile = discord.Embed(title=dsobj.name, url=dsobj.ingame_url)
@@ -57,12 +57,9 @@ class Rm(commands.Cog):
         await ctx.send(embed=guest)
 
     @commands.command(name="visit", aliases=["besuch"])
-    async def visit_(self, ctx, world: int):
-        if not self.bot.check_world(world):
-            msg = "Diese Welt existiert nicht"
-            return await ctx.send(embed=utils.error_embed(msg))
-        desc = f"https://de{utils.casual(world)}.die-staemme.de/guest.php"
-        await ctx.send(embed=discord.Embed(description=f"[{world}]({desc})"))
+    async def visit_(self, ctx, world: utils.World):
+        description = f"[{world}]({world.guest_url})"
+        await ctx.send(embed=discord.Embed(description=description))
 
     @commands.command(name="sl")
     async def sl_(self, ctx, *, args):

@@ -18,11 +18,11 @@ class WordGames(commands.Cog):
         length = len(data['solution'])
         amount = int(250 * length * float(data['life'] / length + 1))
 
-        base = "Herzlichen Glückwunsch `{}`{}Du hast `{} Eisen` gewonnen :trophy: (15s Cooldown)"
-        msg = base.format(ctx.author.display_name, os.linesep, amount)
+        base = "Herzlichen Glückwunsch `{}`\nDu hast `{} Eisen` gewonnen :trophy: (15s Cooldown)"
+        msg = base.format(ctx.author.display_name, amount)
         await ctx.send(msg)
 
-        await self.bot.save_user_data(ctx.author.id, amount)
+        await self.bot.update_iron(ctx.author.id, amount)
         return await self.happy_end(ctx.guild.id)
 
     async def wrong_choice(self, ctx, title, loss=1):
@@ -36,8 +36,8 @@ class WordGames(commands.Cog):
 
         else:
             guessed = "` `".join(data['guessed'])
-            base = "{}: `noch {} Leben`{}Bereits versucht: `{}`"
-            msg = base.format(title, data['life'], os.linesep, guessed)
+            base = "{}: `noch {} Leben`\nBereits versucht: `{}`"
+            msg = base.format(title, data['life'], guessed)
             await ctx.send(msg)
 
     def blender(self, id_or_blanks):
@@ -53,8 +53,8 @@ class WordGames(commands.Cog):
         await asyncio.sleep(15)
         data.pop(guild_id)
 
-    @commands.command(name="anagram", aliases=["ag"])
     @game_channel_only()
+    @commands.command(name="anagram", aliases=["ag"])
     async def anagram_(self, ctx):
         data = self.anagram.get(ctx.guild.id)
         if data is False:
@@ -109,15 +109,15 @@ class WordGames(commands.Cog):
         spec_bonus = (60 - diff) * (50 * (1 - diff / 60)) * (1 - diff / 60)
         amount_won = int((150 * len(word) + spec_bonus) * (1 - diff / 60 + 1))
 
-        base = "`{}` hat das Wort in `{} Sekunden` erraten.{}`{} Eisen` gewonnen (15s Cooldown)"
-        msg = base.format(win_msg.author.display_name, diff, os.linesep, amount_won)
+        base = "`{}` hat das Wort in `{} Sekunden` erraten.\n`{} Eisen` gewonnen (15s Cooldown)"
+        msg = base.format(win_msg.author.display_name, diff, amount_won)
         await ctx.send(msg)
 
-        await self.bot.save_user_data(win_msg.author.id, amount_won)
+        await self.bot.update_iron(win_msg.author.id, amount_won)
         await self.happy_end(ctx.guild.id, False)
 
-    @commands.command(name="hangman", aliases=["galgenmännchen"])
     @game_channel_only()
+    @commands.command(name="hangman", aliases=["galgenmännchen"])
     async def hangman(self, ctx):
         data = self.hangman.get(ctx.guild.id)
         if data is False:
@@ -130,15 +130,15 @@ class WordGames(commands.Cog):
             data = {'guessed': [], 'blanks': blanks, 'solution': word, 'life': life}
             self.hangman[ctx.guild.id] = data
 
-            base = "Das Spiel wurde gestartet, errate mit **{}guess**:{}{}"
+            base = "Das Spiel wurde gestartet, errate mit **{}guess**:\n{}"
             board = f"{self.blender(blanks)} - `{life} Leben`"
-            msg = base.format(ctx.prefix, os.linesep, board)
+            msg = base.format(ctx.prefix, board)
             await ctx.send(msg)
 
         else:
 
-            base = "Es läuft bereits ein Spiel:{}{}"
-            msg = base.format(os.linesep, self.blender(ctx.guild.id))
+            base = "Es läuft bereits ein Spiel:\n{}"
+            msg = base.format(self.blender(ctx.guild.id))
             await ctx.send(msg)
 
     @commands.command(name="guess", aliases=["raten"])
@@ -149,8 +149,8 @@ class WordGames(commands.Cog):
             return
 
         if data is None:
-            base = "Aktuell ist kein Spiel im Gange.{}Starte mit `{}hangman`"
-            msg = base.format(os.linesep, ctx.prefix)
+            base = "Aktuell ist kein Spiel im Gange.\nStarte mit `{}hangman`"
+            msg = base.format(ctx.prefix)
             return await ctx.send(msg)
 
         guess = args.lower()

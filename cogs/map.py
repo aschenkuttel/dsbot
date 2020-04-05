@@ -1,4 +1,4 @@
-from utils import World, DSColor, MapVillage, error_embed
+from utils import World, DSColor, MapVillage, error_embed, silencer
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 import numpy as np
@@ -27,7 +27,7 @@ class Map(commands.Cog):
             '<:tribe:672862439074693123>',
             '<:report:672862439242465290>',
             '<:old:672862439112441879>',
-            '<:button:672910606700904451>'
+            '<:button:672910606700904451>',
         ]
         user = commands.BucketType.user
         self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
@@ -41,6 +41,13 @@ class Map(commands.Cog):
         else:
             return True
 
+    async def timeout(self, cache, user_id, time):
+        embed = cache['msg'].embeds[0]
+        embed.title = f"**Timeout:** Zeitüberschreitung({time}s)"
+        await cache['msg'].edit(embed=embed)
+        await silencer(cache['msg'].clear_reactions())
+        self.cache.pop(user_id)
+
     def convert_to_255(self, iterable):
         result = []
         for color in iterable:
@@ -51,8 +58,8 @@ class Map(commands.Cog):
         return result
 
     def get_bounds(self, villages):
-        x_coords = [v.x for v in villages if self.low < v.x < self.high]
-        y_coords = [v.y for v in villages if self.low < v.y < self.high]
+        x_coords = [v.x for v in villages if self.low < v.x < self.high if v.rank != 22]
+        y_coords = [v.y for v in villages if self.low < v.y < self.high if v.rank != 22]
         first, second = min(x_coords), min(y_coords)
         third, fourth = max(x_coords), max(y_coords)
         a1 = self.low if (first - self.space) < self.low else first - self.space
@@ -73,7 +80,7 @@ class Map(commands.Cog):
 
         if zoom:
             # 1, 2, 3, 4, 5 | 80% ,65%, 50%, 35% / 20%
-            shell = {'id': None, 'player': None, 'x': center[0], 'y': center[1]}
+            shell = {'id': None, 'player': None, 'x': center[0], 'y': center[1], 'rank': None}
             percentage = ((5 - zoom) * 20 + (zoom - 1) * 5) / 100
             length = int((bounds[2] - bounds[0]) * percentage / 2)
 
@@ -91,7 +98,7 @@ class Map(commands.Cog):
         percentage = image.size[0] / self.high
         font_size = int(150 * percentage)
         font = ImageFont.truetype(f'{self.bot.data_path}/water.otf', font_size)
-        position = image.size[0] - int(400 * percentage), image.size[1] - int(232*percentage)
+        position = image.size[0] - int(400 * percentage), image.size[1] - int(232 * percentage)
         board.text(position, "dsBot", (255, 255, 255, 50), font)
 
         image.paste(watermark, mask=watermark)
@@ -252,13 +259,12 @@ class Map(commands.Cog):
         return result
 
     @commands.command(name="map", aliases=["karte"])
-    @commands.cooldown(1, 30, commands.BucketType.user)
     async def map_(self, ctx, *, tribe_names=None):
         await ctx.trigger_typing()
 
         color_map = []
         if not tribe_names:
-            tribes = await self.bot.fetch_top(ctx.world, "tribe", till=10)
+            tribes = await self.bot.fetch_top(ctx.server, "tribe", till=10)
 
         else:
             all_tribes = []
@@ -276,18 +282,20 @@ class Map(commands.Cog):
                 color_map.append(names)
                 all_tribes.extend(names)
 
-            tribes = await self.bot.fetch_bulk(ctx.world, all_tribes, "tribe", name=True)
+            tribes = await self.bot.fetch_bulk(ctx.server, all_tribes, "tribe", name=True)
 
         if len(color_map) > 10:
             return await ctx.send("Du kannst nur bis zu 10 Stämme angeben")
 
         colors = self.colors.top()
-        for tribe in tribes:
+        for tribe in tribes.copy():
+
             for index, group in enumerate(color_map):
                 names = [t.lower() for t in group]
                 if tribe.tag.lower() in names:
                     tribe.color = colors[index]
                     break
+
             else:
                 if tribe_names:
                     tribes.remove(tribe)
@@ -295,8 +303,8 @@ class Map(commands.Cog):
                     tribe.color = colors.pop(0)
 
         tribes = {tribe.id: tribe for tribe in tribes}
-        result = await self.bot.fetch_tribe_member(ctx.world, tribes.keys())
-        all_villages = await self.bot.fetch_all(ctx.world, "map")
+        result = await self.bot.fetch_tribe_member(ctx.server, tribes.keys())
+        all_villages = await self.bot.fetch_all(ctx.server, "map")
         players = {pl.id: pl for pl in result}
 
         args = (all_villages, tribes, players)
@@ -310,26 +318,26 @@ class Map(commands.Cog):
 
     async def update_menue(self, cache, index):
         embed = cache['msg'].embeds[0]
-
         value = cache['values'][index]
         options = embed.description
         field = options.split("\n")[index]
-
         old_value = re.findall(r'\[.*\]', field)[0]
 
         if isinstance(value, bool):
-            cur = "An" if value else "Aus"
+            current_value = "An" if value else "Aus"
         elif isinstance(value, list):
             attr = 'tag' if index == 3 else 'name'
             names = [getattr(o, attr) for o in value]
-            cur = ", ".join(names)
+
+            current_value = ", ".join(names)
+
         elif index == 4:
             names = ["Aus", "An", "mit Beschriftung", "nur Beschriftung"]
-            cur = names[value]
+            current_value = names[value]
         else:
-            cur = str(value)
+            current_value = str(value)
 
-        new_field = field.replace(old_value, f"[{cur}]")
+        new_field = field.replace(old_value, f"[{current_value}]")
         embed.description = options.replace(field, new_field)
         await cache['msg'].edit(embed=embed)
 
@@ -348,6 +356,7 @@ class Map(commands.Cog):
         cache = self.cache.get(user.id)
         if not cache:
             return
+
         elif reaction.message.id != cache['msg'].id:
             return
 
@@ -358,13 +367,79 @@ class Map(commands.Cog):
         except ValueError:
             return
 
-        # map creation
-        if index == 6:
+        # zoom switch
+        if index == 0:
+            if values[index] > 4:
+                values[index] = 0
+            else:
+                values[index] += 1
 
+        # player, tribe or center
+        elif index in (1, 2, 3):
+            if values[index] is False:
+                return
+
+            values[index] = False
+
+            listen = self.bot.get_cog('Listen')
+            listen.blacklist.append(ctx.author.id)
+
+            if index == 1:
+                msg = "**Gebe bitte die gewünschte Koordinate an:**"
+
+            else:
+                obj = "Spieler" if index == 2 else "Stämme"
+                msg = f"**Gebe jetzt bis zu 10 {obj} an:**\n" \
+                      f"(Mit neuer Zeile getrennt | Shift Enter)"
+
+            guide_msg = await ctx.send(msg)
+
+            def check(message):
+                return ctx.author == message.author and ctx.channel == message.channel
+
+            try:
+                result = await self.bot.wait_for('message', check=check, timeout=30)
+
+                if index == 1:
+                    coords = re.findall(r'\d\d\d\|\d\d\d', result.content)
+                    if coords:
+                        values[index] = coords[0]
+
+                else:
+                    iterable = result.content.split("\n")
+                    data = await self.bot.fetch_bulk(ctx.server, iterable, index - 2, name=True)
+                    values[index] = data[:10]
+
+                if values[index] is False:
+                    values[index] = self.default[index]
+
+                listen.blacklist.remove(ctx.author.id)
+                await silencer(result.delete())
+
+            except asyncio.TimeoutError:
+                await self.timeout(cache, user.id, 300)
+                return
+
+            finally:
+                await silencer(guide_msg.delete())
+
+        # none, mark, label + mark, label
+        elif index == 4:
+            if values[index] > 2:
+                values[index] = 0
+            else:
+                values[index] += 1
+
+        # bb switch case
+        elif index == 5:
+            values[index] = not values[index]
+
+        # map creation
+        elif index == 6:
             await ctx.trigger_typing()
             p_list, t_list = cache['values'][2:4]
             idc = [tribe.id for tribe in t_list]
-            members = await self.bot.fetch_tribe_member(ctx.world, idc)
+            members = await self.bot.fetch_tribe_member(ctx.server, idc)
             colors = self.colors.top()
 
             players = {player.id: player for player in p_list}
@@ -380,87 +455,32 @@ class Map(commands.Cog):
                 if dsobj not in members:
                     dsobj.color = colors.pop(0)
 
-            village = await self.bot.fetch_all(ctx.world, 'map')
-
+            village = await self.bot.fetch_all(ctx.server, 'map')
             args = (village, tribes, players, cache)
             image = await self.bot.execute(self.create_custom_map, *args)
+
             with io.BytesIO() as file:
                 image.save(file, "png", quality=100)
                 image.close()
                 file.seek(0)
                 await ctx.send(file=discord.File(file, "map.png"))
 
-            self.cache.pop(user.id)
-            return
-
-        # zoom
-        if index == 0:
-            if values[index] > 4:
-                values[index] = 0
-            else:
-                values[index] += 1
-
-        # none, mark, label + mark, label
-        elif index == 4:
-            if values[index] > 2:
-                values[index] = 0
-            else:
-                values[index] += 1
-
-        # bb
-        elif index == 5:
-            values[index] = not values[index]
-
-        # player and tribe
-        else:
-
-            if values[index] is False:
-                return
-
-            values[index] = False
-
-            if index == 1:
-                msg = "Gebe bitte die gewünschte Koordinate an:"
-            else:
-                obj = "Spieler" if index == 2 else "Stämme"
-                msg = f"Gebe jetzt bitte bis zu 10 {obj} an:"
-            await ctx.send(msg)
-
-            def check(message):
-                return ctx.author == message.author
-
-            try:
-                result = await self.bot.wait_for('message', check=check, timeout=300)
-
-                if index == 1:
-                    coords = re.findall(r'\d\d\d\|\d\d\d', result.content)
-                    if coords:
-                        values[index] = coords[0]
-
-                else:
-                    iterable = result.content.split(" ")
-                    data = await self.bot.fetch_bulk(ctx.world, iterable, index - 2, name=True)
-                    values[index] = data[:10]
-
-                if values[index] is False:
-                    values[index] = self.default[index]
-
-            except asyncio.TimeoutError:
-                self.cache.pop(user.id)
-                return
+            return self.cache.pop(user.id)
 
         await self.update_menue(cache, index)
 
     @commands.command(name="custom")
-    async def custom_(self, ctx, world: World):
+    async def custom_(self, ctx, world: World = None):
         if ctx.author.id in self.cache:
             msg = "Du hast noch eine offene Karte"
             return await ctx.send(embed=error_embed(msg))
         else:
             cache = self.cache[ctx.author.id] = {}
 
+        if world:
+            ctx.world = world
+
         options = []
-        ctx.world = world.number
         for icon, value in self.bot.msg['mapOptions'].items():
             title = value['title']
             default = value.get('default')
@@ -470,8 +490,7 @@ class Map(commands.Cog):
                 message = f"\n{icon} {title}"
             options.append(message)
 
-        desc = "\n".join(options)
-        embed = discord.Embed(title="Custom Map Tool", description=desc)
+        embed = discord.Embed(title="Custom Map Tool", description="\n".join(options))
         example = f"Für eine genaue Erklärung und Beispiele: {ctx.prefix}help custom"
         embed.set_footer(text=example)
         builder = await ctx.send(embed=embed)
@@ -481,6 +500,15 @@ class Map(commands.Cog):
 
         default = {'msg': builder, 'ctx': ctx, 'values': self.default.copy()}
         cache.update(default)
+
+        await asyncio.sleep(600)
+
+        current = self.cache.get(ctx.author.id)
+        if current is None:
+            return
+
+        if ctx.message.id == current['ctx'].message.id:
+            await self.timeout(cache, ctx.author.id, 600)
 
 
 def setup(bot):

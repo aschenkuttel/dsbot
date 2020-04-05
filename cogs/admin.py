@@ -61,7 +61,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="change_res")
     async def res_(self, ctx, idc: int, iron: int):
-        await self.bot.save_user_data(idc, iron)
+        await self.bot.update_iron(idc, iron)
         await ctx.send(f"Dem User wurden `{iron} Eisen` hinzugefügt")
 
 

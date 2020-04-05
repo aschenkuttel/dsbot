@@ -13,14 +13,11 @@ import io
 import re
 
 
-listener = commands.Cog.listener
-error_embed = utils.error_embed
-
-
 class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cap = 10
+        self.blacklist = []
         self.silenced = (commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
@@ -60,10 +57,13 @@ class Listen(commands.Cog):
         file = await bot.execute(self.html_lover, data)
         return file
 
-    @listener()
+    @commands.Cog.listener()
     async def on_message(self, message):
 
         if not message.guild or message.author.bot:
+            return
+
+        if message.author.id in self.blacklist:
             return
 
         world = self.bot.config.get_world(message.channel)
@@ -133,10 +133,6 @@ class Listen(commands.Cog):
                     names.remove(name)
 
         if names:
-            world = self.bot.get_world(message.channel)
-            if not world:
-                return
-
             names = names[:10]
             parsed_msg = message.clean_content.replace("`", "")
             ds_objects = await self.bot.fetch_bulk(world, names, name=True)
@@ -170,13 +166,13 @@ class Listen(commands.Cog):
             except discord.Forbidden:
                 pass
 
-    @listener()
+    @commands.Cog.listener()
     async def on_command_completion(self, ctx):
-        await self.bot.save_usage_cmd(ctx.invoked_with)
+        await self.bot.save_usage(ctx.invoked_with)
 
-    @listener()
+    @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        msg, tip = None, False
+        msg, tip = None, None
         error = getattr(error, 'original', error)
         if isinstance(error, self.silenced):
             return
@@ -190,7 +186,7 @@ class Listen(commands.Cog):
 
         elif isinstance(error, commands.MissingRequiredArgument):
             msg = "Dem Command fehlt ein benötigtes Argument"
-            tip = True
+            tip = ctx
 
         elif isinstance(error, commands.NoPrivateMessage):
             msg = "Der Command ist leider nur auf einem Server verfügbar"
@@ -200,22 +196,33 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.DontPingMe):
             msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
-            tip = True
+            tip = ctx
 
         elif isinstance(error, utils.WorldMissing):
             msg = "Der Server hat noch keine zugeordnete Welt\n" \
                   f"Dies kann nur der Admin mit `{ctx.prefix}set world`"
 
         elif isinstance(error, utils.UnknownWorld):
-            msg = "Die Welt wurde bereits geschlossen / existiert noch nicht"
+            msg = "Diese Welt existiert leider nicht."
+            if error.possible:
+                msg += f"\nMeinst du möglicherweise: `{error.possible}`"
+            tip = ctx
 
         elif isinstance(error, utils.WrongChannel):
-            channel = self.bot.get_item(ctx.guild.id, "game")
+            channel = self.bot.config.get_item(ctx.guild.id, "game")
             return await ctx.send(f"<#{channel}>")
 
         elif isinstance(error, utils.GameChannelMissing):
             msg = "Der Server hat keinen Game-Channel\n" \
                   f"Nutze `{ctx.prefix}set game` um einen festzulegen"
+
+        elif isinstance(error, utils.MissingGucci):
+            base = "Du hast nur `{} Eisen` auf dem Konto"
+            msg = base.format(utils.pcv(error.purse))
+
+        elif isinstance(error, utils.InvalidBet):
+            base = "Der Einsatz muss zwischen {} und {} Eisen liegen"
+            msg = base.format(error.low, error.high)
 
         elif isinstance(error, commands.NotOwner):
             msg = "Diesen Command kann nur der Bot-Owner ausführen"
@@ -228,8 +235,7 @@ class Listen(commands.Cog):
             msg = raw.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):
-            name = f"Casual {ctx.world}" if ctx.world < 50 else f"der `{ctx.world}`"
-            msg = f"`{error.name}` konnte auf {name} nicht gefunden werden"
+            msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
 
         elif isinstance(error, utils.GuildUserNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
@@ -240,7 +246,7 @@ class Listen(commands.Cog):
 
         if msg:
             try:
-                embed = error_embed(msg, ctx if tip else None)
+                embed = utils.error_embed(msg, ctx=tip)
                 await ctx.send(embed=embed)
             except discord.Forbidden:
                 msg = "Dem Bot fehlen benötigte Rechte: `Embed Links`"

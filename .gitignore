@@ -1,6 +1,7 @@
 .idea/
 cogs/dev_Test.py
 data/config.json
+data/cache.json
 data/naruto.py
 discord.log
 datadb.py

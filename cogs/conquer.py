@@ -1,29 +1,33 @@
+from utils import Conquer, silencer, escape
 from discord.ext import commands
 import datetime
 import discord
 import asyncio
-import utils
 
 
-class Conquer(commands.Cog):
+class ConquerLoop(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._conquer = {}
         self.bot.loop.create_task(self.conquer_loop())
 
-    @commands.command(name="manual")
-    async def manual_(self, ctx):
-        await self.conquer_feed()
-
     # main loop
     async def conquer_loop(self):
         seconds = self.get_seconds()
         await asyncio.sleep(seconds)
+
         while not self.bot.is_closed():
-            await self.bot.refresh_worlds()
-            await self.conquer_feed()
-            wait_pls = self.get_seconds()
-            await asyncio.sleep(wait_pls)
+            try:
+                await self.bot.refresh_worlds()
+                await self.conquer_feed()
+                wait_pls = self.get_seconds()
+                await asyncio.sleep(wait_pls)
+
+            except Exception as error:
+                print(f"Conguer Error: {error}")
+                user = self.bot.get_user(self.bot.owner_id)
+                await user.send("conquer task crashed")
+                return
 
     async def conquer_feed(self):
         await self.update_conquer()
@@ -44,25 +48,21 @@ class Conquer(commands.Cog):
             if not data:
                 continue
 
-            res_cache = []
-            once = data[0]
-            counter = 0
+            conquer_pkg = ""
+            date, conquer_feed = data
+            conquer_feed.append("")
 
-            for sen in data[1]:
-                if counter + len(sen) > 2000:
-                    embed = discord.Embed(title=once, description='\n'.join(res_cache))
+            for line in conquer_feed:
+
+                if len(line) + len(conquer_pkg) > 2040 or not line:
+                    embed = discord.Embed(title=date, description=conquer_pkg)
                     await utils.silencer(channel.send(embed=embed))
-                    res_cache.clear()
-                    counter = 0
-                    once = ""
+                    conquer_pkg = ""
+                    date = ""
+
                     await asyncio.sleep(0.5)
 
-                res_cache.append(sen)
-                counter += len(sen)
-
-            if res_cache:
-                embed = discord.Embed(title=once, description='\n'.join(res_cache))
-                await utils.silencer(channel.send(embed=embed))
+                conquer_pkg += f"{line}\n"
 
     async def update_conquer(self):
         for world in self.bot.worlds:
@@ -99,7 +99,17 @@ class Conquer(commands.Cog):
             tribes = await self.bot.fetch_bulk(world, tribe_ids, 'tribe', dic=True)
             villages = await self.bot.fetch_bulk(world, village_ids, 'village', dic=True)
 
-            for conquer in conquer_cache:
+            conquer_cache.reverse()
+            for index, conquer in enumerate(conquer_cache):
+
+                last = conquer_cache[index - 1]
+                if last.id == conquer.id:
+                    stamp = int(last.time.timestamp())
+                    window = list(range(stamp - 5, stamp + 6))
+
+                    if int(conquer.time.timestamp()) in window:
+                        continue
+
                 conquer.village = villages.get(conquer.id)
                 conquer.old_player = players.get(conquer.old_id)
                 conquer.new_player = players.get(conquer.new_id)
@@ -108,14 +118,13 @@ class Conquer(commands.Cog):
                 if conquer.new_player:
                     conquer.new_tribe = tribes.get(conquer.new_player.tribe_id)
 
-            self._conquer[world] = conquer_cache
+            self._conquer[world] = reversed(conquer_cache)
 
     async def fetch_conquer(self, world, sec=3600):
         now = datetime.datetime.now()
         cur = now.timestamp() - sec
-        base = "http://de{}.die-staemme.de/interface.php?func=get_conquer&since={}"
-        url = base.format(utils.casual(world), cur)
-        async with self.bot.session.get(url) as resp:
+        base = "http://{}.die-staemme.de/interface.php?func=get_conquer&since={}"
+        async with self.bot.session.get(base.format(world, cur)) as resp:
             data = await resp.text('utf-8')
             return data.split('\n')
 
@@ -143,7 +152,6 @@ class Conquer(commands.Cog):
         date = None
         result = []
         for conquer in data:
-
             if only_tribes and not any(idc in tribe_players for idc in conquer.player_ids):
                 continue
             if not bb and conquer.grey:
@@ -156,14 +164,14 @@ class Conquer(commands.Cog):
             village_hyperlink = f"[{conquer.coords}]({conquer.village.ingame_url})"
 
             if conquer.new_player:
-                new_url = f"[{new.name}]({new.ingame_url})"
-                new_tribe = f" **{conquer.new_tribe.tag}**" if conquer.new_tribe else ""
-                new = f"{new_url}{new_tribe}"
+                new = f"[{escape(new.name)}]({new.ingame_url})"
+                if conquer.new_tribe:
+                    new += f" **{escape(conquer.new_tribe.tag)}**"
 
             if conquer.old_player:
-                old_url = f"[{old.name}]({old.ingame_url})"
-                old_tribe = f" **{conquer.old_tribe.tag}**" if conquer.old_tribe else ""
-                old = f"von {old_url}{old_tribe}"
+                old = f"[{escape(old.name)}]({old.ingame_url})"
+                if conquer.old_tribe:
+                    old += f" **{escape(conquer.old_tribe.tag)}**"
 
             date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
             result.append(f"``{now}`` | {new} adelt {village_hyperlink} {old}")
@@ -172,4 +180,4 @@ class Conquer(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Conquer(bot))
+    bot.add_cog(ConquerLoop(bot))

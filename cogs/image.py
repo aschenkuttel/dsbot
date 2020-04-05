@@ -92,7 +92,6 @@ class Graphic(commands.Cog):
     @commands.command(name="nude", aliases=["nacktfoto"])
     @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def nude_(self, ctx, *, user: DSObject = None):
-
         if user:
             async with self.bot.session.get(user.guest_url) as res:
                 data = await res.read()
@@ -105,7 +104,7 @@ class Graphic(commands.Cog):
         else:
             await ctx.trigger_typing()
             for _ in range(0, 30):
-                user = await self.bot.fetch_random(ctx.world)
+                user = await self.bot.fetch_random(ctx.server)
                 async with self.bot.session.get(user.guest_url) as res:
                     data = await res.read()
                 soup = BeautifulSoup(data, "html.parser")

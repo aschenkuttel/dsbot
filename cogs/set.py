@@ -1,4 +1,4 @@
-from utils import DSObject, World, complete_embed, error_embed
+from utils import DSObject, World, complete_embed, error_embed, show_list
 from discord.ext import commands
 import discord
 
@@ -23,14 +23,14 @@ class Set(commands.Cog):
 
     @set.command(name="world")
     async def set_world(self, ctx, world: World):
-        res = "bereits" if world == ctx.world else "nun"
+        old_world = self.bot.config.get_guild_world(ctx.guild)
+        res = "bereits" if world == old_world else "nun"
         msg = f"Der Server ist {res} mit `{world}` verbunden"
 
-        # --- Check if World already linked --- #
-        if world == ctx.world:
+        if world == old_world:
             await ctx.send(embed=error_embed(msg))
         else:
-            self.config.change_item(ctx.guild.id, 'world', world.number)
+            self.config.change_item(ctx.guild.id, 'world', world.server)
             await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="game")
@@ -71,7 +71,7 @@ class Set(commands.Cog):
     async def set_channel(self, ctx, world: World):
         config = self.config.get_item(ctx.guild.id, 'channel')
         if config is None:
-            cache = {str(ctx.channel.id): world.number}
+            cache = {str(ctx.channel.id): world.server}
             self.config.change_item(ctx.guild.id, 'channel', cache)
 
         else:
@@ -80,7 +80,7 @@ class Set(commands.Cog):
                 msg = f"Dieser Channel ist bereits zu **{world}** gelinked"
                 return await ctx.send(embed=error_embed(msg))
             else:
-                config[str(ctx.channel.id)] = world.number
+                config[str(ctx.channel.id)] = world.server
                 self.config.save()
 
         msg = f"Der Channel wurde mit **{world}** gelinked"
@@ -125,35 +125,14 @@ class Set(commands.Cog):
 
     @commands.command(name="world")
     async def get_world(self, ctx):
-        world_name = f"{World(ctx.world)}"
-        await ctx.send(embed=complete_embed(world_name))
+        await ctx.send(embed=complete_embed(f"{ctx.server}"))
 
     @commands.command(name="worlds")
     async def worlds_(self, ctx):
         worlds = sorted(self.bot.worlds)
-        normal, casual = [], []
-        for world in worlds:
-            iterable = normal if world > 50 else casual
-            iterable.append(str(world))
-
-        result = []
-        for wlist in normal, casual:
-            cache = ""
-            counter = 0
-            for index, world in enumerate(wlist):
-                if counter == 3:
-                    cache += f"{world}\n"
-                    counter = 0
-                else:
-                    if world == wlist[-1]:
-                        cache += f"{world}"
-                    else:
-                        cache += f"{world}, "
-                    counter += 1
-            result.append(cache)
-
-        base = "**Normale Welten:**\n{0}\n**Casual:**\n{1}"
-        embed = discord.Embed(description=base.format(*result))
+        result = show_list(worlds, line_break=3)
+        description = f"**Aktuelle Welten:**\n{result}"
+        embed = discord.Embed(description=description)
         await ctx.send(embed=embed)
 
     @commands.group(name="conquer")

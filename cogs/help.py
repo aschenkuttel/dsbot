@@ -1,54 +1,61 @@
 from discord.ext import commands
 import discord
-
-cmds = [
-    "`akte` | Twstats-URL von Spieler|Stamm",
-    "`avatar` | Konvertiert Bild auf vorgeschriebene DS-Maße",
-    "`bash` | Zusammenfassung der Bashpoints von Spieler/Stamm",
-    "`bb` | Erhalte die BB-Koords aus der Umgebung eines Dorfes",
-    "`conquer` | Administrator-Commands für den Conquer Channel",
-    "`daily` | Top 5 der \"An einem Tag\"-Ranglisten",
-    "`emoji` | Fügt dem Server eine Reihe von DS-Emojis hinzu",
-    "`map` | Erstellt eine Custom oder Top 10 Karte der Welt",
-    "`nude` | Profilbild von Spieler|Stamm oder zufällig",
-    "`pin` | Help Embed für den Server",
-    "`player` | Ingame-URL von Spieler|Stamm",
-    "`poll` | Simple Discord Abstimmung",
-    "`recap` | Kurze Zusammenfassung der letzten Tage eines Spielers|Stammes",
-    "`rm` | Rundmail Generator für mehrere Stämme",
-    "`rz` | Ungefähre Verteilung der Truppen auf die Raubzugoptionen",
-    "`set` | Administrator-Commands für Einstellungen",
-    "`time` | Erinnerung zu gewünschter Uhrzeit per PN",
-    "`villages` | Liste von Koordinaten von Spieler|Stamm",
-    "`visit` | Gastlogin-Url von gewünschter|Server-Welt",
-]
-
-fun = [
-    "`ag` | Anagram Rätsel im DS-Format",
-    "`duali` | Dualikompatibilät mit User",
-    "`hangman` | Galgenmännchen im DS-Format",
-    "`mirror` | Avatar eines Users/den Eigenen",
-    "`orakel` | Zufällige Antwort auf eine Ja/Nein Frage",
-    "`quiz` | Quiz mit weltenbezogenen und allgemeinen Fragen",
-    "`quartet` | Quartet mit Accounts der Server-Welt",
-    "`iron` | Commands für Statistiken und Senden von Eisen",
-    "`vp` | Videopoker im IRC-Stil"
-]
+import asyncio
+import os
 
 
 class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.cache = {}
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        if user == self.bot.user:
+            return
+
+        data = self.cache.get(reaction.message.id)
+        if data is None:
+            return
+
+        if user.id in data['cache']:
+            return
+
+        if reaction.emoji == "📨":
+            try:
+                embed = data['embed']
+                data['cache'].append(user.id)
+                await user.send(embed=embed)
+            except discord.Forbidden:
+                pass
+
+    async def mailbox(self, ctx, embed):
+        response = await ctx.private_hint()
+        if response:
+            data = {'embed': embed, 'cache': [ctx.author.id]}
+            self.cache[ctx.message.id] = data
+            await asyncio.sleep(600)
+            self.cache.pop(ctx.message.id)
 
     def help_embed(self, prefix):
-        desc = "Erhalte eine ausführliche Erklärung zu einzelnen Commands\nmit " \
-               "`{0}help <command>` | Beispiel: `{0}help villages`".format(prefix)
+        desc = "Erhalte eine ausführliche Erklärung zu\neinzelnen " \
+               "Commands mit `{0}help <commandname>`".format(prefix)
         emb_help = discord.Embed(description=desc, color=discord.Color.blue())
-        emb_help.add_field(name="DS-Commands:", value="\n".join(cmds), inline=False)
-        emb_help.add_field(name="Fun-Commands:", value="\n".join(fun), inline=False)
+
+        for name, cmd_list in self.bot.msg['helpGroups'].items():
+
+            cache = []
+            for index, cmd in enumerate(cmd_list):
+                if len(cache) in [4, 9, 14]:
+                    cache.append(f"`{cmd}`{os.linesep}")
+                else:
+                    cache.append(f"`{cmd}` ")
+
+            emb_help.add_field(name=f"{name}:", value="".join(cache), inline=False)
+
         return emb_help
 
-    async def cmd_embed(self, data, ctx):
+    def cmd_embed(self, data, ctx):
         title = "Command: {}".format(data[0])
         desc, cmd_type = data[1:3]
         cmd_inp = "\n".join(data[3])
@@ -77,9 +84,7 @@ class Help(commands.Cog):
         else:
             embed = self.help_embed(ctx.prefix)
             await ctx.author.send(embed=embed)
-            await ctx.private_hint()
-
-    # DS Commands
+            await self.mailbox(ctx, embed)
 
     @help.command(name="akte")
     async def akte_(self, ctx):
@@ -89,8 +94,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~akte <playername/tribename>`"]
         example = ["`~akte madberg`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="avatar")
     async def avatar_(self, ctx):
@@ -101,8 +107,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~avatar <url with (png, jpg, gif ending)>`"]
         example = ["`~avatar https://homepage/beispielbild.png`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="bash")
     async def bash_(self, ctx):
@@ -115,8 +122,9 @@ class Help(commands.Cog):
         example = ["`~bash lemme smash`",
                    "`~allbash gods rage / Knueppel-Kutte`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="bb")
     async def bb_(self, ctx):
@@ -129,8 +137,9 @@ class Help(commands.Cog):
         example = ["`~bb 555|555`",
                    "`~bb 555|555 radius=50 points=100`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="conquer")
     async def conquer_(self, ctx):
@@ -150,8 +159,9 @@ class Help(commands.Cog):
                    "`~conquer list`",
                    "`~conquer clear`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="daily")
     async def daily_(self, ctx):
@@ -161,8 +171,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~daily <bash/def/ut/farm/villages/scavenge/conquer>`"]
         example = ["`~daily bash`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="emoji")
     async def emoji_(self, ctx):
@@ -172,8 +183,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~emoji`"]
         example = ["`~emoji`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="map")
     async def map_(self, ctx):
@@ -190,8 +202,9 @@ class Help(commands.Cog):
                    "`~map <300> <W-Inc>`",
                    "`~map <300> <W-Inc> & <SPARTA>`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="nude")
     async def nude_(self, ctx):
@@ -205,8 +218,9 @@ class Help(commands.Cog):
         example = ["`~nude`",
                    "`~nude Leedsi`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="pin")
     async def pin_(self, ctx):
@@ -216,8 +230,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~pin`"]
         example = ["`~pin`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="player")
     async def player_(self, ctx):
@@ -229,8 +244,9 @@ class Help(commands.Cog):
         example = ["`~player Philson Cardoso`",
                    "`~tribe Milf!`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="poll")
     async def poll_(self, ctx):
@@ -240,8 +256,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~poll \"<question>\" <option> <option> ...`"]
         example = ["`~poll \"Sollen wir das BND beenden?\" Ja Nein Vielleicht`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="recap")
     async def recap_(self, ctx):
@@ -254,8 +271,9 @@ class Help(commands.Cog):
         example = ["`~recap madberg`",
                    "`~recap madberg 20`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="rm")
     async def rm_(self, ctx):
@@ -267,8 +285,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~rm <tribename> <tribename>`"]
         example = ["`~rm Skype! down \"Mum, I like to farm!\"`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="rz")
     async def rz_(self, ctx):
@@ -279,8 +298,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~rz4 <unit-amount>`"]
         example = ["`~rz4 200 100`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="set")
     async def set_(self, ctx):
@@ -300,8 +320,9 @@ class Help(commands.Cog):
                    "`~set conquer`",
                    "`~set prefix -`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="sl")
     async def sl_(self, ctx):
@@ -315,8 +336,9 @@ class Help(commands.Cog):
         example = ["`~sl speer=20 lkav=5 späher=2 550|490 489|361`",
                    "`~sl axt=80ramme=20ag=1 [coord]452|454[/coord]`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="remove")
     async def remove_(self, ctx):
@@ -332,8 +354,9 @@ class Help(commands.Cog):
                    "`~remove conquer`",
                    "`~remove prefix`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="time")
     async def time_(self, ctx):
@@ -347,8 +370,9 @@ class Help(commands.Cog):
         example = ["`~time 50s`",
                    "`~time 18:22 Pizza aus dem Ofen holen`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="villages")
     async def villages_(self, ctx):
@@ -361,8 +385,9 @@ class Help(commands.Cog):
         example = ["`~villages 20 madberg`",
                    "`~villages all madberg k55`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="visit")
     async def visit_(self, ctx):
@@ -372,10 +397,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~visit <world>`"]
         example = ["`~visit 143`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
-
-    # Fun Commands
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="ag")
     async def ag_(self, ctx):
@@ -387,8 +411,9 @@ class Help(commands.Cog):
         example = ["`~ag`",
                    "`Späher`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="duali")
     async def duali_(self, ctx):
@@ -399,8 +424,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~duali <discord username>`"]
         example = ["`~duali Neel x Kutte`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="hangman")
     async def hangman_(self, ctx):
@@ -414,8 +440,9 @@ class Help(commands.Cog):
                    "`~guess a`",
                    "`~guess Späher`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="iron")
     async def iron_(self, ctx):
@@ -435,8 +462,9 @@ class Help(commands.Cog):
                    "`~iron global`",
                    "`~iron send 8000 Sheldon`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="mirror")
     async def mirror_(self, ctx):
@@ -449,8 +477,9 @@ class Help(commands.Cog):
         example = ["`~mirror`",
                    "`~mirror mettberg`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="orakel")
     async def orakel_(self, ctx):
@@ -461,8 +490,9 @@ class Help(commands.Cog):
         cmd_inp = ["`~orakel <question>`"]
         example = ["`~orakel Werde ich bald geadelt?`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="quartet")
     async def quartet_(self, ctx):
@@ -479,8 +509,9 @@ class Help(commands.Cog):
                    "`~play card 5`",
                    "`~play card ut`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="quiz")
     async def quiz_(self, ctx):
@@ -490,42 +521,26 @@ class Help(commands.Cog):
         cmd_inp = ["`~quiz <game_rounds>`"]
         example = ["`~quiz 10`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="vp")
     async def vp_(self, ctx):
         title = "`~vp` - `~videopoker` - `~draw`"
         desc = "Du erhältst 5 Karten aus einem typischen 52er Set. Nun hast " \
-               "die die Möglichkeit einmal Karten auszutauschen. " \
-               "Man spielt um einen gewünschten Einsatz. " \
-               "Je nach Hand erhält man immer größeren Gewinn."
+               "du die Möglichkeit einmal Karten auszutauschen. " \
+               "Man spielt um einen gewünschten Einsatz, " \
+               "je nach Hand erhält man immer größeren Gewinn."
         cmd_type = "Server Command"
         cmd_inp = ["`~vp <amount>`",
                    "`~draw <cardnumbers>`"]
-        example = ["`~vp 2000`"
+        example = ["`~vp 2000`",
                    "`~draw 13`"]
         data = title, desc, cmd_type, cmd_inp, example
-        await ctx.author.send(embed=await self.cmd_embed(data, ctx))
-        await ctx.private_hint()
-
-    @help.command(name="bot")
-    async def self_(self, ctx):
-        desc = "Der Bot ist ein Hobbyprojekt meinerseits welches seit " \
-               "kurzem allen DS Spielern offen zur Nutzung steht." \
-               " Dies sollte anfangs lediglich eine kleine Hilfe für das " \
-               "Umwandeln von Koordinaten werden. Inzwischen " \
-               "gibt es einige nützliche Commands und auch einige " \
-               "Spielereien. Ich freue mich über jegliche Art von " \
-               "Vorschlag / Kritik. Man kann mich hierbei entweder Ingame " \
-               "oder per Discord PN erreichen."
-        page3 = discord.Embed(title=f"Alle Commands unter: {ctx.prefix}help",
-                              color=0x0d90e2, description=desc)
-        page3.set_author(name="Knueppel-Kutte(DS) / Neel x Kutte#1515")
-        page3.set_thumbnail(
-            url=ctx.bot.get_user(211836670666997762).avatar_url)
-        await ctx.author.send(embed=page3)
-        await ctx.private_hint()
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
 
 def setup(bot):

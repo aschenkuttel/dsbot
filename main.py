@@ -10,7 +10,6 @@ import random
 import utils
 import json
 import os
-import io
 
 
 # gets called every message to gather the custom prefix
@@ -24,7 +23,6 @@ def prefix(bot, message):
 
 # implementation of own class / overwrites
 class DSBot(commands.Bot):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.worlds = []
@@ -36,19 +34,26 @@ class DSBot(commands.Bot):
         self.owner_id = 211836670666997762
         self.data_path = f"{os.path.dirname(__file__)}/data"
         self.msg = json.load(open(f"{self.data_path}/msg.json"))
-        self.activity = discord.Activity(type=1, name="!help [1.8]")
+        self.activity = discord.Activity(type=0, name=self.msg['status'])
         self.add_check(self.global_world)
         self.config = utils.Config(self)
+        self.cache = utils.Cache(self)
         self.remove_command("help")
         self._lock = True
         self.setup_cogs()
 
     # setup functions
     async def on_ready(self):
-
         # db / aiohttp setup
         if not self.session or not self.pool:
-            await self.setup()
+            self.session = aiohttp.ClientSession(loop=self.loop)
+            self.pool, self.ress = await self.db_connect()
+
+            # adds needed option for vps
+            if os.name != "nt":
+                utils.imgkit['xvfb'] = ''
+
+            await self.refresh_worlds()
 
         if not self.conn:
             self.conn = await self.pool.acquire()
@@ -61,22 +66,30 @@ class DSBot(commands.Bot):
     async def global_world(self, ctx):
         if "help" in str(ctx.command):
             return True
+
         cmd = str(ctx.command).lower()
+        if cmd == "set world":
+            return True
+
         if ctx.guild is None:
             if cmd in self.white:
                 return True
-            raise commands.NoPrivateMessage
-        if cmd == "set world":
+            else:
+                raise commands.NoPrivateMessage
+
+        cache = self.config.get_world(ctx.channel)
+        if cache:
+            ctx.world = utils.World(cache)
+            ctx.server = ctx.world.server
             return True
-        ctx.world = self.config.get_world(ctx.channel)
-        if ctx.world:
-            return True
-        raise utils.WorldMissing
+
+        raise utils.WorldMissing()
 
     # custom context implementation
     async def on_message(self, message):
         if self._lock:
             return
+
         ctx = await self.get_context(message, cls=utils.DSContext)
         await self.invoke(ctx)
 
@@ -104,20 +117,9 @@ class DSBot(commands.Bot):
         pool.shutdown()
         return result
 
-    async def setup(self):
-        self.session = aiohttp.ClientSession(loop=self.loop)
-        connections = await self.db_connect()
-        self.pool, self.ress = connections
-
-        # adds needed option for vps
-        if os.name != "nt":
-            utils.imgkit['xvfb'] = ''
-
-        await self.refresh_worlds()
-
     async def db_connect(self):
         result = []
-        databases = 'tribaldata', 'userdata'
+        databases = 'example', 'userdata'
         for db in databases:
             conn_data = {'host': secret.db_adress, 'port': secret.db_port,
                          'user': secret.db_user, 'password': secret.db_key,
@@ -126,39 +128,48 @@ class DSBot(commands.Bot):
             result.append(cache)
         return result
 
-    async def close_db(self):
-        await self.ress.close()
-        await self.pool.close()
-
-    def check_world(self, world):
-        return world in self.worlds
-
-    # Iron Data / Cmd Usage Methods
-    async def save_user_data(self, user_id, amount):
-        query = 'SELECT * FROM iron_data WHERE id = $1'
+    async def update_iron(self, user_id, iron):
         async with self.ress.acquire() as conn:
-            data = await conn.fetchrow(query, user_id)
             query = 'INSERT INTO iron_data(id, amount) VALUES($1, $2) ' \
-                    'ON CONFLICT (id) DO UPDATE SET amount=$2'
-            new_amount = data['amount'] + amount if data else amount
-            await conn.execute(query, user_id, new_amount)
+                    'ON CONFLICT (id) DO UPDATE SET amount = iron_data.amount + $2'
+            await conn.execute(query, user_id, iron)
 
-    async def fetch_user_data(self, user_id, info=False):
-        query = 'SELECT * FROM iron_data'
+    async def subtract_iron(self, user_id, iron, supress=False):
         async with self.ress.acquire() as conn:
-            data = await conn.fetch(query)
+            query = 'UPDATE iron_data SET amount = amount - $2 ' \
+                    'WHERE id = $1 AND amount >= $2 RETURNING TRUE'
+            response = await conn.fetchrow(query, user_id, iron)
 
-        cache = {cur['id']: cur['amount'] for cur in data}
+            if response is None and not supress:
+                purse = await self.fetch_iron(user_id)
+                raise utils.MissingGucci(purse)
+
+            return response
+
+    async def fetch_iron(self, user_id, info=False):
+        async with self.ress.acquire() as conn:
+            if info:
+                query = 'SELECT * FROM iron_data'
+                data = await conn.fetch(query)
+            else:
+                query = 'SELECT * FROM iron_data WHERE id = $1'
+                data = await conn.fetchrow(query, user_id)
+
+        if not info:
+            return data['amount'] if data else 0
+
         rank = "Unknown"
-        sort = sorted(cache.items(), key=lambda kv: kv[1], reverse=True)
+        cache = {rec['id']: rec['amount'] for rec in data}
+        money = cache.get(user_id, 0)
 
+        sort = sorted(cache.items(), key=lambda kv: kv[1], reverse=True)
         for index, (idc, cash) in enumerate(sort):
             if idc == user_id:
                 rank = index + 1
-        money = cache.get(user_id, 0)
-        return (money, rank) if info else money
 
-    async def fetch_user_top(self, amount, guild=None):
+        return money, rank
+
+    async def fetch_iron_list(self, amount, guild=None):
         base = 'SELECT * FROM iron_data'
         args = [amount]
 
@@ -173,7 +184,7 @@ class DSBot(commands.Bot):
             data = await conn.fetch(query, *args)
             return data
 
-    async def save_usage_cmd(self, cmd):
+    async def save_usage(self, cmd):
         cmd = cmd.lower()
         query = 'SELECT * FROM usage_data WHERE name = $1'
 
@@ -203,10 +214,8 @@ class DSBot(commands.Bot):
         if not cache:
             return
 
-        old_worlds = self.worlds.copy()
-        for world in old_worlds:
+        for world in self.worlds:
             if world not in cache:
-                self.worlds.remove(world)
                 self.config.remove_world(world)
 
         self.worlds = cache
@@ -352,7 +361,8 @@ class DSBot(commands.Bot):
 
     async def logout(self):
         await self.session.close()
-        await self.close_db()
+        await self.ress.close()
+        await self.pool.close()
         await self.close()
 
 
