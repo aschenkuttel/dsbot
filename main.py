@@ -15,7 +15,7 @@ import os
 # gets called every message to gather the custom prefix
 def prefix(bot, message):
     if message.guild is None:
-        return secret.prefix
+        return bot.prefix
     idc = message.guild.id
     custom = bot.config.get_prefix(idc)
     return custom
@@ -30,6 +30,7 @@ class DSBot(commands.Bot):
         self.pool = None
         self.conn = None
         self.session = None
+        self.prefix = secret.prefix
         self.white = secret.pm_commands
         self.owner_id = 211836670666997762
         self.data_path = f"{os.path.dirname(__file__)}/data"

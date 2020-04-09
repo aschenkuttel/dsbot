@@ -56,7 +56,7 @@ class ConquerLoop(commands.Cog):
 
                 if len(line) + len(conquer_pkg) > 2040 or not line:
                     embed = discord.Embed(title=date, description=conquer_pkg)
-                    await utils.silencer(channel.send(embed=embed))
+                    await silencer(channel.send(embed=embed))
                     conquer_pkg = ""
                     date = ""
 
@@ -90,7 +90,7 @@ class ConquerLoop(commands.Cog):
 
                 village_ids.append(vil_id)
                 player_ids.extend([new_owner, old_owner])
-                conquer = utils.Conquer(world, entry)
+                conquer = Conquer(world, entry)
                 conquer_cache.append(conquer)
 
             # Make all the API Calls

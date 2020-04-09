@@ -79,8 +79,9 @@ class Casino(commands.Cog):
                 try:
                     current = self.dice.get(ctx.guild.id)
                     if stamp == current['time']:
-                        await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
                         self.dice.pop(ctx.guild.id)
+                        await self.bot.update_iron(ctx.author.id, argument)
+                        await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
 
                 except TypeError:
                     return

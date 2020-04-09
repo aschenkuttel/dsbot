@@ -6,7 +6,7 @@ import utils
 import os
 
 
-class VP(commands.Cog):
+class Poker(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -184,7 +184,7 @@ class VP(commands.Cog):
             return
 
         elif data:
-            name = data['player'].display_name
+            name = data['author'].display_name
             msg = f"`{name}` ist noch in einer aktiven Runde."
             await ctx.send(msg)
 
@@ -386,4 +386,4 @@ class VP(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(VP(bot))
+    bot.add_cog(Poker(bot))

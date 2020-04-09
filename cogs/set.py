@@ -123,18 +123,6 @@ class Set(commands.Cog):
             msg = "Die Channel-Welt wurde gelöscht"
             await ctx.send(embed=complete_embed(msg))
 
-    @commands.command(name="world")
-    async def get_world(self, ctx):
-        await ctx.send(embed=complete_embed(f"{ctx.server}"))
-
-    @commands.command(name="worlds")
-    async def worlds_(self, ctx):
-        worlds = sorted(self.bot.worlds)
-        result = show_list(worlds, line_break=3)
-        description = f"**Aktuelle Welten:**\n{result}"
-        embed = discord.Embed(description=description)
-        await ctx.send(embed=embed)
-
     @commands.group(name="conquer")
     async def conquer(self, ctx):
         cmd = self.bot.get_command("help conquer")

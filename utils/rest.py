@@ -24,9 +24,10 @@ def pcv(number):
 # ignores missing perm error
 async def silencer(coro):
     try:
-        await coro
+        response = await coro
+        return response
     except (discord.Forbidden, discord.HTTPException):
-        return
+        return False
 
 
 # quote_plus doesn't convert tildes somehow :(
@@ -83,16 +84,15 @@ def escape(word):
     return word.replace("*", "\\*")
 
 
-def show_list(iterable, seperator=",", line_break=2):
+def show_list(iterable, sep=", ", line_break=2):
     cache = []
     result = ""
     for word in iterable:
         cache.append(word)
         last = word == iterable[-1]
         if len(cache) == line_break or last:
-            print(cache)
             enter = "" if last else "\n"
-            line = f"{seperator} ".join(cache)
+            line = f"{sep}".join(cache)
             result += f"{line}{enter}"
             cache.clear()
 

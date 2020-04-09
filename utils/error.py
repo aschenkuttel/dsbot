@@ -33,7 +33,8 @@ class InvalidBet(commands.CheckFailure):
 
 
 class IngameError(commands.CheckFailure):
-    pass
+    def __init__(self, ingame):
+        self.ingame = not ingame
 
 
 class DontPingMe(commands.CheckFailure):

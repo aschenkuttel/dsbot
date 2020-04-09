@@ -398,7 +398,7 @@ class Map(commands.Cog):
                 return ctx.author == message.author and ctx.channel == message.channel
 
             try:
-                result = await self.bot.wait_for('message', check=check, timeout=30)
+                result = await self.bot.wait_for('message', check=check, timeout=300)
 
                 if index == 1:
                     coords = re.findall(r'\d\d\d\|\d\d\d', result.content)

@@ -367,7 +367,7 @@
   },
   "helpGroups": {
     "Administratives":
-    ["set", "remove", "conquer", "worlds", "world"],
+    ["set", "remove", "conquer", "worlds", "world", "refresh"],
     "St\u00e4mme Features":
     ["bash", "allbash", "player", "tribe", "twstats",
       "guest", "visit", "daily", "recap", "villages",
@@ -377,8 +377,8 @@
     ["avatar", "emoji", "poll", "time", "duali",
       "mirror", "orakel"],
     "Minigames":
-    ["ag [anagram]", "hangman", "quartet", "quiz", "bj [blackjack]",
-      "vp [videopoker]", "dice", "slots", "iron"]
+    ["ag [anagram]", "tc [tribalcards]", "hangman", "slots","quiz",
+      "bj [blackjack]", "vp [videopoker]", "dice",  "iron"]
   },
   "dualAnswer":
       [

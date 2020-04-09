@@ -7,7 +7,7 @@ import os
 import re
 
 
-class WordGames(commands.Cog):
+class Word(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.anagram = {}
@@ -199,4 +199,4 @@ class WordGames(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(WordGames(bot))
+    bot.add_cog(Word(bot))
