@@ -120,7 +120,7 @@ class DSBot(commands.Bot):
 
     async def db_connect(self):
         result = []
-        databases = 'example', 'userdata'
+        databases = 'tribaldata', 'userdata'
         for db in databases:
             conn_data = {'host': secret.db_adress, 'port': secret.db_port,
                          'user': secret.db_user, 'password': secret.db_key,

@@ -267,10 +267,19 @@ class DSColor:
         self.green = [152, 251, 152]
         self.purple = [128, 0, 128]
         self.white = [245, 245, 245]
-        self.dark_green = [0, 51, 0]
-        self.bright_yellow = [254, 254, 127]
-        self.bright_red = [254, 127, 127]
         self.bright_blue = [0, 127, 254]
+        self.bright_red = [254, 127, 127]
+        self.bright_yellow = [254, 254, 127]
+        self.bright_orange = [239, 114, 21]
+        self.bright_green = [152, 251, 152]
+        self.dark_blue = [0, 49, 82]
+        self.dark_red = [128, 0, 0]
+        self.dark_yellow = [204, 119, 34]
+        self.dark_orange = [177, 86, 15]
+        self.dark_green = [0, 51, 0]
+        self.bubble_gum = [254, 91, 172]
+
+        # map colors
         self.bg_green = [88, 118, 27]
         self.bg_forrest = [73, 103, 21]
         self.vil_brown = [130, 60, 10]
@@ -281,9 +290,11 @@ class DSColor:
         self.fortress_yellow = [240, 200, 0]
 
     def top(self):
-        palette = [self.red, self.blue, self.yellow, self.turquoise, self.pink,
-                   self.orange, self.green, self.purple, self.white, self.dark_green,
-                   self.bright_yellow, self.bright_red, self.bright_blue]
+        palette = [self.blue, self.red, self.turquoise, self.yellow,
+                   self.orange, self.pink, self.green, self.purple,
+                   self.white, self.bright_blue, self.bright_red, self.bright_yellow,
+                   self.bright_orange, self.bright_green, self.dark_blue, self.dark_red,
+                   self.dark_yellow, self.dark_orange, self.dark_green, self.bubble_gum]
         return palette
 
 

@@ -106,7 +106,7 @@ class Map(commands.Cog):
 
     def label_map(self, result, village_cache):
         reservation = []
-        font_size = int(self.max_font_size * (result.size[0] - 250) / self.high)
+        font_size = int(self.max_font_size * (result.size[0] - 200) / self.high)
         most_villages = len(sorted(village_cache.items(), key=lambda l: len(l[1]))[-1][1])
 
         legacy = Image.new('RGBA', result.size, (255, 255, 255, 0))
@@ -145,7 +145,8 @@ class Map(commands.Cog):
                     position = y, x - len(collision)
 
             # draw title and shadow / index tribe color
-            image.text([position[0] + 6, position[1] + 6], title, (0, 0, 0, 255), font)
+            dist = int((result.size[0] / self.high) * 10)
+            image.text([position[0] + dist, position[1] + dist], title, (0, 0, 0, 255), font)
             image.text(position, title, tuple(tribe.color + [255]), font)
 
             reservation.extend(area)

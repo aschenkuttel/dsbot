@@ -74,7 +74,7 @@ class Config:
 
     def get_prefix(self, guild_id):
         config = self._config.get(guild_id)
-        default = "?"
+        default = self.bot.prefix
         if config is None:
             return default
         else:

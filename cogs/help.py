@@ -106,8 +106,8 @@ class Help(commands.Cog):
                    "`~set game`",
                    "`~set conquer`",
                    "`~set prefix <prefix>`"]
-        example = ["`~set world 117`",
-                   "`~set channel 164`",
+        example = ["`~set world de172`",
+                   "`~set channel de164`",
                    "`~set game`",
                    "`~set conquer`",
                    "`~set prefix -`"]
