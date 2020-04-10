@@ -1,4 +1,5 @@
 {
+  "status": "!help [2.0]",
   "randomMessages": [
     "ae",
     "\u00e4",
@@ -263,7 +264,19 @@
     "Schwertkampf",
     "Phalanx",
     "Befestigung",
-    "Kochendes \u00f6l"
+    "Kochendes \u00f6l",
+    "Retime",
+    "Tabben",
+    "Timing",
+    "Ag-Train",
+    "Millisekunde",
+    "Script",
+    "Stammesmitglieder",
+    "Innogames",
+    "Minimap",
+    "Diplomatie",
+    "Ausmusterung",
+    "Massen-Rekrutierung"
   ],
   "generalQuestion": [
     ["In welchem Jahr wurde DS ver\u00f6ffentlicht?", "2003"],
@@ -317,5 +330,67 @@
     ["Welche Farbe hat der Bericht eines Angriffs mit Verlusten?", "Gelb"],
     ["Wie viel Kontinente hat eine Welt?", "100"],
     ["Welche Seite ist bekannt f\u00fcr die Top 10 Weltenkarten (ohne www/.de)", "dsreal"]
-  ]
+  ],
+  "mapOptions": {
+    "<:center:672875546773946369>": {
+      "title": "Zoom",
+      "default": "0"},
+    "<:dsmap:672912316240756767>": {
+      "title": "Zentrum",
+      "default": "500|500"
+    },
+    "<:friend:672875516117778503>": {
+      "title": "Spieler",
+      "default": ""},
+    "<:tribe:672862439074693123>": {
+      "title": "St\u00e4mme",
+      "default": ""},
+    "<:report:672862439242465290>": {
+      "title": "Markierung",
+      "default": "Aus"},
+    "<:old:672862439112441879>": {
+      "title": "Barbarend\u00f6rfer",
+      "default": "An"},
+    "<:button:672910606700904451>": {
+      "title": "Karte erstellen"}
+    },
+  "vpMessage": {
+    "Paar": "ein",
+    "Doppel-Paar": "ein",
+    "Drilling": "einen",
+    "Straße": "eine",
+    "Flush": "einen",
+    "Full House": "ein",
+    "Vierling": "wirklich einen",
+    "Straight Flush": "'nen fucking",
+    "Royal Flush": "legit einen..."
+  },
+  "helpGroups": {
+    "Administratives":
+    ["set", "remove", "conquer", "worlds", "world", "refresh"],
+    "St\u00e4mme Features":
+    ["bash", "allbash", "player", "tribe", "twstats",
+      "guest", "visit", "daily", "recap", "villages",
+      "bb", "nude", "map", "custom", "rm [rundmail]",
+      "rz [raubzug]", "sl [schnellleiste]"],
+    "Utilities and Fun":
+    ["avatar", "emoji", "poll", "time", "duali",
+      "mirror", "orakel"],
+    "Minigames":
+    ["ag [anagram]", "tc [tribalcards]", "hangman", "slots","quiz",
+      "bj [blackjack]", "vp [videopoker]", "dice",  "iron"]
+  },
+  "dualAnswer":
+      [
+        "Bitte schlagt eure Köpfe solange an die Wand, bis ihr Erinnerungen aneinander verliert.",
+        "Ihr beide solltet euch nicht einmal im selben Land aufhalten...",
+        "Bitte spielt niemals in einem Stamm.",
+        "Bitte spielt niemals in einem Account.",
+        "Ihr beide in einem Account? Bitte überlegt es euch.",
+        "Ihr könnt es versuchen aber es gibt bessere Dualis für euch beide...",
+        "Nice, euch zwei seh ich in einem Account :blush: ",
+        "Uff nicht schlecht. Ihr regelt auf jeden Fall :heart:",
+        "Fast das perfekte Dreamteam :heart_eyes:",
+        "Hiermit erkläre ich euch zu Duali und Dualin :heart:"
+      ]
 }

@@ -1,67 +1,50 @@
 from discord.ext import commands
-from utils import error_embed
-from load import load
 import discord
+import utils
 
 
 class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.games = {'Word': ["hangman", "anagram"],
+                      'Card': ["quiz", "tc"],
+                      'Poker': ["bj", "vp"]}
 
     async def cog_check(self, ctx):
-        if await self.bot.is_owner(ctx.author):
+        if ctx.guild is None:
+            raise commands.NoPrivateMessage
+        if ctx.author.guild_permissions.administrator:
             return True
-        raise commands.NotOwner
+        raise commands.MissingPermissions(['administrator'])
 
-    @commands.command(name="presence")
-    async def presence_(self, ctx, *, args):
-        await self.bot.change_presence(status=discord.Status.online,
-                                       activity=discord.Game(name=args))
-        await ctx.send("Presence verändert")
+    @commands.command(name="refresh", aliases=["f5"])
+    @commands.cooldown(1, 60, commands.BucketType.guild)
+    async def rerfresh_(self, ctx):
+        for game, caches in self.games.items():
+            cog = self.bot.get_cog(game)
+            for cache_name in caches:
+                cache = getattr(cog, cache_name)
+                try:
+                    cache.pop(ctx.guild.id)
+                except KeyError:
+                    pass
 
-    @commands.command(name="reload")
-    async def reload_(self, ctx, cog):
-        try:
-            self.bot.reload_extension(f"cogs.{cog}")
-            await ctx.send("Extension erfolgreich neu geladen")
-            print("-- Extension reloaded --")
-        except Exception as error:
-            await ctx.send(error)
+        msg = "Die Spiele wurden zurückgesetzt"
+        embed = utils.complete_embed(msg)
+        await ctx.send(embed=embed)
 
-    @commands.command(name="guild_reset")
-    async def guild_reset_(self, ctx, guild_id: int):
-        if guild_id in load.config_data:
-            load.config.pop(guild_id)
-            await ctx.send("Serverdaten zurückgesetzt")
-        else:
-            await ctx.send(embed=error_embed("Keine Daten gefunden"))
+    @commands.command(name="world", aliases=["welt"])
+    async def get_world(self, ctx):
+        embed = utils.complete_embed(f"{ctx.server}")
+        await ctx.send(embed=embed)
 
-    @commands.command(name="ursula")
-    async def ursula_(self, ctx):
-        await ctx.send(f"{len(ctx.bot.guilds)}")
-
-    @commands.command(name="stats")
-    async def stats_(self, ctx):
-        data = await load.get_usage()
-        if not data:
-            return
-        result = [f"`{usage}` [{cmd}]" for cmd, usage in data]
-        return await ctx.send(
-            embed=discord.Embed(description='\n'.join(result)))
-
-    @commands.command(name="change")
-    async def change_(self, ctx, guild_id: int, item, value):
-        if item.lower() not in ["prefix", "world", "game", "conquer"]:
-            return await ctx.send(embed=error_embed("Fehlerhafte Eingabe"))
-        value = value if item == "prefix" else int(value)
-        load.change_item(guild_id, item, value)
-        load.save_config()
-        return await ctx.send(f"`{item}` registriert")
-
-    @commands.command(name="change_res")
-    async def res_(self, ctx, idc: int, iron: int):
-        await load.save_user_data(idc, iron)
-        await ctx.send(f"Dem User wurden `{iron} Eisen` hinzugefügt")
+    @commands.command(name="worlds", aliases=["welten"])
+    async def worlds_(self, ctx):
+        worlds = sorted(self.bot.worlds)
+        result = utils.show_list(worlds, line_break=3)
+        description = f"**Aktuelle Welten:**\n{result}"
+        embed = discord.Embed(description=description)
+        await ctx.send(embed=embed)
 
 
 def setup(bot):

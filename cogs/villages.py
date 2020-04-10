@@ -1,5 +1,4 @@
 from discord.ext import commands
-from load import load
 import discord
 import random
 import utils
@@ -27,7 +26,6 @@ class Villages(commands.Cog):
 
     @commands.command(name="villages", aliases=["dörfer"])
     async def villages_(self, ctx, amount: str, *args):
-
         if not amount.isdigit() and amount.lower() != "all":
             msg = "Die Anzahl der gewünschten Dörfer muss entweder eine Zahl oder `all` sein."
             return await ctx.send(embed=utils.error_embed(msg))
@@ -44,32 +42,31 @@ class Villages(commands.Cog):
             name = ' '.join(args[:-1])
         else:
             name = ' '.join(args)
-        dsobj = await load.fetch_both(ctx.world, name)
+        dsobj = await self.bot.fetch_both(ctx.server, name)
         if not dsobj:
             if con:
-                dsobj = await load.fetch_both(ctx.world, f"{name} {con}")
+                dsobj = await self.bot.fetch_both(ctx.server, f"{name} {con}")
                 if not dsobj:
                     raise utils.DSUserNotFound(name)
             else:
                 raise utils.DSUserNotFound(name)
 
-        # async def fetch_villages(self, obj, num, world, continent=None):
         if isinstance(dsobj, utils.Tribe):
             query = "SELECT * FROM player WHERE world = $1 AND tribe_id = $2;"
-            async with load.pool.acquire() as conn:
-                cache = await conn.fetch(query, ctx.world, dsobj.id)
+            async with self.bot.pool.acquire() as conn:
+                cache = await conn.fetch(query, ctx.server, dsobj.id)
             id_list = [rec['id'] for rec in cache]
         else:
             id_list = [dsobj.id]
 
-        arguments = [ctx.world, id_list]
+        arguments = [ctx.server, id_list]
         query = "SELECT * FROM village WHERE world = $1 AND player = ANY($2)"
         if con:
             query = query + ' AND LEFT(CAST(x AS TEXT), 1) = $3' \
                             ' AND LEFT(CAST(y AS TEXT), 1) = $4'
             arguments.extend([con[2], con[1]])
 
-        async with load.pool.acquire() as conn:
+        async with self.bot.pool.acquire() as conn:
             result = await conn.fetch(query, *arguments)
 
         random.shuffle(result)
@@ -90,7 +87,6 @@ class Villages(commands.Cog):
 
     @commands.command(name="bb", aliases=["barbarendörfer"])
     async def bb_(self, ctx, center, *, options=None):
-
         coord = re.match(r'\d\d\d\|\d\d\d', center)
         if not coord:
             return
@@ -109,7 +105,7 @@ class Villages(commands.Cog):
             query += 'AND points <= $3'
             arguments.append(points)
 
-        async with load.pool.acquire() as conn:
+        async with self.bot.pool.acquire() as conn:
             result = await conn.fetch(query, *arguments)
 
         if not result:

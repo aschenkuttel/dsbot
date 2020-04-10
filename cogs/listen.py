@@ -1,40 +1,78 @@
+from PIL import Image, ImageChops
 from discord.ext import commands
 from datetime import timedelta
-from load import load
+from bs4 import BeautifulSoup
 import traceback
 import discord
 import aiohttp
+import imgkit
 import random
 import utils
 import sys
+import io
 import re
-
-listener = commands.Cog.listener
-error_embed = utils.error_embed
 
 
 class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cap = 10
+        self.blacklist = []
         self.silenced = (commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
                          utils.IngameError)
 
-    @listener()
+    # Report HTML to Image Converter
+    def html_lover(self, raw_data):
+        soup = BeautifulSoup(raw_data, 'html.parser')
+        tiles = soup.body.find_all(class_='vis')
+        if len(tiles) < 2:
+            return
+        main = f"{utils.whymtl}<head></head>{tiles[1]}"
+        css = f"{self.bot.data_path}/report.css"
+        img_bytes = imgkit.from_string(main, False, options=utils.imgkit, css=css)
+
+        # crops empty background
+        im = Image.open(io.BytesIO(img_bytes))
+        bg = Image.new(im.mode, im.size, im.getpixel((0, 0)))
+        diff = ImageChops.difference(im, bg)
+        diff = ImageChops.add(diff, diff, 2.0, -100)
+        im = im.crop(diff.getbbox())
+
+        # crops border and saves to FileIO
+        result = im.crop((2, 2, im.width - 2, im.height - 2))
+        file = io.BytesIO()
+        result.save(file, 'png')
+        file.seek(0)
+        return file
+
+    async def fetch_report(self, bot, content):
+        try:
+            async with self.bot.session.get(content) as res:
+                data = await res.text()
+        except (aiohttp.InvalidURL, ValueError):
+            return
+
+        file = await bot.execute(self.html_lover, data)
+        return file
+
+    @commands.Cog.listener()
     async def on_message(self, message):
 
         if not message.guild or message.author.bot:
             return
 
-        world = load.get_world(message.channel)
+        if message.author.id in self.blacklist:
+            return
+
+        world = self.bot.config.get_world(message.channel)
         if not world:
             return
 
         # Report Converter
         if message.content.__contains__("public_report"):
-            file = await load.fetch_report(self.bot, message.content)
+            file = await self.bot.fetch_report(self.bot, message.content)
             if file is None:
                 return await utils.silencer(message.add_reaction('❌'))
             try:
@@ -50,15 +88,14 @@ class Listen(commands.Cog):
         if result:
 
             result = set(result)
-            pre = load.get_prefix(message.guild.id)
+            pre = self.bot.config.get_prefix(message.guild.id)
             if message.content.lower().startswith(pre.lower()):
                 return
 
             coords = [obj.replace('|', '') for obj in result]
-            villages = await load.fetch_bulk(world, coords, "village", name=True)
+            villages = await self.bot.fetch_bulk(world, coords, "village", name=True)
             player_ids = [obj.player_id for obj in villages]
-            players = await load.fetch_bulk(world, player_ids, dic=True)
-
+            players = await self.bot.fetch_bulk(world, player_ids, dic=True)
             good = []
             for vil in villages:
 
@@ -96,23 +133,17 @@ class Listen(commands.Cog):
                     names.remove(name)
 
         if names:
-            world = load.get_world(message.channel)
-            if not world:
-                return
-
             names = names[:10]
             parsed_msg = message.clean_content.replace("`", "")
-            ds_objects = await load.fetch_bulk(world, names, name=True)
-            cache = await load.fetch_bulk(world, names, 1, name=True)
+            ds_objects = await self.bot.fetch_bulk(world, names, name=True)
+            cache = await self.bot.fetch_bulk(world, names, 1, name=True)
             ds_objects.extend(cache)
 
             found_names = {}
             for dsobj in ds_objects:
-                if dsobj.alone:
-                    found_names[dsobj.name.lower()] = dsobj
-                else:
+                found_names[dsobj.name.lower()] = dsobj
+                if not dsobj.alone:
                     found_names[dsobj.tag.lower()] = dsobj
-                    found_names[dsobj.name.lower()] = dsobj
 
             for name in names:
                 dsobj = found_names.get(name.lower())
@@ -135,13 +166,13 @@ class Listen(commands.Cog):
             except discord.Forbidden:
                 pass
 
-    @listener()
+    @commands.Cog.listener()
     async def on_command_completion(self, ctx):
-        await load.save_usage_cmd(ctx.invoked_with)
+        await self.bot.save_usage(ctx.invoked_with)
 
-    @listener()
+    @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        msg, tip = None, False
+        msg, tip = None, None
         error = getattr(error, 'original', error)
         if isinstance(error, self.silenced):
             return
@@ -150,12 +181,12 @@ class Listen(commands.Cog):
             if len(ctx.invoked_with) == ctx.invoked_with.count(ctx.prefix):
                 return
             else:
-                data = random.choice(load.msg["noCommand"])
+                data = random.choice(self.bot.msg["noCommand"])
                 return await ctx.send(data.format(f"{ctx.prefix}{ctx.invoked_with}"))
 
         elif isinstance(error, commands.MissingRequiredArgument):
             msg = "Dem Command fehlt ein benötigtes Argument"
-            tip = True
+            tip = ctx
 
         elif isinstance(error, commands.NoPrivateMessage):
             msg = "Der Command ist leider nur auf einem Server verfügbar"
@@ -165,19 +196,33 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.DontPingMe):
             msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
-            tip = True
+            tip = ctx
 
         elif isinstance(error, utils.WorldMissing):
             msg = "Der Server hat noch keine zugeordnete Welt\n" \
                   f"Dies kann nur der Admin mit `{ctx.prefix}set world`"
 
+        elif isinstance(error, utils.UnknownWorld):
+            msg = "Diese Welt existiert leider nicht."
+            if error.possible:
+                msg += f"\nMeinst du möglicherweise: `{error.possible}`"
+            tip = ctx
+
         elif isinstance(error, utils.WrongChannel):
-            channel = load.get_item(ctx.guild.id, "game")
+            channel = self.bot.config.get_item(ctx.guild.id, "game")
             return await ctx.send(f"<#{channel}>")
 
         elif isinstance(error, utils.GameChannelMissing):
             msg = "Der Server hat keinen Game-Channel\n" \
                   f"Nutze `{ctx.prefix}set game` um einen festzulegen"
+
+        elif isinstance(error, utils.MissingGucci):
+            base = "Du hast nur `{} Eisen` auf dem Konto"
+            msg = base.format(utils.pcv(error.purse))
+
+        elif isinstance(error, utils.InvalidBet):
+            base = "Der Einsatz muss zwischen {} und {} Eisen liegen"
+            msg = base.format(error.low, error.high)
 
         elif isinstance(error, commands.NotOwner):
             msg = "Diesen Command kann nur der Bot-Owner ausführen"
@@ -190,8 +235,7 @@ class Listen(commands.Cog):
             msg = raw.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):
-            name = f"Casual {ctx.world}" if ctx.world < 50 else f"der `{ctx.world}`"
-            msg = f"`{error.name}` konnte auf {name} nicht gefunden werden"
+            msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
 
         elif isinstance(error, utils.GuildUserNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
@@ -202,7 +246,7 @@ class Listen(commands.Cog):
 
         if msg:
             try:
-                embed = error_embed(msg, ctx if tip else None)
+                embed = utils.error_embed(msg, ctx=tip)
                 await ctx.send(embed=embed)
             except discord.Forbidden:
                 msg = "Dem Bot fehlen benötigte Rechte: `Embed Links`"
