@@ -7,6 +7,7 @@ class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.games = {'Word': ["hangman", "anagram"],
+                      'Card': ["quiz", "tc"],
                       'Poker': ["bj", "vp"]}
 
     async def cog_check(self, ctx):
@@ -16,7 +17,7 @@ class Admin(commands.Cog):
             return True
         raise commands.MissingPermissions(['administrator'])
 
-    @commands.command(name="refresh")
+    @commands.command(name="refresh", aliases=["f5"])
     @commands.cooldown(1, 60, commands.BucketType.guild)
     async def rerfresh_(self, ctx):
         for game, caches in self.games.items():
@@ -32,12 +33,12 @@ class Admin(commands.Cog):
         embed = utils.complete_embed(msg)
         await ctx.send(embed=embed)
 
-    @commands.command(name="world")
+    @commands.command(name="world", aliases=["welt"])
     async def get_world(self, ctx):
         embed = utils.complete_embed(f"{ctx.server}")
         await ctx.send(embed=embed)
 
-    @commands.command(name="worlds")
+    @commands.command(name="worlds", aliases=["welten"])
     async def worlds_(self, ctx):
         worlds = sorted(self.bot.worlds)
         result = utils.show_list(worlds, line_break=3)

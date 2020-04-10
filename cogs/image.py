@@ -60,7 +60,7 @@ class Graphic(commands.Cog):
                 name = file.split(".")[0]
             self.emojis[name] = img
 
-    @commands.command(name="avatar", aliases=["profilbild"])
+    @commands.command(name="avatar")
     async def avatar_(self, ctx, url):
 
         async with self.bot.session.get(url) as r:
@@ -89,7 +89,7 @@ class Graphic(commands.Cog):
         await ctx.author.send(file=file)
         await ctx.private_hint()
 
-    @commands.command(name="nude", aliases=["nacktfoto"])
+    @commands.command(name="nude", aliases=["profilbild"])
     @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def nude_(self, ctx, *, user: DSObject = None):
         if user:

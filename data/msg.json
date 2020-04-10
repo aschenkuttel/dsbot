@@ -371,7 +371,7 @@
     "St\u00e4mme Features":
     ["bash", "allbash", "player", "tribe", "twstats",
       "guest", "visit", "daily", "recap", "villages",
-      "nude", "map", "custom", "bb", "rm [rundmail]",
+      "bb", "nude", "map", "custom", "rm [rundmail]",
       "rz [raubzug]", "sl [schnellleiste]"],
     "Utilities and Fun":
     ["avatar", "emoji", "poll", "time", "duali",
