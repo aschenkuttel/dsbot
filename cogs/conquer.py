@@ -51,25 +51,38 @@ class ConquerLoop(commands.Cog):
             if not data:
                 continue
 
-            conquer_pkg = ""
             date, conquer_feed = data
-
             if not conquer_feed:
                 continue
 
+            conquer_pkg = []
+            embed = discord.Embed(title=date)
             conquer_feed.append("")
-
             for line in conquer_feed:
 
-                if len(line) + len(conquer_pkg) > 2040 or not line:
-                    embed = discord.Embed(title=date, description=conquer_pkg)
-                    await silencer(channel.send(embed=embed))
-                    conquer_pkg = ""
-                    date = ""
+                if len(embed.fields) == 4 or not line:
 
-                    await asyncio.sleep(0.5)
+                    if conquer_pkg:
+                        conquer_feed.append("")
+                    else:
+                        await silencer(channel.send(embed=embed))
+                        embed = discord.Embed()
 
-                conquer_pkg += f"{line}\n"
+                conquer_pkg.append(line)
+
+                cache = "\n".join(conquer_pkg)
+                length = len(embed.description)
+
+                if len(conquer_pkg) == 4 and len(cache) + length < 2048:
+                    if not length:
+                        embed.description = f"{cache}\n\n"
+                    else:
+                        embed.description += f"{cache}\n"
+                    conquer_pkg.clear()
+
+                elif len(conquer_pkg) == 4:
+                    embed.add_field(name='\u200b', value=cache, inline=False)
+                    conquer_pkg.clear()
 
     async def update_conquer(self):
         for world in self.bot.worlds:

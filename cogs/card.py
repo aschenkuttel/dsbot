@@ -238,7 +238,7 @@ class Card(commands.Cog):
             msg = "Auf diesem Server läuft bereits eine Runde"
             return await ctx.send(embed=utils.error_embed(msg))
 
-        if 5 <= rounds <= 20:
+        if not 5 <= rounds <= 20:
             msg = "Es müssen zwischen 5-20 Runden sein"
             return await ctx.send(embed=utils.error_embed(msg))
 

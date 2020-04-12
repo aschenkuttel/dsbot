@@ -168,7 +168,10 @@ class Listen(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_completion(self, ctx):
-        await self.bot.save_usage(ctx.invoked_with)
+        if ctx.author.id == self.bot.owner_id:
+            return
+        else:
+            await self.bot.save_usage(ctx.invoked_with)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
