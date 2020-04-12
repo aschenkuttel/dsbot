@@ -123,7 +123,7 @@ class Set(commands.Cog):
             msg = "Die Channel-Welt wurde gelöscht"
             await ctx.send(embed=complete_embed(msg))
 
-    @commands.group(name="conquer")
+    @commands.group(name="conquer", invoke_without_command=True)
     async def conquer(self, ctx):
         cmd = self.bot.get_command("help conquer")
         await ctx.invoke(cmd)
@@ -171,7 +171,7 @@ class Set(commands.Cog):
     @conquer.command(name="grey")
     async def conquer_grey(self, ctx):
         cache = self.config.get_item(ctx.guild.id, 'bb')
-        state = False if cache is not False else True
+        state = True if not cache else False
         self.config.change_item(ctx.guild.id, 'bb', state)
         state_str = "aktiv" if not state else "inaktiv"
         msg = f"Der Filter für Barbarendörfer ist nun {state_str}"

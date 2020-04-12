@@ -13,12 +13,12 @@ class Config:
         data = {int(key): value for key, value in cache.items()}
         self._config.update(data)
 
-    def get_item(self, guild_id, item):
+    def get_item(self, guild_id, item, default=None):
         config = self._config.get(guild_id)
         if config is None:
-            return
+            return default
         else:
-            return config.get(item)
+            return config.get(item, default)
 
     def change_item(self, guild_id, item, value):
         if guild_id not in self._config:

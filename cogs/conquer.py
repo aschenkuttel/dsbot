@@ -11,11 +11,15 @@ class ConquerLoop(commands.Cog):
         self._conquer = {}
         self.bot.loop.create_task(self.conquer_loop())
 
+    @commands.command(name="manual")
+    @commands.is_owner()
+    async def manual_(self, ctx):
+        await self.conquer_feed()
+
     # main loop
     async def conquer_loop(self):
         seconds = self.get_seconds()
         await asyncio.sleep(seconds)
-
         while not self.bot.is_closed():
             try:
                 await self.bot.refresh_worlds()
@@ -32,7 +36,6 @@ class ConquerLoop(commands.Cog):
     async def conquer_feed(self):
         await self.update_conquer()
         for guild in self.bot.guilds:
-
             world = self.bot.config.get_guild_world(guild)
             if not world:
                 continue
@@ -43,13 +46,17 @@ class ConquerLoop(commands.Cog):
                 continue
 
             tribes = self.bot.config.get_item(guild.id, 'filter')
-            grey = self.bot.config.get_item(guild.id, 'bb')
+            grey = self.bot.config.get_item(guild.id, 'bb', False)
             data = await self.conquer_parse(world, tribes, grey)
             if not data:
                 continue
 
             conquer_pkg = ""
             date, conquer_feed = data
+
+            if not conquer_feed:
+                continue
+
             conquer_feed.append("")
 
             for line in conquer_feed:
@@ -66,8 +73,13 @@ class ConquerLoop(commands.Cog):
 
     async def update_conquer(self):
         for world in self.bot.worlds:
+
+            if "s" in world:
+                continue
+
             sec = self.get_seconds(True)
             data = await self.fetch_conquer(world, sec)
+
             self._conquer[world] = []
             if not data[0]:
                 continue
@@ -101,9 +113,12 @@ class ConquerLoop(commands.Cog):
 
             conquer_cache.reverse()
             for index, conquer in enumerate(conquer_cache):
+                if conquer.self_conquer():
+                    continue
 
                 last = conquer_cache[index - 1]
-                if last.id == conquer.id:
+                if last.id == conquer.id and not last.self_conquer():
+
                     stamp = int(last.time.timestamp())
                     window = list(range(stamp - 5, stamp + 6))
 
@@ -118,7 +133,8 @@ class ConquerLoop(commands.Cog):
                 if conquer.new_player:
                     conquer.new_tribe = tribes.get(conquer.new_player.tribe_id)
 
-            self._conquer[world] = reversed(conquer_cache)
+            conquer_cache.reverse()
+            self._conquer[world] = conquer_cache
 
     async def fetch_conquer(self, world, sec=3600):
         now = datetime.datetime.now()
@@ -174,7 +190,7 @@ class ConquerLoop(commands.Cog):
                     old += f" **{escape(conquer.old_tribe.tag)}**"
 
             date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
-            result.append(f"``{now}`` | {new} adelt {village_hyperlink} {old}")
+            result.append(f"``{now}`` | {new} adelt {village_hyperlink} von {old}")
 
         return date, result
 

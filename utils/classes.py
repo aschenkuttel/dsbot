@@ -8,7 +8,7 @@ twstats = "https://de.twstats.com/{}/index.php?page={}&id={}"
 ingame = "https://{}.die-staemme.de/{}.php?screen=info_{}&id={}"
 guest = "https://{}.die-staemme.de/guest.php"
 
-world_titles = {'de': "Welt", 'dep': "Casual", 'dec': "High Performance", 'des': "SDS"}
+world_titles = {'de': "Welt", 'dep': "Casual", 'dec': "Sonderwelt", 'des': "SDS"}
 
 
 # custom context for simple world implementation
@@ -34,7 +34,7 @@ class DSContext(commands.Context):
         try:
             await self.message.add_reaction("📨")
             return True
-        except discord.Forbidden:
+        except (discord.Forbidden, discord.NotFound):
             pass
 
 
@@ -52,7 +52,7 @@ class DSObject(commands.Converter):
     async def convert(self, ctx, searchable):
         # conquer add/remove needs guild world
         if str(ctx.command).startswith("conquer"):
-            raw_world = ctx.get_guild_world(ctx.guild)
+            raw_world = ctx.bot.config.get_guild_world(ctx.guild)
             ctx.world = utils.World(raw_world)
 
         obj = await ctx.bot.fetch_both(ctx.server, searchable)
@@ -254,6 +254,9 @@ class Conquer:
     @property
     def coords(self):
         return f"{self.village.x}|{self.village.y}"
+
+    def self_conquer(self):
+        return self.old_id == self.new_id
 
 
 class DSColor:

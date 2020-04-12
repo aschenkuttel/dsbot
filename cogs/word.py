@@ -12,18 +12,23 @@ class Word(commands.Cog):
         self.bot = bot
         self.anagram = {}
         self.hangman = {}
+        self.t1 = None
+        self.t2 = None
 
-    async def victory_royale(self, ctx):
-        data = self.hangman[ctx.guild.id]
+    async def victory_royale(self, ctx, data):
         length = len(data['solution'])
         amount = int(250 * length * float(data['life'] / length + 1))
+        self.hangman[ctx.guild.id] = False
 
-        base = "Herzlichen Glückwunsch `{}`\nDu hast `{} Eisen` gewonnen :trophy: (15s Cooldown)"
+        await self.bot.update_iron(ctx.author.id, amount)
+
+        base = "Herzlichen Glückwunsch `{}`\n" \
+               "Du hast `{} Eisen` gewonnen :trophy: (15s Cooldown)"
         msg = base.format(ctx.author.display_name, amount)
         await ctx.send(msg)
 
-        await self.bot.update_iron(ctx.author.id, amount)
-        return await self.happy_end(ctx.guild.id)
+        await asyncio.sleep(15)
+        self.hangman.pop(ctx.guild.id)
 
     async def wrong_choice(self, ctx, title, loss=1):
         data = self.hangman[ctx.guild.id]
@@ -46,12 +51,6 @@ class Word(commands.Cog):
         else:
             blanks = id_or_blanks
         return f"`{' '.join(blanks)}`"
-
-    async def happy_end(self, guild_id, hangman=True):
-        data = self.hangman if hangman else self.anagram
-        data[guild_id] = False
-        await asyncio.sleep(15)
-        data.pop(guild_id)
 
     @game_channel_only()
     @commands.command(name="anagram", aliases=["ag"])
@@ -104,6 +103,8 @@ class Word(commands.Cog):
                 self.anagram.pop(ctx.guild.id)
                 return
 
+        self.anagram[ctx.guild.id] = False
+
         end_time = datetime.datetime.now()
         diff = float("%.1f" % (end_time - start_time).total_seconds())
         spec_bonus = (60 - diff) * (50 * (1 - diff / 60)) * (1 - diff / 60)
@@ -114,7 +115,8 @@ class Word(commands.Cog):
         await ctx.send(msg)
 
         await self.bot.update_iron(win_msg.author.id, amount_won)
-        await self.happy_end(ctx.guild.id, False)
+        await asyncio.sleep(15)
+        self.anagram.pop(ctx.guild.id)
 
     @game_channel_only()
     @commands.command(name="hangman", aliases=["galgenmännchen"])
@@ -144,6 +146,7 @@ class Word(commands.Cog):
     @commands.command(name="guess", aliases=["raten"])
     @game_channel_only()
     async def guess(self, ctx, *, args):
+        self.t1 = datetime.datetime.now()
         data = self.hangman.get(ctx.guild.id)
         if data is False:
             return
@@ -155,12 +158,13 @@ class Word(commands.Cog):
 
         guess = args.lower()
         win = data['solution']
-        check = data['guessed']
-        blanks = data['blanks']
 
         # checks for direct win
         if guess == win.lower():
-            return await self.victory_royale(ctx)
+            return await self.victory_royale(ctx, data)
+
+        check = data['guessed']
+        blanks = data['blanks']
 
         # checks for valid input (1 character)
         if not len(guess) == 1:
@@ -192,7 +196,7 @@ class Word(commands.Cog):
 
         # last character was found
         if blanks == list(win):
-            return await self.victory_royale(ctx)
+            return await self.victory_royale(ctx, data)
 
         # sends new blanks with the found chars in it
         await ctx.send(self.blender(blanks))

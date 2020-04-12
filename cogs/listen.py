@@ -47,14 +47,14 @@ class Listen(commands.Cog):
         file.seek(0)
         return file
 
-    async def fetch_report(self, bot, content):
+    async def fetch_report(self, content):
         try:
             async with self.bot.session.get(content) as res:
                 data = await res.text()
         except (aiohttp.InvalidURL, ValueError):
             return
 
-        file = await bot.execute(self.html_lover, data)
+        file = await self.bot.execute(self.html_lover, data)
         return file
 
     @commands.Cog.listener()
@@ -72,7 +72,7 @@ class Listen(commands.Cog):
 
         # Report Converter
         if message.content.__contains__("public_report"):
-            file = await self.bot.fetch_report(self.bot, message.content)
+            file = await self.fetch_report(message.content)
             if file is None:
                 return await utils.silencer(message.add_reaction('❌'))
             try:

@@ -380,7 +380,7 @@ class Poker(commands.Cog):
                     dealer_result = self.blackjack(dealer)
                     game_data['score'] = dealer_result or "RIP"
 
-                    await asyncio.sleep(0.75)
+                    await asyncio.sleep(1.25)
                     msg = self.present_cards(game_data, base)
                     await begin.edit(embed=msg)
 
