@@ -31,7 +31,7 @@ class Map(commands.Cog):
             '<:button:672910606700904451>',
         ]
         user = commands.BucketType.user
-        self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
+        self._cd = commands.CooldownMapping.from_cooldown(1.0, 6.0, user)
         self.bot.loop.create_task(self.map_cleanup())
 
     async def cog_check(self, ctx):
@@ -60,7 +60,7 @@ class Map(commands.Cog):
         await asyncio.sleep(seconds + 60)
 
         try:
-            while self.bot.is_closed():
+            while not self.bot.is_closed():
                 self.map_cache.clear()
                 seconds = self.get_seconds()
                 await asyncio.sleep(seconds + 60)
@@ -90,6 +90,19 @@ class Map(commands.Cog):
                 rgb.append(int(v * 255))
             result.append(rgb)
         return result
+
+    def overlap(self, reservation, x, y, width, height):
+        zone = [(x, y), (x + width, y + height)]
+
+        for area in reservation:
+            if zone[0][0] > area[1][0] or area[0][0] > zone[1][0]:
+                continue
+            elif zone[0][1] > area[1][1] or area[0][1] > zone[1][1]:
+                continue
+            else:
+                return True
+        else:
+            return zone
 
     def get_bounds(self, villages):
         x_coords = [v.x for v in villages if self.low < v.x < self.high if v.rank != 22]
@@ -162,29 +175,21 @@ class Map(commands.Cog):
 
             font = ImageFont.truetype(f'{self.bot.data_path}/bebas.ttf', size)
             font_width, font_height = image.textsize(title, font=font)
-            position = int(centroid[0] - font_width / 2), int(centroid[1] - font_height / 2)
+            position = [int(centroid[0] - font_width / 2), int(centroid[1] - font_height / 2)]
 
-            area = []
-            offset = font.getoffset(title)[1]
-            for y in range(position[0], position[0] + font_width):
-                for x in range(position[1] + offset, position[1] + font_height):
-                    area.append((y, x))
-
-            y, x = position
-            shared = set(reservation).intersection(area)
-            if shared:
-                collision = set([pl[1] for pl in shared])
-                if min(area, key=lambda c: c[1]) in shared:
-                    position = y, x + len(collision)
+            while True:
+                args = [*position, font_width, font_height]
+                response = self.overlap(reservation, *args)
+                if response is True:
+                    position[1] -= 5
                 else:
-                    position = y, x - len(collision)
+                    reservation.append(response)
+                    break
 
             # draw title and shadow / index tribe color
             dist = int((result.size[0] / self.high) * 10 + 1)
             image.text([position[0] + dist, position[1] + dist], title, (0, 0, 0, 255), font)
             image.text(position, title, tuple(tribe.color + [255]), font)
-
-            reservation.extend(area)
 
         legacy = legacy.resize(result.size, Image.LANCZOS)
         result.paste(legacy, mask=legacy)

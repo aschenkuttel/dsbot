@@ -12,8 +12,6 @@ class Word(commands.Cog):
         self.bot = bot
         self.anagram = {}
         self.hangman = {}
-        self.t1 = None
-        self.t2 = None
 
     async def victory_royale(self, ctx, data):
         length = len(data['solution'])
@@ -37,7 +35,9 @@ class Word(commands.Cog):
             base = "**Game Over** | Lösungswort:{}`{}` (15s Cooldown)"
             msg = base.format(os.linesep, data['solution'])
             await ctx.send(msg)
-            await self.happy_end(ctx.guild.id)
+            self.hangman[ctx.guild.id] = False
+            await asyncio.sleep(15)
+            self.hangman.pop(ctx.guild.id)
 
         else:
             guessed = "` `".join(data['guessed'])
@@ -146,7 +146,6 @@ class Word(commands.Cog):
     @commands.command(name="guess", aliases=["raten"])
     @game_channel_only()
     async def guess(self, ctx, *, args):
-        self.t1 = datetime.datetime.now()
         data = self.hangman.get(ctx.guild.id)
         if data is False:
             return

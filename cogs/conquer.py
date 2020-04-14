@@ -54,7 +54,7 @@ class ConquerLoop(commands.Cog):
             date, conquer_feed = data
             if not conquer_feed:
                 continue
-
+            
             conquer_pkg = []
             embed = discord.Embed(title=date)
             conquer_feed.append("")
