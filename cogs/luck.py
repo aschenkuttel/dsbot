@@ -99,7 +99,7 @@ class Casino(commands.Cog):
             else:
 
                 if ctx.author == data['challenger']:
-                    return await ctx.send("Bro... c'mon.")
+                    return await ctx.send("Bro... c'mon")
 
                 await self.bot.subtract_iron(ctx.author.id, data['amount'])
 

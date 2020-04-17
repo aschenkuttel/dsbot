@@ -18,6 +18,7 @@ class Listen(commands.Cog):
         self.bot = bot
         self.cap = 10
         self.blacklist = []
+        self.last_message = {}
         self.silenced = (commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
@@ -47,21 +48,25 @@ class Listen(commands.Cog):
         file.seek(0)
         return file
 
-    async def fetch_report(self, bot, content):
+    async def fetch_report(self, content):
         try:
             async with self.bot.session.get(content) as res:
                 data = await res.text()
         except (aiohttp.InvalidURL, ValueError):
             return
 
-        file = await bot.execute(self.html_lover, data)
+        file = await self.bot.execute(self.html_lover, data)
         return file
 
     @commands.Cog.listener()
     async def on_message(self, message):
-
-        if not message.guild or message.author.bot:
+        if message.author.bot:
             return
+
+        if not message.guild:
+            return
+
+        self.bot.last_message.add(message.guild.id)
 
         if message.author.id in self.blacklist:
             return
@@ -72,7 +77,7 @@ class Listen(commands.Cog):
 
         # Report Converter
         if message.content.__contains__("public_report"):
-            file = await self.bot.fetch_report(self.bot, message.content)
+            file = await self.fetch_report(message.content)
             if file is None:
                 return await utils.silencer(message.add_reaction('❌'))
             try:
@@ -168,7 +173,14 @@ class Listen(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_completion(self, ctx):
-        await self.bot.save_usage(ctx.invoked_with)
+        if ctx.author.id == self.bot.owner_id:
+            return
+        else:
+            await self.bot.save_usage(ctx.invoked_with)
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild):
+        self.bot.config.remove_guild(guild.id)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -209,8 +221,12 @@ class Listen(commands.Cog):
             tip = ctx
 
         elif isinstance(error, utils.WrongChannel):
-            channel = self.bot.config.get_item(ctx.guild.id, "game")
-            return await ctx.send(f"<#{channel}>")
+            if error.type == "game":
+                channel = self.bot.config.get_item(ctx.guild.id, "game")
+                return await ctx.send(f"<#{channel}>")
+
+            else:
+                msg = "Du befindest dich nicht in einem Eroberungschannel"
 
         elif isinstance(error, utils.GameChannelMissing):
             msg = "Der Server hat keinen Game-Channel\n" \

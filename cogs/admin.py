@@ -19,7 +19,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="refresh", aliases=["f5"])
     @commands.cooldown(1, 60, commands.BucketType.guild)
-    async def rerfresh_(self, ctx):
+    async def refresh_(self, ctx):
         for game, caches in self.games.items():
             cog = self.bot.get_cog(game)
             for cache_name in caches:
@@ -34,8 +34,11 @@ class Admin(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name="world", aliases=["welt"])
-    async def get_world(self, ctx):
-        embed = utils.complete_embed(f"{ctx.server}")
+    async def world_(self, ctx):
+        world = self.bot.config.get_related_world(ctx.channel)
+        relation = "Channel" if world == ctx.server else "Server"
+        msg = f"`{ctx.server}` [{relation}]"
+        embed = utils.complete_embed(msg)
         await ctx.send(embed=embed)
 
     @commands.command(name="worlds", aliases=["welten"])

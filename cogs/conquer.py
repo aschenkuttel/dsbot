@@ -1,5 +1,5 @@
 from utils import Conquer, silencer, escape
-from discord.ext import commands
+from discord.ext import commands, tasks
 import datetime
 import discord
 import asyncio
@@ -10,16 +10,36 @@ class ConquerLoop(commands.Cog):
         self.bot = bot
         self._conquer = {}
         self.bot.loop.create_task(self.conquer_loop())
+        self.guild_timeout.start()
+        self.start = True
+
+    @tasks.loop(hours=72)
+    async def guild_timeout(self):
+        await self.bot.wait_until_ready()
+        if self.start is True:
+            self.start = False
+            return
+
+        for guild in self.bot.guilds:
+            if guild.id in self.bot.last_message:
+                continue
+            else:
+                self.bot.config.remove_item(guild.id, 'conquer')
+
+        self.bot.last_message.clear()
 
     # main loop
     async def conquer_loop(self):
         seconds = self.get_seconds()
         await asyncio.sleep(seconds)
-
         while not self.bot.is_closed():
             try:
                 await self.bot.refresh_worlds()
-                await self.conquer_feed()
+                await self.update_conquer()
+
+                for guild in self.bot.guilds:
+                    await self.conquer_feed(guild)
+
                 wait_pls = self.get_seconds()
                 await asyncio.sleep(wait_pls)
 
@@ -29,50 +49,93 @@ class ConquerLoop(commands.Cog):
                 await user.send("conquer task crashed")
                 return
 
-    async def conquer_feed(self):
-        await self.update_conquer()
-        for guild in self.bot.guilds:
+    async def conquer_feed(self, guild):
+        conquer = self.bot.config.get_item(guild.id, 'conquer')
+        if not conquer:
+            return
 
-            world = self.bot.config.get_guild_world(guild)
-            if not world:
-                continue
-
-            channel_id = self.bot.config.get_item(guild.id, 'conquer')
-            channel = guild.get_channel(channel_id)
+        for channel_id, conquer_data in conquer.items():
+            channel = guild.get_channel(int(channel_id))
             if not channel:
                 continue
 
-            tribes = self.bot.config.get_item(guild.id, 'filter')
-            grey = self.bot.config.get_item(guild.id, 'bb')
-            data = await self.conquer_parse(world, tribes, grey)
+            world = self.bot.config.get_related_world(channel)
+            if not world:
+                continue
+
+            data = await self.conquer_parse(world, conquer_data)
             if not data:
                 continue
 
-            conquer_pkg = ""
             date, conquer_feed = data
+            if not conquer_feed:
+                continue
+
+            conquer_pkg = []
+            embed = discord.Embed(title=date)
             conquer_feed.append("")
 
             for line in conquer_feed:
 
-                if len(line) + len(conquer_pkg) > 2040 or not line:
-                    embed = discord.Embed(title=date, description=conquer_pkg)
-                    await silencer(channel.send(embed=embed))
-                    conquer_pkg = ""
-                    date = ""
+                if len(embed.fields) == 4 or not line:
 
-                    await asyncio.sleep(0.5)
+                    if not conquer_pkg or len(embed.fields) == 4:
+                        await silencer(channel.send(embed=embed))
+                        embed = discord.Embed()
+                        await asyncio.sleep(1)
 
-                conquer_pkg += f"{line}\n"
+                    else:
+                        conquer_feed.append("")
+
+                cache = "\n".join(conquer_pkg)
+                length = len(embed.description)
+
+                if len(conquer_pkg) == 3 and length + len(cache) < 2048:
+                    if length + len(cache) + len(line) < 2048:
+                        cache = "\n".join(conquer_pkg + [line])
+                        conquer_pkg.clear()
+
+                    else:
+                        conquer_pkg = [line]
+
+                    if length:
+                        embed.description += f"{cache}\n"
+                    else:
+                        embed.description = f"{cache}\n\n"
+
+                elif len(conquer_pkg) == 3 and len(embed.fields) < 4:
+                    if len(cache) + len(line) < 1024:
+                        cache = "\n".join(conquer_pkg + [line])
+                        conquer_pkg.clear()
+
+                    else:
+                        conquer_pkg = [line]
+
+                    embed.add_field(name='\u200b', value=cache, inline=False)
+
+                else:
+                    conquer_pkg.append(line)
 
     async def update_conquer(self):
         for world in self.bot.worlds:
-            sec = self.get_seconds(True)
-            data = await self.fetch_conquer(world, sec)
+
+            if "s" in world:
+                continue
+
             self._conquer[world] = []
+
+            try:
+                sec = self.get_seconds(True)
+                data = await self.fetch_conquer(world, sec)
+            except Exception as error:
+                print(f"{world} skipped: {error}")
+                continue
+
             if not data[0]:
                 continue
             if data[0].startswith('<'):
                 continue
+
             cache = []
             for line in data:
                 int_list = [int(num) for num in line.split(',')]
@@ -101,9 +164,12 @@ class ConquerLoop(commands.Cog):
 
             conquer_cache.reverse()
             for index, conquer in enumerate(conquer_cache):
+                if conquer.self_conquer():
+                    continue
 
                 last = conquer_cache[index - 1]
-                if last.id == conquer.id:
+                if last.id == conquer.id and not last.self_conquer():
+
                     stamp = int(last.time.timestamp())
                     window = list(range(stamp - 5, stamp + 6))
 
@@ -118,7 +184,8 @@ class ConquerLoop(commands.Cog):
                 if conquer.new_player:
                     conquer.new_tribe = tribes.get(conquer.new_player.tribe_id)
 
-            self._conquer[world] = reversed(conquer_cache)
+            conquer_cache.reverse()
+            self._conquer[world] = conquer_cache
 
     async def fetch_conquer(self, world, sec=3600):
         now = datetime.datetime.now()
@@ -139,10 +206,12 @@ class ConquerLoop(commands.Cog):
         goal = (goal_time - start_time).seconds
         return goal if not only else start_time.timestamp()
 
-    async def conquer_parse(self, world, only_tribes, bb):
+    async def conquer_parse(self, world, config):
         data = self._conquer.get(world)
         if not data:
             return
+
+        only_tribes = config['filter']
 
         tribe_players = {}
         if only_tribes:
@@ -154,8 +223,10 @@ class ConquerLoop(commands.Cog):
         for conquer in data:
             if only_tribes and not any(idc in tribe_players for idc in conquer.player_ids):
                 continue
-            if not bb and conquer.grey:
+
+            if not config['bb'] and conquer.grey:
                 continue
+
             if not conquer.village:
                 continue
 
@@ -164,17 +235,23 @@ class ConquerLoop(commands.Cog):
             village_hyperlink = f"[{conquer.coords}]({conquer.village.ingame_url})"
 
             if conquer.new_player:
-                new = f"[{escape(new.name)}]({new.ingame_url})"
                 if conquer.new_tribe:
-                    new += f" **{escape(conquer.new_tribe.tag)}**"
+                    tribe = f"**{escape(conquer.new_tribe.tag)}**"
+                else:
+                    tribe = "**N/A**"
+
+                new = f"[{escape(new.name)}]({new.ingame_url}) {tribe}"
 
             if conquer.old_player:
-                old = f"[{escape(old.name)}]({old.ingame_url})"
                 if conquer.old_tribe:
-                    old += f" **{escape(conquer.old_tribe.tag)}**"
+                    tribe = f" **{escape(conquer.old_tribe.tag)}**"
+                else:
+                    tribe = "**N/A**"
+
+                old = f"[{escape(old.name)}]({old.ingame_url}) {tribe}"
 
             date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
-            result.append(f"``{now}`` | {new} adelt {village_hyperlink} {old}")
+            result.append(f"``{now}`` | {new} adelt {village_hyperlink} von {old}")
 
         return date, result
 

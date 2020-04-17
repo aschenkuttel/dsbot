@@ -2,6 +2,7 @@ from utils import World, DSColor, MapVillage, error_embed, silencer
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 import numpy as np
+import datetime
 import discord
 import asyncio
 import io
@@ -15,9 +16,9 @@ class Map(commands.Cog):
         self.high = 3001
         self.space = 20
         self.cache = {}
+        self.map_cache = {}
         self.colors = DSColor()
-        self.conquer_cache = {}
-        self.max_font_size = 200
+        self.max_font_size = 300
         self.img = Image.open(f"{self.bot.data_path}/map.png")
         self.default = [0, "500|500", [], [], 0, True]
         self.menue_icons = [
@@ -30,7 +31,8 @@ class Map(commands.Cog):
             '<:button:672910606700904451>',
         ]
         user = commands.BucketType.user
-        self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
+        self._cd = commands.CooldownMapping.from_cooldown(1.0, 6.0, user)
+        self.bot.loop.create_task(self.map_cleanup())
 
     async def cog_check(self, ctx):
         bucket = self._cd.get_bucket(ctx.message)
@@ -41,7 +43,39 @@ class Map(commands.Cog):
         else:
             return True
 
+    # current workaround since library update will support that with tasks in short future
+    def get_seconds(self, reverse=False, only=0):
+        now = datetime.datetime.now()
+        hours = -1 if reverse else 1
+        clean = now + datetime.timedelta(hours=hours + only)
+        goal_time = clean.replace(minute=0, second=0, microsecond=0)
+        start_time = now.replace(microsecond=0)
+        if reverse:
+            goal_time, start_time = start_time, goal_time
+        goal = (goal_time - start_time).seconds
+        return goal if not only else start_time.timestamp()
+
+    async def map_cleanup(self):
+        seconds = self.get_seconds()
+        await asyncio.sleep(seconds + 60)
+
+        try:
+            while not self.bot.is_closed():
+                self.map_cache.clear()
+                seconds = self.get_seconds()
+                await asyncio.sleep(seconds + 60)
+
+        except Exception as error:
+            print(f"MAP CACHE {error}")
+
     async def timeout(self, cache, user_id, time):
+        current = self.cache.get(user_id)
+        if current is False:
+            return
+
+        if current['ctx'] != cache['ctx']:
+            return
+
         embed = cache['msg'].embeds[0]
         embed.title = f"**Timeout:** Zeitüberschreitung({time}s)"
         await cache['msg'].edit(embed=embed)
@@ -56,6 +90,19 @@ class Map(commands.Cog):
                 rgb.append(int(v * 255))
             result.append(rgb)
         return result
+
+    def overlap(self, reservation, x, y, width, height):
+        zone = [(x, y), (x + width, y + height)]
+
+        for area in reservation:
+            if zone[0][0] > area[1][0] or area[0][0] > zone[1][0]:
+                continue
+            elif zone[0][1] > area[1][1] or area[0][1] > zone[1][1]:
+                continue
+            else:
+                return True
+        else:
+            return zone
 
     def get_bounds(self, villages):
         x_coords = [v.x for v in villages if self.low < v.x < self.high if v.rank != 22]
@@ -104,12 +151,13 @@ class Map(commands.Cog):
         image.paste(watermark, mask=watermark)
         watermark.close()
 
-    def label_map(self, result, village_cache):
+    def label_map(self, result, village_cache, zoom=0):
         reservation = []
-        font_size = int(self.max_font_size * (result.size[0] - 200) / self.high)
+        font_size = int(self.max_font_size * ((result.size[0] - 50) / self.high))
         most_villages = len(sorted(village_cache.items(), key=lambda l: len(l[1]))[-1][1])
 
-        legacy = Image.new('RGBA', result.size, (255, 255, 255, 0))
+        bound_size = tuple([int(c * 1.5) for c in result.size])
+        legacy = Image.new('RGBA', bound_size, (255, 255, 255, 0))
         image = ImageDraw.Draw(legacy)
 
         for tribe, villages in village_cache.items():
@@ -118,39 +166,32 @@ class Map(commands.Cog):
 
             title = tribe.name if tribe.alone else tribe.tag
 
-            vil_x = [v[0] for v in villages]
-            vil_y = [v[1] for v in villages]
+            vil_x = [int(v[0] * 1.5) for v in villages]
+            vil_y = [int(v[1] * 1.5) for v in villages]
             centroid = sum(vil_y) / len(villages), sum(vil_x) / len(villages)
 
-            # font creation
-            factor = (len(villages) / most_villages) * (font_size / 3)
-            size = int(font_size - (font_size / 3) + factor)
+            factor = int((len(villages) / most_villages) * (font_size / 4))
+            size = int(font_size - (font_size / 4) + factor + (zoom * 3.5))
+
             font = ImageFont.truetype(f'{self.bot.data_path}/bebas.ttf', size)
             font_width, font_height = image.textsize(title, font=font)
-            position = int(centroid[0] - font_width / 2), int(centroid[1] - font_height / 2)
+            position = [int(centroid[0] - font_width / 2), int(centroid[1] - font_height / 2)]
 
-            area = []
-            offset = font.getoffset(title)[1]
-            for y in range(position[0], position[0] + font_width):
-                for x in range(position[1] + offset, position[1] + font_height):
-                    area.append((y, x))
-
-            y, x = position
-            shared = set(reservation).intersection(area)
-            if shared:
-                collision = set([pl[1] for pl in shared])
-                if min(area, key=lambda c: c[1]) in shared:
-                    position = y, x + len(collision)
+            while True:
+                args = [*position, font_width, font_height]
+                response = self.overlap(reservation, *args)
+                if response is True:
+                    position[1] -= 5
                 else:
-                    position = y, x - len(collision)
+                    reservation.append(response)
+                    break
 
             # draw title and shadow / index tribe color
-            dist = int((result.size[0] / self.high) * 10)
+            dist = int((result.size[0] / self.high) * 10 + 1)
             image.text([position[0] + dist, position[1] + dist], title, (0, 0, 0, 255), font)
             image.text(position, title, tuple(tribe.color + [255]), font)
 
-            reservation.extend(area)
-
+        legacy = legacy.resize(result.size, Image.LANCZOS)
         result.paste(legacy, mask=legacy)
         legacy.close()
 
@@ -254,7 +295,7 @@ class Map(commands.Cog):
 
         # create legacy which is double in size for improved text quality
         if label and village_cache:
-            self.label_map(result, village_cache)
+            self.label_map(result, village_cache, zoom)
 
         self.watermark(result)
         return result
@@ -265,7 +306,15 @@ class Map(commands.Cog):
 
         color_map = []
         if not tribe_names:
-            tribes = await self.bot.fetch_top(ctx.server, "tribe", till=10)
+
+            file = self.map_cache.get(ctx.server)
+            if file is None:
+                tribes = await self.bot.fetch_top(ctx.server, "tribe", till=10)
+
+            else:
+                file.seek(0)
+                await ctx.send(file=discord.File(file, 'map.png'))
+                return
 
         else:
             all_tribes = []
@@ -285,8 +334,8 @@ class Map(commands.Cog):
 
             tribes = await self.bot.fetch_bulk(ctx.server, all_tribes, "tribe", name=True)
 
-        if len(color_map) > 10:
-            return await ctx.send("Du kannst nur bis zu 10 Stämme angeben")
+        if len(color_map) > 20:
+            return await ctx.send("Du kannst nur bis zu 20 Stämme/Gruppierungen angeben")
 
         colors = self.colors.top()
         for tribe in tribes.copy():
@@ -311,11 +360,14 @@ class Map(commands.Cog):
         args = (all_villages, tribes, players)
         image = await self.bot.execute(self.create_basic_map, *args)
 
-        with io.BytesIO() as file:
-            image.save(file, "png", quality=100)
-            image.close()
-            file.seek(0)
-            await ctx.send(file=discord.File(file, "map.png"))
+        file = io.BytesIO()
+        image.save(file, "png", quality=100)
+        image.close()
+        file.seek(0)
+        await ctx.send(file=discord.File(file, "map.png"))
+
+        if not tribe_names:
+            self.map_cache[ctx.server] = file
 
     async def update_menue(self, cache, index):
         embed = cache['msg'].embeds[0]
@@ -439,6 +491,11 @@ class Map(commands.Cog):
         elif index == 6:
             await ctx.trigger_typing()
             p_list, t_list = cache['values'][2:4]
+
+            # short fix if ok while expecting tribe/player
+            p_list = p_list or []
+            t_list = t_list or []
+
             idc = [tribe.id for tribe in t_list]
             members = await self.bot.fetch_tribe_member(ctx.server, idc)
             colors = self.colors.top()

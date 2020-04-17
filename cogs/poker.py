@@ -7,7 +7,6 @@ import os
 
 
 class Poker(commands.Cog):
-
     def __init__(self, bot):
         self.bot = bot
         self.bj = {}
@@ -274,10 +273,9 @@ class Poker(commands.Cog):
             msg = "Es läuft bereits eine Runde Blackjack"
             return await ctx.send(msg)
 
-        else:
-            self.bj[ctx.guild.id] = True
-
         await self.bot.subtract_iron(ctx.author.id, bet)
+
+        self.bj[ctx.guild.id] = True
         hand, dealer, cache = self.dealer(ctx, bet, bj=True)
 
         result = self.blackjack(hand)
@@ -293,7 +291,11 @@ class Poker(commands.Cog):
 
         if result == 21:
             game_data['score'] = dealer_result
-            await self.player_wins(ctx, game_data, bj=True)
+
+            if dealer_result == 21:
+                await self.dealer_wins(ctx, game_data, tie=True)
+            else:
+                await self.player_wins(ctx, game_data, bj=True)
             return
 
         moves = ["h", "s", "d"]
@@ -358,8 +360,8 @@ class Poker(commands.Cog):
             else:
                 game_data['score'] = dealer_result
                 while True:
-                    if dealer_result == 21:
-                        await self.dealer_wins(ctx, game_data, bj=len(dealer) == 2)
+                    if dealer_result == 21 and len(dealer) == 2:
+                        await self.dealer_wins(ctx, game_data, bj=True)
                         return
 
                     elif dealer_result is False:
@@ -380,9 +382,9 @@ class Poker(commands.Cog):
                     dealer_result = self.blackjack(dealer)
                     game_data['score'] = dealer_result or "RIP"
 
-                    await asyncio.sleep(0.75)
                     msg = self.present_cards(game_data, base)
                     await begin.edit(embed=msg)
+                    await asyncio.sleep(1.5)
 
 
 def setup(bot):

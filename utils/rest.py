@@ -107,6 +107,6 @@ def game_channel_only():
             raise GameChannelMissing()
         if chan == ctx.channel.id:
             return True
-        raise WrongChannel()
+        raise WrongChannel('game')
 
     return commands.check(predicate)

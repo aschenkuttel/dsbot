@@ -20,7 +20,10 @@
     "Du hast dich vertippt oder soll `{}` etwa dein ernst sein?",
     "Bot Cooldown aktiv. Zahle monatlich nur 10 Euro f\u00fcr den vollen Service!",
     "Du nuschelst dezent oder was soll `{}` bitte sein? Noch nie geh\u00f6rt.",
-    "Ne Sorry, dich ignorier ich heute."
+    "Ne Sorry, dich ignorier ich heute.",
+    "Dieser Command wurde gesponsert von **RAID: Shadow Legends!**",
+    "Du scheinst mir heute ein wenig verwirrt, davon hab ich noch nie geh\u00f6rt...",
+    "Den hast du jetzt doch schon 100 Mal versucht :/"
   ],
   "cleanOrakel": [
     "Ja",
@@ -382,15 +385,15 @@
   },
   "dualAnswer":
       [
-        "Bitte schlagt eure Köpfe solange an die Wand, bis ihr Erinnerungen aneinander verliert.",
+        "Bitte schlagt eure K\u00f6pfe solange an die Wand, bis ihr Erinnerungen aneinander verliert.",
         "Ihr beide solltet euch nicht einmal im selben Land aufhalten...",
         "Bitte spielt niemals in einem Stamm.",
         "Bitte spielt niemals in einem Account.",
-        "Ihr beide in einem Account? Bitte überlegt es euch.",
-        "Ihr könnt es versuchen aber es gibt bessere Dualis für euch beide...",
+        "Ihr beide in einem Account? Bitte \u00fcberlegt es euch.",
+        "Ihr k\u00f6nnt es versuchen aber es gibt bessere Dualis f\u00fcr euch beide...",
         "Nice, euch zwei seh ich in einem Account :blush: ",
         "Uff nicht schlecht. Ihr regelt auf jeden Fall :heart:",
         "Fast das perfekte Dreamteam :heart_eyes:",
-        "Hiermit erkläre ich euch zu Duali und Dualin :heart:"
+        "Hiermit erkl\u00e4re ich euch zu Duali und Dualin :heart:"
       ]
 }

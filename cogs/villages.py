@@ -98,11 +98,11 @@ class Villages(commands.Cog):
         x_coords = list(range(x - radius, x + radius + 1))
         y_coords = list(range(y - radius, y + radius + 1))
 
-        arguments = [x_coords, y_coords]
-        query = 'SELECT * FROM village WHERE world = 172 AND ' \
-                'x = ANY($1) AND y = ANY($2) AND player = 0'
+        arguments = [ctx.server, x_coords, y_coords]
+        query = 'SELECT * FROM village WHERE world = $1 AND ' \
+                'x = ANY($2) AND y = ANY($3) AND player = 0 '
         if points:
-            query += 'AND points <= $3'
+            query += 'AND points <= $4'
             arguments.append(points)
 
         async with self.bot.pool.acquire() as conn:
@@ -110,7 +110,7 @@ class Villages(commands.Cog):
 
         if not result:
             msg = "Es sind keine Barbarendörfer in Reichweite"
-            await ctx.send(utils.error_embed(msg))
+            await ctx.send(msg)
         else:
             await self.send_coords(ctx, result)
 
