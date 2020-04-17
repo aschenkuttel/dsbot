@@ -7,7 +7,6 @@ import os
 
 
 class Poker(commands.Cog):
-
     def __init__(self, bot):
         self.bot = bot
         self.bj = {}

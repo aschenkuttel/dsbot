@@ -2,18 +2,16 @@ from discord.ext import commands
 
 
 class GameChannelMissing(commands.CheckFailure):
-    def __str__(self):
-        return "missing channel"
+    pass
 
 
 class WrongChannel(commands.CheckFailure):
-    def __str__(self):
-        return "wrong channel"
+    def __init__(self, channeltype):
+        self.type = channeltype
 
 
 class WorldMissing(commands.CheckFailure):
-    def __str__(self):
-        return "missing world"
+    pass
 
 
 class UnknownWorld(commands.CheckFailure):

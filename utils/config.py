@@ -1,3 +1,4 @@
+import discord
 import json
 
 
@@ -52,12 +53,22 @@ class Config:
         world = chan.get(idc, main) if chan else main
         return world
 
-    def get_guild_world(self, guild):
-        con = self._config.get(guild.id)
-        if con is None:
-            return
-        else:
-            return con.get('world')
+    def get_related_world(self, obj):
+        if isinstance(obj, discord.Guild):
+            config = self._config.get(obj.id)
+            if config is None:
+                return
+
+            return config.get('world')
+
+        if isinstance(obj, discord.TextChannel):
+            config = self._config.get(obj.guild.id)
+            if config is None:
+                return
+
+            chan = config.get('channel')
+            if chan:
+                return chan.get(str(obj.id))
 
     def remove_world(self, world):
         for guild in self._config:
@@ -83,7 +94,7 @@ class Config:
     def save(self):
         json.dump(self._config, open(self.path, 'w'))
 
-    def reset_guild(self, guild_id):
+    def remove_guild(self, guild_id):
         if guild_id in self._config:
             self._config.pop(guild_id)
             self.save()

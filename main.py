@@ -30,6 +30,7 @@ class DSBot(commands.Bot):
         self.pool = None
         self.conn = None
         self.session = None
+        self.last_message = set()
         self.prefix = secret.prefix
         self.white = secret.pm_commands
         self.owner_id = 211836670666997762

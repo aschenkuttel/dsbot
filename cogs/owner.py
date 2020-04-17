@@ -30,7 +30,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="guild_reset")
     async def guild_reset_(self, ctx, guild_id: int):
-        response = self.bot.config.reset_guild(guild_id)
+        response = self.bot.config.remove_guild(guild_id)
         if response:
             msg = "Serverdaten zurückgesetzt"
         else:
