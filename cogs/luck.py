@@ -110,12 +110,12 @@ class Casino(commands.Cog):
                 base = "**{.display_name}** {} | {} **{.display_name}**"
                 arena = base.format(data['challenger'], *dices, ctx.author)
 
-                player = [data['challenger'], ctx.author]
+                players = [data['challenger'], ctx.author]
                 if first_dice != second_dice:
                     if first_dice > second_dice:
-                        winner, loser = player
+                        winner, loser = players
                     else:
-                        loser, winner = player
+                        loser, winner = players
 
                     price = data['amount'] * 2
                     base = "{}\n**{}** hat beide Einsätze in Höhe von `{} Eisen` gewonnen."
@@ -124,6 +124,9 @@ class Casino(commands.Cog):
 
                 else:
 
+                    for player in players:
+                        await self.bot.update_iron(player.id, data['amount'])
+                        
                     base = "{}\n**Unentschieden**, die Einsätze gehen an die Spieler zurück."
                     msg = base.format(arena)
 

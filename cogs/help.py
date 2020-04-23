@@ -41,6 +41,7 @@ class Help(commands.Cog):
         desc = "Erhalte eine ausführliche Erklärung zu\neinzelnen " \
                "Commands mit `{0}help <commandname>`".format(prefix)
         emb_help = discord.Embed(description=desc, color=discord.Color.blue())
+        emb_help.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
 
         for name, cmd_list in self.bot.msg['helpGroups'].items():
 

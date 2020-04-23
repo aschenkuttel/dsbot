@@ -20,13 +20,16 @@ class ConquerLoop(commands.Cog):
             self.start = False
             return
 
+        counter = 0
         for guild in self.bot.guilds:
             if guild.id in self.bot.last_message:
                 continue
             else:
                 self.bot.config.remove_item(guild.id, 'conquer')
+                counter += 1
 
         self.bot.last_message.clear()
+        print(f"\n{counter} guilds cleared\n")
 
     # main loop
     async def conquer_loop(self):
@@ -60,6 +63,10 @@ class ConquerLoop(commands.Cog):
                 continue
 
             world = self.bot.config.get_related_world(channel)
+
+            if len(conquer) == 1 and not world:
+                world = self.bot.config.get_related_world(guild)
+
             if not world:
                 continue
 

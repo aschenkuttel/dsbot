@@ -291,6 +291,7 @@ class DSBot(commands.Bot):
         player = await self.fetch_player(world, name, True)
         if player:
             return player
+
         tribe = await self.fetch_tribe(world, name, True)
         return tribe
 
@@ -305,6 +306,7 @@ class DSBot(commands.Bot):
 
         if not balanced:
             return dsobj_list
+
         else:
             cache = sorted(dsobj_list, key=lambda t: t.points, reverse=True)
             balenciaga = [ds for ds in cache if (cache[0].points / 12) < ds.points]

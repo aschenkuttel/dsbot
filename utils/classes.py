@@ -50,11 +50,6 @@ class DSObject(commands.Converter):
         'ingame_url', 'twstats_url')
 
     async def convert(self, ctx, searchable):
-        # conquer add/remove needs guild world
-        if str(ctx.command).startswith("conquer"):
-            raw_world = ctx.bot.config.get_related_world(ctx.guild)
-            ctx.world = utils.World(raw_world)
-
         obj = await ctx.bot.fetch_both(ctx.server, searchable)
         if not obj:
             raise utils.DSUserNotFound(searchable)

@@ -31,7 +31,7 @@ class Map(commands.Cog):
             '<:button:672910606700904451>',
         ]
         user = commands.BucketType.user
-        self._cd = commands.CooldownMapping.from_cooldown(1.0, 6.0, user)
+        self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
         self.bot.loop.create_task(self.map_cleanup())
 
     async def cog_check(self, ctx):
@@ -78,7 +78,7 @@ class Map(commands.Cog):
 
         embed = cache['msg'].embeds[0]
         embed.title = f"**Timeout:** Zeitüberschreitung({time}s)"
-        await cache['msg'].edit(embed=embed)
+        await silencer(cache['msg'].edit(embed=embed))
         await silencer(cache['msg'].clear_reactions())
         self.cache.pop(user_id)
 
