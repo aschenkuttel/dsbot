@@ -1,5 +1,5 @@
-from utils import Conquer, silencer, escape
 from discord.ext import commands, tasks
+from utils import Conquer, silencer
 import datetime
 import discord
 import asyncio
@@ -243,19 +243,19 @@ class ConquerLoop(commands.Cog):
 
             if conquer.new_player:
                 if conquer.new_tribe:
-                    tribe = f"**{escape(conquer.new_tribe.tag)}**"
+                    tribe = f"**{conquer.new_tribe.tag}**"
                 else:
                     tribe = "**N/A**"
 
-                new = f"[{escape(new.name)}]({new.ingame_url}) {tribe}"
+                new = f"[{new.name}]({new.ingame_url}) {tribe}"
 
             if conquer.old_player:
                 if conquer.old_tribe:
-                    tribe = f" **{escape(conquer.old_tribe.tag)}**"
+                    tribe = f" **{conquer.old_tribe.tag}**"
                 else:
                     tribe = "**N/A**"
 
-                old = f"[{escape(old.name)}]({old.ingame_url}) {tribe}"
+                old = f"[{old.name}]({old.ingame_url}) {tribe}"
 
             date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
             result.append(f"``{now}`` | {new} adelt {village_hyperlink} von {old}")

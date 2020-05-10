@@ -37,7 +37,8 @@ def converter(name, php=False):
         encoded = encoded.replace('~', '%7E')
         return encoded.lower()
     else:
-        return unquote_plus(name)
+        result = unquote_plus(name)
+        return result.replace("*", "\\*")
 
 
 def keyword(options, **kwargs):
@@ -78,10 +79,6 @@ def error_embed(text, ctx=None):
 
 def complete_embed(text):
     return discord.Embed(description=text, color=discord.Color.green())
-
-
-def escape(word):
-    return word.replace("*", "\\*")
 
 
 def show_list(iterable, sep=", ", line_break=2):

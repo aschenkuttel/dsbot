@@ -1,4 +1,4 @@
-from utils import error_embed, DSObject
+from utils import error_embed, DSConverter
 from PIL import Image, ImageSequence
 from discord.ext import commands
 from bs4 import BeautifulSoup
@@ -91,7 +91,7 @@ class Graphic(commands.Cog):
 
     @commands.command(name="nude", aliases=["profilbild"])
     @commands.cooldown(1, 10.0, commands.BucketType.user)
-    async def nude_(self, ctx, *, user: DSObject = None):
+    async def nude_(self, ctx, *, user: DSConverter = None):
         if user:
             async with self.bot.session.get(user.guest_url) as res:
                 data = await res.read()

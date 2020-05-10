@@ -1,4 +1,4 @@
-from utils import World, DSObject,  WrongChannel, complete_embed, error_embed
+from utils import World, DSConverter,  WrongChannel, complete_embed, error_embed
 from discord.ext import commands
 import discord
 
@@ -159,7 +159,7 @@ class Set(commands.Cog):
         await ctx.invoke(cmd)
 
     @conquer.command(name="add")
-    async def conquer_add(self, ctx, tribe: DSObject):
+    async def conquer_add(self, ctx, tribe: DSConverter):
         conquer = self.get_conquer_data(ctx)
 
         if tribe.alone:
@@ -178,7 +178,7 @@ class Set(commands.Cog):
             await ctx.send(embed=complete_embed(msg))
 
     @conquer.command(name="remove")
-    async def conquer_remove(self, ctx, tribe: DSObject):
+    async def conquer_remove(self, ctx, tribe: DSConverter):
         conquer = self.get_conquer_data(ctx)
 
         if tribe.alone:

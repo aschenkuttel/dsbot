@@ -366,7 +366,7 @@ class Card(commands.Cog):
             data['active'] = True
 
             player_num = len(data['players'])
-            if player_num == 0:
+            if player_num == 1:
                 content = "Es wollte leider niemand mitspielen :/\n**Spiel beendet**"
                 await begin.edit(content=content)
                 return self.tc.pop(ctx.guild.id)
@@ -488,8 +488,8 @@ class Card(commands.Cog):
                     elif winner[0][1] == value:
                         winner.append([user, value])
 
+                    dsobj = played[user].name
                     points = players[user]['points']
-                    dsobj = utils.escape(played[user].name)
                     name = f"Karte von {user.display_name} ({points}):"
                     value = f"**{prop[data['attribute']]} von {dsobj}:** `{utils.pcv(value)}`"
                     embed.add_field(name=name, value=value, inline=False)

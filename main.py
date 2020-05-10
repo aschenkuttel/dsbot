@@ -82,7 +82,6 @@ class DSBot(commands.Bot):
         cache = self.config.get_world(ctx.channel)
         if cache:
             ctx.world = utils.World(cache)
-            ctx.server = ctx.world.server
             return True
 
         raise utils.WorldMissing()
@@ -222,12 +221,17 @@ class DSBot(commands.Bot):
 
         self.worlds = cache
 
-    async def fetch_all(self, world, table=None):
+    async def fetch_all(self, world, table=None, dic=False):
         dsobj = utils.DSType(table or 0)
         async with self.pool.acquire() as conn:
             query = f'SELECT * FROM {dsobj.table} WHERE world = $1'
             cache = await conn.fetch(query, world)
-            return [dsobj.Class(rec) for rec in cache]
+            result = [dsobj.Class(rec) for rec in cache]
+
+            if dic:
+                result = {obj.id: obj for obj in result}
+
+            return result
 
     async def fetch_random(self, world, **kwargs):
         amount = kwargs.get('amount', 1)
@@ -251,48 +255,55 @@ class DSBot(commands.Bot):
 
         return result[0] if amount == 1 else result
 
-    async def fetch_player(self, world, searchable, name=False):
+    async def fetch_player(self, world, searchable, *, name=False, archive=None):
+        table = f"player{archive}" if archive else "player"
+
         if name:
             searchable = utils.converter(searchable, True)
-            query = f'SELECT * FROM player WHERE world = $1 AND LOWER(name) = $2'
+            query = f'SELECT * FROM {table} WHERE world = $1 AND LOWER(name) = $2'
         else:
-            query = f'SELECT * FROM player WHERE world = $1 AND id = $2'
+            query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
         return utils.Player(result) if result else None
 
-    async def fetch_tribe(self, world, searchable, name=False):
+    async def fetch_tribe(self, world, searchable, *, name=False, archive=None):
+        table = f"tribe{archive}" if archive else "tribe"
+
         if name:
             searchable = utils.converter(searchable, True)
-            query = 'SELECT * FROM tribe WHERE world = $1 ' \
-                    'AND (LOWER(tag) = $2 OR LOWER(name) = $2)'
+            query = f'SELECT * FROM {table} WHERE world = $1 ' \
+                    f'AND (LOWER(tag) = $2 OR LOWER(name) = $2)'
         else:
-            query = 'SELECT * FROM tribe WHERE world = $1 AND id = $2'
+            query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
         return utils.Tribe(result) if result else None
 
-    async def fetch_village(self, world, searchable, coord=False):
+    async def fetch_village(self, world, searchable, *, coord=False, archive=None):
+        table = f"village{archive}" if archive else "village"
+
         if coord:
             x, y = searchable.split('|')
-            query = f'SELECT * FROM village WHERE world = $1 AND x = $2 AND y = $3'
+            query = f'SELECT * FROM {table} WHERE world = $1 AND x = $2 AND y = $3'
             searchable = [int(x), int(y)]
         else:
-            query = f'SELECT * FROM village WHERE world = $1 AND id = $2'
+            query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
             searchable = [searchable]
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, *searchable)
         return utils.Village(result) if result else None
 
-    async def fetch_both(self, world, name):
-        player = await self.fetch_player(world, name, True)
+    async def fetch_both(self, world, searchable, *, name=True, archive=None):
+        kwargs = {'name': name, 'archive': archive}
+        player = await self.fetch_player(world, searchable, **kwargs)
         if player:
             return player
 
-        tribe = await self.fetch_tribe(world, name, True)
+        tribe = await self.fetch_tribe(world, searchable, **kwargs)
         return tribe
 
     async def fetch_top(self, world, table=None, till=10, balanced=False):
@@ -346,14 +357,6 @@ class DSBot(commands.Bot):
                 return {rec[1]: dsobj.Class(rec) for rec in res}
             else:
                 return [dsobj.Class(rec) for rec in res]
-
-    async def fetch_archive(self, world, idc, table=None, days=7):
-        dsobj = utils.DSType(table or 0)
-        query = f'SELECT * FROM {dsobj.table}{days} WHERE world = $1 AND id = $2'
-
-        async with self.pool.acquire() as conn:
-            res = await conn.fetchrow(query, world, idc)
-            return dsobj.Class(res) if res else None
 
     # imports all cogs at startup
     def setup_cogs(self):

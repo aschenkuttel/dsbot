@@ -1,7 +1,8 @@
-from utils import DSObject, DSUserNotFound, error_embed, pcv
+from utils import DSConverter, DSUserNotFound, error_embed, pcv
 from discord.ext import commands
 from bs4 import BeautifulSoup
 import discord
+import utils
 
 
 class Bash(commands.Cog):
@@ -10,13 +11,18 @@ class Bash(commands.Cog):
         self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         self.base = "https://{}.die-staemme.de/guest.php?village" \
                     "=null&screen=ranking&mode=in_a_day&type={}"
-        self.keys = {"bash": "kill_att", "def": "kill_def", "ut": "kill_sup", "farm": "loot_res",
-                     "villages": "loot_vil", "scavenge": "scavenge", "conquer": "conquer"}
-        self.values = {"defbash": "def_bash", "offbash": "att_bash",
-                       "utbash": "ut_bash", "allbash": "all_bash"}
+        self.keys = {'bash': "kill_att", 'def': "kill_def", 'ut': "kill_sup", 'farm': "loot_res",
+                     'villages': "loot_vil", 'scavenge': "scavenge", 'conquer': "conquer"}
+        self.values = {
+            'defbash': {'value': "def_bash", 'item': "Bashpoints", 'title': "Verteidiger"},
+            'offbash': {'value': "att_bash", 'item': "Bashpoints", 'title': "Angreifer"},
+            'utbash': {'value': "ut_bash", 'item': "Bashpoints", 'title': "Unterstützer"},
+            'allbash': {'value': "all_bash", 'item': "Bashpoints", 'title': "Kämpfer"},
+            'verlierer': {'value': "villages", 'item': "Dörfer", 'title': "Verlierer"},
+            'eroberer': {'value': "villages", 'item': "Dörfer", 'title': "Eroberer"}}
 
     @commands.command(name="bash")
-    async def bash(self, ctx, *, user: DSObject):
+    async def bash(self, ctx, *, user: DSConverter):
         title = f"Besiegte Gegner von {user.name}"
         result = [f"`OFF` | **{pcv(user.att_bash)} Bashpoints**",
                   f"`DEF` | **{pcv(user.def_bash)} Bashpoints**"]
@@ -56,7 +62,7 @@ class Bash(commands.Cog):
                       f"namens `{player}` nicht!"
                 return await ctx.send(msg)
 
-            attribute = self.values[ctx.invoked_with.lower()]
+            attribute = self.values[ctx.invoked_with.lower()]['value']
             data_one = getattr(s1, attribute)
             data_two = getattr(s2, attribute)
             if data_one == data_two:
@@ -89,8 +95,7 @@ class Bash(commands.Cog):
             return await ctx.send(embed=error_embed(msg))
 
         try:
-            table = "player" if dsobj.alone else "tribe"
-            dsobj8 = await self.bot.fetch_archive(ctx.server, dsobj.id, table, time)
+            dsobj8 = await self.bot.fetch_both(ctx.server, dsobj.id, name=False, archive=time)
 
             if dsobj8 is None:
                 obj = "Spieler" if dsobj.alone else "Stamm"
@@ -147,16 +152,15 @@ class Bash(commands.Cog):
         answer = f"{intro} {points_done} {villages_done} und {bashpoints_done}"
         await ctx.send(answer)
 
-    @commands.group(name="daily", aliases=["top"], invoke_without_command=True)
-    async def daily_(self, ctx):
-        cmd = self.bot.get_command("help daily")
-        await ctx.invoke(cmd)
+    @commands.group(name="tmp", aliases=["tmpalias"])
+    async def tmp_(self, ctx, state):
+        key = self.keys.get(state.lower())
 
-    @daily_.command(name="bash", aliases=["def", "ut", "farm", "villages", "conquer", "scavenge"])
-    async def types_(self, ctx):
-        key = self.keys[ctx.invoked_with.lower()]
+        if key is None:
+            cmd = self.bot.get_command("help daily")
+            return await ctx.invoke(cmd)
+
         res_link = self.base.format(ctx.server, key)
-
         async with self.bot.session.get(res_link) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
 
@@ -165,20 +169,81 @@ class Bash(commands.Cog):
         result = []
 
         try:
+            datapack = {}
             cache = soup.find('option', selected=True)
             for row in rows[1:6]:
                 vanity = row.find('a')['href']
                 player_id = int(vanity.split("=")[-1])
-                player = await self.bot.fetch_player(ctx.server, player_id)
-                name = player.name if player else "Unknown"
-                url = player.guest_url if player else self.never
                 points = row.findAll("td")[3].text
-                result.append(f"`{points}` **|** [{name}]({url})")
+                datapack[player_id] = points
+
+            players = await self.bot.fetch_bulk(ctx.server, datapack.keys(), dic=True)
+            for player_id, points in datapack.items():
+                player = players.get(player_id)
+                if player:
+                    result.append(f"`{points}` **|** {player.guest_mention}")
 
             msg = '\n'.join(result)
             embed = discord.Embed(title=cache.text, description=msg)
 
         except (AttributeError, TypeError):
+            msg = "Aktuell liegen noch keine Daten vor"
+            embed = discord.Embed(description=msg, color=discord.Color.red())
+
+        await ctx.send(embed=embed)
+
+    @commands.command(name="daily")
+    async def daily_(self, ctx, award_type):
+        award = award_type.lower()
+        award_data = self.values.get(award)
+        if award_data is None:
+            return
+
+        table = "player"
+        negative = award in ["verlierer"]
+
+        base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
+               'WHERE {0}.world = $1 AND {1}.world = $1 '
+
+        if award == "utbash":
+            base += 'ORDER BY {0}.all_bash - {0}.att_bash - {0}.def_bash - ' \
+                    '{1}.all_bash - {1}.att_bash - {1}.def_bash {3} LIMIT 5'
+        else:
+            base += 'ORDER BY {0}.{2} - {1}.{2} {3} LIMIT 5'
+
+        switch = "ASC" if negative else "DESC"
+        query = base.format(table, f"{table}1", award_data['value'], switch)
+
+        async with self.bot.pool.acquire() as conn:
+            data = await conn.fetch(query, ctx.server)
+
+        ranking = []
+        for record in data:
+            num = int(len(record) / 2)
+            both_data = list(record.items())
+            cur_record = {key: value for key, value in both_data[:num]}
+            old_record = {key: value for key, value in both_data[num:]}
+
+            old_dsobj, dsobj = utils.Player(old_record), utils.Player(cur_record)
+            cur_value = getattr(dsobj, award_data['value'])
+            old_value = getattr(old_dsobj, award_data['value'])
+
+            if negative:
+                value = old_value - cur_value
+            else:
+                value = cur_value - old_value
+
+            if value > 0:
+                line = f"`{value} {award_data['item']}` | {dsobj.guest_mention}"
+                ranking.append(line)
+
+        if ranking:
+            description = "\n".join(ranking)
+            title = f"{award_data['title']} des Tages"
+            embed = discord.Embed(title=title, description=description)
+            embed.colour = discord.Color.blue()
+
+        else:
             msg = "Aktuell liegen noch keine Daten vor"
             embed = discord.Embed(description=msg, color=discord.Color.red())
 
