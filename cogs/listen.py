@@ -3,6 +3,7 @@ from discord.ext import commands
 from datetime import timedelta
 from bs4 import BeautifulSoup
 import traceback
+import logging
 import discord
 import aiohttp
 import imgkit
@@ -11,6 +12,9 @@ import utils
 import sys
 import io
 import re
+
+
+logger = logging.getLogger('bot')
 
 
 class Listen(commands.Cog):
@@ -90,6 +94,7 @@ class Listen(commands.Cog):
             except discord.Forbidden:
                 pass
             finally:
+                logger.debug("report converted")
                 return
 
         # Coord Converter
@@ -125,6 +130,7 @@ class Listen(commands.Cog):
             except discord.Forbidden:
                 pass
             finally:
+                logger.debug("coord converted")
                 return
 
         # DS Player/Tribe Converter
@@ -176,9 +182,14 @@ class Listen(commands.Cog):
                     await message.delete()
             except discord.Forbidden:
                 pass
+            finally:
+                logger.debug("bbcode converted")
 
     @commands.Cog.listener()
     async def on_command_completion(self, ctx):
+        msg = f"command completed: {ctx.invoked_with}"
+        self.bot.logger.debug(msg)
+
         if ctx.author.id == self.bot.owner_id:
             return
         else:
@@ -190,17 +201,21 @@ class Listen(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
+        cmd = ctx.invoked_with
         msg, tip = None, None
+
+        logger.debug(f"command error ({cmd}):\n{error}")
+
         error = getattr(error, 'original', error)
         if isinstance(error, self.silenced):
             return
 
         elif isinstance(error, commands.CommandNotFound):
-            if len(ctx.invoked_with) == ctx.invoked_with.count(ctx.prefix):
+            if len(cmd) == cmd.count(ctx.prefix):
                 return
             else:
                 data = random.choice(self.bot.msg["noCommand"])
-                return await ctx.send(data.format(f"{ctx.prefix}{ctx.invoked_with}"))
+                return await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
 
         elif isinstance(error, commands.MissingRequiredArgument):
             msg = "Dem Command fehlt ein benötigtes Argument"
@@ -257,7 +272,7 @@ class Listen(commands.Cog):
             msg = raw.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):
-            msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
+            msg = f"`{error.name}` konnte auf **{ctx.world}** nicht gefunden werden"
 
         elif isinstance(error, utils.GuildUserNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
@@ -276,8 +291,8 @@ class Listen(commands.Cog):
 
         else:
             print(f"Command Message: {ctx.message.content}")
-            print("Command Error:")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+            logger.warning(f"uncommon error ({ctx.world}): {ctx.message.content}")
 
 
 def setup(bot):

@@ -66,7 +66,7 @@ class Map(commands.Cog):
                 await asyncio.sleep(seconds + 60)
 
         except Exception as error:
-            print(f"MAP CACHE {error}")
+            self.bot.logger.warning(f"map cache:\n{error}")
 
     async def timeout(self, cache, user_id, time):
         current = self.cache.get(user_id)

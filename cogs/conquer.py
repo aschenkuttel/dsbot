@@ -1,8 +1,11 @@
 from discord.ext import commands, tasks
 from utils import Conquer, silencer
 import datetime
+import logging
 import discord
 import asyncio
+
+logger = logging.getLogger('bot')
 
 
 class ConquerLoop(commands.Cog):
@@ -25,11 +28,12 @@ class ConquerLoop(commands.Cog):
             if guild.id in self.bot.last_message:
                 continue
             else:
-                self.bot.config.remove_item(guild.id, 'conquer')
+                self.bot.config.remove_item(guild.id, 'conquer', bulk=True)
                 counter += 1
 
+        self.bot.config.save()
         self.bot.last_message.clear()
-        print(f"\n{counter} guilds cleared\n")
+        logger.debug(f"{counter} inactive guilds")
 
     # main loop
     async def conquer_loop(self):
@@ -40,14 +44,18 @@ class ConquerLoop(commands.Cog):
                 await self.bot.refresh_worlds()
                 await self.update_conquer()
 
+                counter = 0
                 for guild in self.bot.guilds:
-                    await self.conquer_feed(guild)
+                    resp = await self.conquer_feed(guild)
+                    if resp is True:
+                        counter += 1
 
+                logger.debug(f"conquer feed complete ({counter} guilds)")
                 wait_pls = self.get_seconds()
                 await asyncio.sleep(wait_pls)
 
             except Exception as error:
-                print(f"Conguer Error: {error}")
+                logger.critical(f"conquer Error:\n{error}")
                 user = self.bot.get_user(self.bot.owner_id)
                 await user.send("conquer task crashed")
                 return
@@ -123,6 +131,8 @@ class ConquerLoop(commands.Cog):
                 else:
                     conquer_pkg.append(line)
 
+            return True
+
     async def update_conquer(self):
         for world in self.bot.worlds:
 
@@ -135,7 +145,7 @@ class ConquerLoop(commands.Cog):
                 sec = self.get_seconds(True)
                 data = await self.fetch_conquer(world, sec)
             except Exception as error:
-                print(f"{world} skipped: {error}")
+                logger.warning(f"{world} skipped:\n{error}")
                 continue
 
             if not data[0]:

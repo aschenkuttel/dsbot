@@ -5,4 +5,5 @@ data/cache.json
 data/naruto.py
 discord.log
 datadb.py
+bot.log
 lab.py

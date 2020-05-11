@@ -1,3 +1,5 @@
+import logging
+
 from utils.error import WrongChannel, GameChannelMissing
 from urllib.parse import quote_plus, unquote_plus
 from discord.ext import commands
@@ -81,6 +83,16 @@ def complete_embed(text):
     return discord.Embed(description=text, color=discord.Color.green())
 
 
+def default_embed(title=None, url=None, description=None, footer=None):
+    embed = discord.Embed(title=title, url=url, description=description)
+    embed.colour = discord.Color.blue()
+
+    if footer:
+        embed.set_footer(text=footer)
+
+    return embed
+
+
 def show_list(iterable, sep=", ", line_break=2):
     cache = []
     result = ""
@@ -107,3 +119,12 @@ def game_channel_only():
         raise WrongChannel('game')
 
     return commands.check(predicate)
+
+
+def create_logger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    handler = logging.FileHandler(filename=f"data/{name}.log", encoding='utf-8', mode='w')
+    handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+    logger.addHandler(handler)
+    return logger

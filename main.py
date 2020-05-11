@@ -12,6 +12,9 @@ import json
 import os
 
 
+utils.create_logger('discord')
+
+
 # gets called every message to gather the custom prefix
 def prefix(bot, message):
     if message.guild is None:
@@ -34,6 +37,7 @@ class DSBot(commands.Bot):
         self.prefix = secret.prefix
         self.white = secret.pm_commands
         self.owner_id = 211836670666997762
+        self.logger = utils.create_logger('bot')
         self.data_path = f"{os.path.dirname(__file__)}/data"
         self.msg = json.load(open(f"{self.data_path}/msg.json"))
         self.activity = discord.Activity(type=0, name=self.msg['status'])
@@ -100,7 +104,7 @@ class DSBot(commands.Bot):
 
     def callback(self, *args):
         payload = args[-1]
-        print(f"Payload received: {payload}")
+        self.logger.debug(f"payload received: {payload}")
         if payload == "404":
             msg = "database script ended with a failure"
         elif payload == "400":

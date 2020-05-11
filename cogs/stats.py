@@ -113,7 +113,8 @@ class Bash(commands.Cog):
 
         except Exception as error:
             if "relation" not in str(error):
-                print(f"RECAP ERROR: {error}")
+                msg = f"recap error:\n{error}"
+                self.bot.logger.warning(msg)
 
             page_link = f"{dsobj.twstats_url}&mode=history"
             async with self.bot.session.get(page_link) as r:
@@ -157,7 +158,7 @@ class Bash(commands.Cog):
         key = self.keys.get(state.lower())
 
         if key is None:
-            cmd = self.bot.get_command("help daily")
+            cmd = self.bot.get_command("help tmp")
             return await ctx.invoke(cmd)
 
         res_link = self.base.format(ctx.server, key)
@@ -192,27 +193,29 @@ class Bash(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(name="daily")
+    @commands.command(name="daily", aliases=["daily_tribe"])
     async def daily_(self, ctx, award_type):
         award = award_type.lower()
         award_data = self.values.get(award)
-        if award_data is None:
-            return
 
-        table = "player"
+        if award_data is None:
+            cmd = self.bot.get_command("help daily")
+            return await ctx.invoke(cmd)
+
+        dsobj = utils.DSType(int(ctx.invoked_with.lower() == "daily_tribe"))
         negative = award in ["verlierer"]
 
         base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
                'WHERE {0}.world = $1 AND {1}.world = $1 '
 
         if award == "utbash":
-            base += 'ORDER BY {0}.all_bash - {0}.att_bash - {0}.def_bash - ' \
-                    '{1}.all_bash - {1}.att_bash - {1}.def_bash {3} LIMIT 5'
+            base += 'ORDER BY ({0}.all_bash - {0}.att_bash - {0}.def_bash) - ' \
+                    '({1}.all_bash - {1}.att_bash - {1}.def_bash) {3} LIMIT 5'
         else:
-            base += 'ORDER BY {0}.{2} - {1}.{2} {3} LIMIT 5'
+            base += 'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
 
         switch = "ASC" if negative else "DESC"
-        query = base.format(table, f"{table}1", award_data['value'], switch)
+        query = base.format(dsobj.table, f"{dsobj.table}1", award_data['value'], switch)
 
         async with self.bot.pool.acquire() as conn:
             data = await conn.fetch(query, ctx.server)
@@ -224,24 +227,32 @@ class Bash(commands.Cog):
             cur_record = {key: value for key, value in both_data[:num]}
             old_record = {key: value for key, value in both_data[num:]}
 
-            old_dsobj, dsobj = utils.Player(old_record), utils.Player(cur_record)
-            cur_value = getattr(dsobj, award_data['value'])
-            old_value = getattr(old_dsobj, award_data['value'])
+            old_dsobj, cur_dsobj = dsobj.Class(old_record), dsobj.Class(cur_record)
+            cur_value = getattr(cur_dsobj, award_data['value'], 0)
+            old_value = getattr(old_dsobj, award_data['value'], 0)
 
             if negative:
                 value = old_value - cur_value
             else:
                 value = cur_value - old_value
 
-            if value > 0:
-                line = f"`{value} {award_data['item']}` | {dsobj.guest_mention}"
-                ranking.append(line)
+            if value < 1:
+                continue
+
+            item = award_data['item']
+            if value == 1 and item == "Dörfer":
+                item = "Dorf"
+
+            line = f"`{utils.pcv(value)} {item}` | {cur_dsobj.guest_mention}"
+            ranking.append(line)
 
         if ranking:
             description = "\n".join(ranking)
-            title = f"{award_data['title']} des Tages"
+            title = f"{award_data['title']} des Tages ({ctx.world})"
+            footer = "Daten aufgrund von Inno nur stündlich aktualisiert"
             embed = discord.Embed(title=title, description=description)
             embed.colour = discord.Color.blue()
+            embed.set_footer(text=footer)
 
         else:
             msg = "Aktuell liegen noch keine Daten vor"
