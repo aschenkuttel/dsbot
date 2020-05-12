@@ -14,12 +14,16 @@ class Bash(commands.Cog):
         self.keys = {'bash': "kill_att", 'def': "kill_def", 'ut': "kill_sup", 'farm': "loot_res",
                      'villages': "loot_vil", 'scavenge': "scavenge", 'conquer': "conquer"}
         self.values = {
-            'defbash': {'value': "def_bash", 'item': "Bashpoints", 'title': "Verteidiger"},
-            'offbash': {'value': "att_bash", 'item': "Bashpoints", 'title': "Angreifer"},
-            'utbash': {'value': "ut_bash", 'item': "Bashpoints", 'title': "Unterstützer"},
-            'allbash': {'value': "all_bash", 'item': "Bashpoints", 'title': "Kämpfer"},
-            'verlierer': {'value': "villages", 'item': "Dörfer", 'title': "Verlierer"},
-            'eroberer': {'value': "villages", 'item': "Dörfer", 'title': "Eroberer"}}
+            'angreifer': {'value': "att_bash", 'item': "Bashpoints"},
+            'verteidiger': {'value': "def_bash", 'item': "Bashpoints"},
+            'unterstützer': {'value': "ut_bash", 'item': "Bashpoints"},
+            'kämpfer': {'value': "all_bash", 'item': "Bashpoints"},
+            'verlierer': {'value': "villages", 'item': "Dörfer"},
+            'eroberer': {'value': "villages", 'item': "Dörfer"}}
+        self.translate = {'defbash': "verteidiger",
+                          'offbash': "angreifer",
+                          'utbash': "unterstützer",
+                          'allbash': "kämpfer"}
 
     @commands.command(name="bash")
     async def bash(self, ctx, *, user: DSConverter):
@@ -62,7 +66,8 @@ class Bash(commands.Cog):
                       f"namens `{player}` nicht!"
                 return await ctx.send(msg)
 
-            attribute = self.values[ctx.invoked_with.lower()]['value']
+            keyword = self.translate[ctx.invoked_with.lower()]
+            attribute = self.values[keyword]['value']
             data_one = getattr(s1, attribute)
             data_two = getattr(s2, attribute)
             if data_one == data_two:
@@ -102,14 +107,8 @@ class Bash(commands.Cog):
                 msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
                 return await ctx.send(msg)
 
-            point1 = dsobj.points
-            point8 = dsobj8.points
-
-            villages1 = dsobj.villages
-            villages8 = dsobj8.villages
-
-            bash1 = dsobj.all_bash
-            bash8 = dsobj8.all_bash
+            point1, villages1, bash1 = dsobj.points, dsobj.villages, dsobj.all_bash
+            point8, villages8, bash8 = dsobj8.points, dsobj8.villages, dsobj8.all_bash
 
         except Exception as error:
             if "relation" not in str(error):
@@ -131,34 +130,38 @@ class Bash(commands.Cog):
                 return await ctx.send(msg)
 
         p_done = pcv(int(point1) - int(point8))
-        points_done = f"`{p_done}` Punkte gemacht,"
         if p_done.startswith("-"):
             points_done = f"`{p_done[1:]}` Punkte verloren,"
+        else:
+            points_done = f"`{p_done}` Punkte gemacht,"
 
         v_done = int(villages1) - int(villages8)
         vil = "Dorf" if v_done == 1 or v_done == -1 else "Dörfer"
-        villages_done = f"`{v_done}` {vil} geholt"
         if v_done < 0:
             villages_done = f"`{str(v_done)[1:]}` {vil} verschenkt"
+        else:
+            villages_done = f"`{v_done}` {vil} geholt"
 
         b_done = pcv(int(bash1) - int(bash8))
-        bashpoints_done = f"sich `{b_done}` Bashpoints erkämpft"
         if b_done.startswith("-"):
             bashpoints_done = f"`{b_done[1:]}` Bashpoints verloren"
+        else:
+            bashpoints_done = f"sich `{b_done}` Bashpoints erkämpft"
 
         has = "hat" if dsobj.alone else "haben"
         since = "seit gestern" if time == 1 else f"in den letzten {time} Tagen:"
 
-        intro = f"`{dsobj.name}` {has} {since}"
-        answer = f"{intro} {points_done} {villages_done} und {bashpoints_done}"
+        answer = f"`{dsobj.name}` {has} {since} {points_done} " \
+                 f"{villages_done} und {bashpoints_done}"
+
         await ctx.send(answer)
 
-    @commands.group(name="tmp", aliases=["tmpalias"])
+    @commands.group(name="top")
     async def tmp_(self, ctx, state):
         key = self.keys.get(state.lower())
 
         if key is None:
-            cmd = self.bot.get_command("help tmp")
+            cmd = self.bot.get_command("help top")
             return await ctx.invoke(cmd)
 
         res_link = self.base.format(ctx.server, key)
@@ -193,7 +196,7 @@ class Bash(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(name="daily", aliases=["daily_tribe"])
+    @commands.command(name="daily", aliases=["aktueller"])
     async def daily_(self, ctx, award_type):
         award = award_type.lower()
         award_data = self.values.get(award)
@@ -202,7 +205,7 @@ class Bash(commands.Cog):
             cmd = self.bot.get_command("help daily")
             return await ctx.invoke(cmd)
 
-        dsobj = utils.DSType(int(ctx.invoked_with.lower() == "daily_tribe"))
+        dsobj = utils.DSType(int(ctx.invoked_with.lower() == "aktueller"))
         negative = award in ["verlierer"]
 
         base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
@@ -248,7 +251,7 @@ class Bash(commands.Cog):
 
         if ranking:
             description = "\n".join(ranking)
-            title = f"{award_data['title']} des Tages ({ctx.world})"
+            title = f"{award.capitalize()} des Tages ({ctx.world})"
             footer = "Daten aufgrund von Inno nur stündlich aktualisiert"
             embed = discord.Embed(title=title, description=description)
             embed.colour = discord.Color.blue()

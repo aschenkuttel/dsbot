@@ -83,9 +83,7 @@ class Card(commands.Cog):
         try:
             await self.bot.wait_for('message', check=check, timeout=10 + add)
         except asyncio.TimeoutError:
-            if not cache:
-                return
-            return winner
+            return winner if cache else None
 
     # Module One
     async def top_entity(self, ctx, cur):
@@ -135,12 +133,15 @@ class Card(commands.Cog):
         target, rest = tribes[0].id, [obj.id for obj in tribes[1:]]
         foo, bar = (rest, target) if positive else (target, rest)
         data = await self.bot.fetch_tribe_member(ctx.server, foo)
+        random.shuffle(data)
+
+        if len(data) < 4:
+            return
 
         fake_list = []
         while len(fake_list) < 4:
-            player = random.choice(data)
-            if player not in fake_list:
-                fake_list.append(player)
+            player = data.pop(0)
+            fake_list.append(player)
 
         data = await self.bot.fetch_tribe_member(ctx.server, bar)
         target_player = random.choice(data)
@@ -163,24 +164,25 @@ class Card(commands.Cog):
     async def image_guess(self, ctx, rounds):
         state = random.choice([True, False])
         top = 15 if state else 100
-        obj_list = await self.bot.fetch_random(ctx.server, amount=top, top=top, tribe=state)
+        kwargs = {'amount': top, 'top': top, 'tribe': state, 'max': True}
+        obj_list = await self.bot.fetch_random(ctx.server, **kwargs)
         random.shuffle(obj_list)
+
+        if len(obj_list) < 5:
+            return
+
         for obj in obj_list:
             async with self.bot.session.get(obj.guest_url) as resp:
                 data = await resp.read()
 
             soup = BeautifulSoup(data, "html.parser")
-            if state:
-                result = soup.find('img')
-            else:
-                result = soup.find(alt='Profilbild')
-            if not result:
-                continue
-            elif str(result).__contains__("/avatar/"):
-                continue
-            else:
+            keyword = 'img' if not state else 'Profilbild'
+            result = soup.find(alt=keyword)
+
+            if result and "/avatar/" not in str(result):
                 title = "Stamm" if state else "Spieler"
                 options = [obj]
+
                 while len(options) < 4:
                     dude = random.choice(obj_list)
                     if dude not in options:
@@ -195,7 +197,7 @@ class Card(commands.Cog):
                 await ctx.send(embed=embed)
                 break
         else:
-            return None, None
+            return
 
         result = await self.wait_for_answers(ctx, index)
         return result, obj.name
@@ -254,19 +256,27 @@ class Card(commands.Cog):
         while game_count < rounds:
             game = random.choice(self.game_pool)
             cur = f"{game_count + 1} / {rounds}"
-            result, answer = await game(ctx, cur)
+            response = await game(ctx, cur)
 
+            # not enough data
+            if response is None:
+                continue
+            else:
+                result, answer = response
+
+            # nobody answered
             if result is None:
                 break
 
-            game_count += 1
-            if not result:
+            # no right answer
+            elif not result:
                 msg = "Leider hatte niemand die richtige Antwort.\n{}"
                 msg = msg.format(f"** Lösung:** `{answer}`")
                 await ctx.send(embed=discord.Embed(description=msg, colour=0x992d22))
                 continue
 
             winner = ""
+            game_count += 1
             for index, obj in enumerate(result):
 
                 if obj in self.quiz[ctx.guild.id]:
@@ -367,9 +377,10 @@ class Card(commands.Cog):
 
             player_num = len(data['players'])
             if player_num == 1:
+                self.tc.pop(ctx.guild.id)
                 content = "Es wollte leider niemand mitspielen :/\n**Spiel beendet**"
                 await begin.edit(content=content)
-                return self.tc.pop(ctx.guild.id)
+                return
 
             amount = (3 - player_num) * player_num
             cards = await self.bot.fetch_random(ctx.server, amount=amount, top=100)

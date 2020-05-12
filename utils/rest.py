@@ -83,16 +83,6 @@ def complete_embed(text):
     return discord.Embed(description=text, color=discord.Color.green())
 
 
-def default_embed(title=None, url=None, description=None, footer=None):
-    embed = discord.Embed(title=title, url=url, description=description)
-    embed.colour = discord.Color.blue()
-
-    if footer:
-        embed.set_footer(text=footer)
-
-    return embed
-
-
 def show_list(iterable, sep=", ", line_break=2):
     cache = []
     result = ""

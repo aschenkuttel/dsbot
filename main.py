@@ -11,7 +11,6 @@ import utils
 import json
 import os
 
-
 utils.create_logger('discord')
 
 
@@ -37,7 +36,7 @@ class DSBot(commands.Bot):
         self.prefix = secret.prefix
         self.white = secret.pm_commands
         self.owner_id = 211836670666997762
-        self.logger = utils.create_logger('bot')
+        self.logger = utils.create_logger('dsbot')
         self.data_path = f"{os.path.dirname(__file__)}/data"
         self.msg = json.load(open(f"{self.data_path}/msg.json"))
         self.activity = discord.Activity(type=0, name=self.msg['status'])
@@ -247,15 +246,21 @@ class DSBot(commands.Bot):
         async with self.pool.acquire() as conn:
             data = await conn.fetch(statement, world, top)
 
+        if len(data) < amount:
+            if kwargs.get('max'):
+                amount = len(data)
+            else:
+                return
+
         result = []
         while len(result) < amount:
             ds = random.choice(data)
-            cur = [p.id for p in result]
-            if ds['id'] not in cur:
-                if not least:
-                    result.append(dsobj.Class(ds))
-                elif ds['member'] > 3:
-                    result.append(dsobj.Class(ds))
+            data.remove(ds)
+
+            if not least:
+                result.append(dsobj.Class(ds))
+            elif ds['member'] > 3:
+                result.append(dsobj.Class(ds))
 
         return result[0] if amount == 1 else result
 

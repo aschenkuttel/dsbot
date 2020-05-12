@@ -14,7 +14,7 @@ import io
 import re
 
 
-logger = logging.getLogger('bot')
+logger = logging.getLogger('dsbot')
 
 
 class Listen(commands.Cog):
@@ -180,15 +180,20 @@ class Listen(commands.Cog):
                 await message.channel.send(embed=embed)
                 if not mentions:
                     await message.delete()
-            except discord.Forbidden:
+            except (discord.Forbidden, discord.NotFound):
                 pass
             finally:
                 logger.debug("bbcode converted")
 
     @commands.Cog.listener()
+    async def on_command(self, ctx):
+        cid, cmd = (ctx.message.id, ctx.message.content)
+        logger.debug(f"command invoked [{cid}]: {cmd}")
+
+    @commands.Cog.listener()
     async def on_command_completion(self, ctx):
-        msg = f"command completed: {ctx.invoked_with}"
-        self.bot.logger.debug(msg)
+        cid, cmd = (ctx.message.id, ctx.invoked_with)
+        logger.debug(f"command completed [{cid}]")
 
         if ctx.author.id == self.bot.owner_id:
             return
@@ -204,7 +209,7 @@ class Listen(commands.Cog):
         cmd = ctx.invoked_with
         msg, tip = None, None
 
-        logger.debug(f"command error ({cmd}):\n{error}")
+        logger.debug(f"command error [{ctx.message.id}]: {error}")
 
         error = getattr(error, 'original', error)
         if isinstance(error, self.silenced):
@@ -272,7 +277,7 @@ class Listen(commands.Cog):
             msg = raw.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):
-            msg = f"`{error.name}` konnte auf **{ctx.world}** nicht gefunden werden"
+            msg = f"`{error.name}` konnte auf `{ctx.world}` nicht gefunden werden"
 
         elif isinstance(error, utils.GuildUserNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"

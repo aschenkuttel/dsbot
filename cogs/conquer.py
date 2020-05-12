@@ -5,7 +5,7 @@ import logging
 import discord
 import asyncio
 
-logger = logging.getLogger('bot')
+logger = logging.getLogger('dsbot')
 
 
 class ConquerLoop(commands.Cog):
@@ -55,7 +55,7 @@ class ConquerLoop(commands.Cog):
                 await asyncio.sleep(wait_pls)
 
             except Exception as error:
-                logger.critical(f"conquer Error:\n{error}")
+                logger.critical(f"conquer Error: {error}")
                 user = self.bot.get_user(self.bot.owner_id)
                 await user.send("conquer task crashed")
                 return
@@ -145,7 +145,7 @@ class ConquerLoop(commands.Cog):
                 sec = self.get_seconds(True)
                 data = await self.fetch_conquer(world, sec)
             except Exception as error:
-                logger.warning(f"{world} skipped:\n{error}")
+                logger.warning(f"{world} skipped: {error}")
                 continue
 
             if not data[0]:
