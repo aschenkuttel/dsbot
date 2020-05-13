@@ -89,6 +89,8 @@ class Villages(commands.Cog):
     async def bb_(self, ctx, center, *, options=None):
         coord = re.match(r'\d\d\d\|\d\d\d', center)
         if not coord:
+            msg = "Du musst eine gültige Koordinate eingeben"
+            await ctx.send(msg)
             return
 
         radius, points = utils.keyword(options, radius=20, points=None)

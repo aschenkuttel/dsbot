@@ -3,6 +3,7 @@ from discord.ext import commands
 from datetime import timedelta
 from bs4 import BeautifulSoup
 import traceback
+import logging
 import discord
 import aiohttp
 import imgkit
@@ -11,6 +12,9 @@ import utils
 import sys
 import io
 import re
+
+
+logger = logging.getLogger('dsbot')
 
 
 class Listen(commands.Cog):
@@ -75,6 +79,10 @@ class Listen(commands.Cog):
         if not world:
             return
 
+        pre = self.bot.config.get_prefix(message.guild.id)
+        if message.content.lower().startswith(pre.lower()):
+            return
+
         # Report Converter
         if message.content.__contains__("public_report"):
             file = await self.fetch_report(message.content)
@@ -86,6 +94,7 @@ class Listen(commands.Cog):
             except discord.Forbidden:
                 pass
             finally:
+                logger.debug("report converted")
                 return
 
         # Coord Converter
@@ -93,10 +102,6 @@ class Listen(commands.Cog):
         if result:
 
             result = set(result)
-            pre = self.bot.config.get_prefix(message.guild.id)
-            if message.content.lower().startswith(pre.lower()):
-                return
-
             coords = [obj.replace('|', '') for obj in result]
             villages = await self.bot.fetch_bulk(world, coords, "village", name=True)
             player_ids = [obj.player_id for obj in villages]
@@ -110,9 +115,8 @@ class Listen(commands.Cog):
                 else:
                     owner = "[Barbarendorf]"
 
-                coord = f"{vil.x}|{vil.y}"
-                good.append(f"[{coord}]({vil.ingame_url}) {owner}")
-                result.remove(coord)
+                good.append(f"{vil.mention} {owner}")
+                result.remove(f"{vil.x}|{vil.y}")
 
             found = '\n'.join(good)
             lost = ','.join(result)
@@ -126,22 +130,30 @@ class Listen(commands.Cog):
             except discord.Forbidden:
                 pass
             finally:
+                logger.debug("coord converted")
                 return
 
         # DS Player/Tribe Converter
-        names = re.findall(r'<(.*?)>', message.clean_content)
-        emojis = re.findall(r'<a?:[a-zA-Z0-9_]+:([0-9]+)>', message.content)
+        if "|" not in message.content:
+            return
 
-        for idc in emojis:
-            for name in names.copy():
-                if idc in name:
-                    names.remove(name)
+        content = message.clean_content
+        mentions = message.mentions.copy()
+        mentions.extend(message.role_mentions)
+        mentions.extend(message.channel_mentions)
 
+        for mention in mentions:
+            if isinstance(mention, discord.Member):
+                raw = f"@{mention.display_name}"
+            else:
+                raw = f"@{mention.name}"
+            content = content.replace(raw, "")
+
+        names = re.findall(r'(?<!\|)\|([\w][^|]*?)\|(?!\|)', message.clean_content)
         if names:
-            names = names[:10]
             parsed_msg = message.clean_content.replace("`", "")
-            ds_objects = await self.bot.fetch_bulk(world, names, name=True)
-            cache = await self.bot.fetch_bulk(world, names, 1, name=True)
+            ds_objects = await self.bot.fetch_bulk(world, names[:10], name=True)
+            cache = await self.bot.fetch_bulk(world, names[:10], 1, name=True)
             ds_objects.extend(cache)
 
             found_names = {}
@@ -153,12 +165,11 @@ class Listen(commands.Cog):
             for name in names:
                 dsobj = found_names.get(name.lower())
                 if not dsobj:
-                    parsed_msg = parsed_msg.replace(f"<{name}>", "[Unknown]")
-                    continue
+                    failed = f"**{name}**<:failed:708982292630077450>"
+                    parsed_msg = parsed_msg.replace(f"|{name}|", failed)
 
-                correct_name = dsobj.name if dsobj.alone else dsobj.tag
-                hyperlink = f"[{correct_name}]({dsobj.ingame_url})"
-                parsed_msg = parsed_msg.replace(f"<{name}>", hyperlink)
+                else:
+                    parsed_msg = parsed_msg.replace(f"|{name}|", dsobj.mention)
 
             current = message.created_at + timedelta(hours=1)
             time = current.strftime("%H:%M Uhr")
@@ -167,12 +178,23 @@ class Listen(commands.Cog):
             embed.set_author(name=title, icon_url=message.author.avatar_url)
             try:
                 await message.channel.send(embed=embed)
-                await message.delete()
-            except discord.Forbidden:
+                if not mentions:
+                    await message.delete()
+            except (discord.Forbidden, discord.NotFound):
                 pass
+            finally:
+                logger.debug("bbcode converted")
+
+    @commands.Cog.listener()
+    async def on_command(self, ctx):
+        cid, cmd = (ctx.message.id, ctx.message.content)
+        logger.debug(f"command invoked [{cid}]: {cmd}")
 
     @commands.Cog.listener()
     async def on_command_completion(self, ctx):
+        cid, cmd = (ctx.message.id, ctx.invoked_with)
+        logger.debug(f"command completed [{cid}]")
+
         if ctx.author.id == self.bot.owner_id:
             return
         else:
@@ -184,17 +206,21 @@ class Listen(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
+        cmd = ctx.invoked_with
         msg, tip = None, None
+
+        logger.debug(f"command error [{ctx.message.id}]: {error}")
+
         error = getattr(error, 'original', error)
         if isinstance(error, self.silenced):
             return
 
         elif isinstance(error, commands.CommandNotFound):
-            if len(ctx.invoked_with) == ctx.invoked_with.count(ctx.prefix):
+            if len(cmd) == cmd.count(ctx.prefix):
                 return
             else:
                 data = random.choice(self.bot.msg["noCommand"])
-                return await ctx.send(data.format(f"{ctx.prefix}{ctx.invoked_with}"))
+                return await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
 
         elif isinstance(error, commands.MissingRequiredArgument):
             msg = "Dem Command fehlt ein benötigtes Argument"
@@ -251,7 +277,7 @@ class Listen(commands.Cog):
             msg = raw.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):
-            msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
+            msg = f"`{error.name}` konnte auf `{ctx.world}` nicht gefunden werden"
 
         elif isinstance(error, utils.GuildUserNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
@@ -270,8 +296,8 @@ class Listen(commands.Cog):
 
         else:
             print(f"Command Message: {ctx.message.content}")
-            print("Command Error:")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+            logger.warning(f"uncommon error ({ctx.world}): {ctx.message.content}")
 
 
 def setup(bot):

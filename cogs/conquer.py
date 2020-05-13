@@ -1,8 +1,11 @@
-from utils import Conquer, silencer, escape
 from discord.ext import commands, tasks
+from utils import Conquer, silencer
 import datetime
+import logging
 import discord
 import asyncio
+
+logger = logging.getLogger('dsbot')
 
 
 class ConquerLoop(commands.Cog):
@@ -20,13 +23,17 @@ class ConquerLoop(commands.Cog):
             self.start = False
             return
 
+        counter = 0
         for guild in self.bot.guilds:
             if guild.id in self.bot.last_message:
                 continue
             else:
-                self.bot.config.remove_item(guild.id, 'conquer')
+                self.bot.config.remove_item(guild.id, 'conquer', bulk=True)
+                counter += 1
 
+        self.bot.config.save()
         self.bot.last_message.clear()
+        logger.debug(f"{counter} inactive guilds")
 
     # main loop
     async def conquer_loop(self):
@@ -37,14 +44,18 @@ class ConquerLoop(commands.Cog):
                 await self.bot.refresh_worlds()
                 await self.update_conquer()
 
+                counter = 0
                 for guild in self.bot.guilds:
-                    await self.conquer_feed(guild)
+                    resp = await self.conquer_feed(guild)
+                    if resp is True:
+                        counter += 1
 
+                logger.debug(f"conquer feed complete ({counter} guilds)")
                 wait_pls = self.get_seconds()
                 await asyncio.sleep(wait_pls)
 
             except Exception as error:
-                print(f"Conguer Error: {error}")
+                logger.critical(f"conquer Error: {error}")
                 user = self.bot.get_user(self.bot.owner_id)
                 await user.send("conquer task crashed")
                 return
@@ -60,6 +71,10 @@ class ConquerLoop(commands.Cog):
                 continue
 
             world = self.bot.config.get_related_world(channel)
+
+            if len(conquer) == 1 and not world:
+                world = self.bot.config.get_related_world(guild)
+
             if not world:
                 continue
 
@@ -116,6 +131,8 @@ class ConquerLoop(commands.Cog):
                 else:
                     conquer_pkg.append(line)
 
+            return True
+
     async def update_conquer(self):
         for world in self.bot.worlds:
 
@@ -128,7 +145,7 @@ class ConquerLoop(commands.Cog):
                 sec = self.get_seconds(True)
                 data = await self.fetch_conquer(world, sec)
             except Exception as error:
-                print(f"{world} skipped: {error}")
+                logger.warning(f"{world} skipped: {error}")
                 continue
 
             if not data[0]:
@@ -236,19 +253,19 @@ class ConquerLoop(commands.Cog):
 
             if conquer.new_player:
                 if conquer.new_tribe:
-                    tribe = f"**{escape(conquer.new_tribe.tag)}**"
+                    tribe = f"**{conquer.new_tribe.tag}**"
                 else:
                     tribe = "**N/A**"
 
-                new = f"[{escape(new.name)}]({new.ingame_url}) {tribe}"
+                new = f"[{new.name}]({new.ingame_url}) {tribe}"
 
             if conquer.old_player:
                 if conquer.old_tribe:
-                    tribe = f" **{escape(conquer.old_tribe.tag)}**"
+                    tribe = f" **{conquer.old_tribe.tag}**"
                 else:
                     tribe = "**N/A**"
 
-                old = f"[{escape(old.name)}]({old.ingame_url}) {tribe}"
+                old = f"[{old.name}]({old.ingame_url}) {tribe}"
 
             date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
             result.append(f"``{now}`` | {new} adelt {village_hyperlink} von {old}")

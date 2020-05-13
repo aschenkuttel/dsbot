@@ -1,4 +1,4 @@
-from utils import error_embed, DSObject
+from utils import error_embed, DSConverter
 from PIL import Image, ImageSequence
 from discord.ext import commands
 from bs4 import BeautifulSoup
@@ -91,37 +91,38 @@ class Graphic(commands.Cog):
 
     @commands.command(name="nude", aliases=["profilbild"])
     @commands.cooldown(1, 10.0, commands.BucketType.user)
-    async def nude_(self, ctx, *, user: DSObject = None):
-        if user:
-            async with self.bot.session.get(user.guest_url) as res:
+    async def nude_(self, ctx, *, dsobj: DSConverter = None):
+        await ctx.trigger_typing()
+
+        if dsobj is None:
+            players = await self.bot.fetch_random(ctx.server, amount=30, max=True)
+        else:
+            players = [dsobj]
+
+        for player in players:
+
+            async with self.bot.session.get(player.guest_url) as res:
                 data = await res.read()
+
             soup = BeautifulSoup(data, "html.parser")
-            result = soup.find(alt="Profilbild") if user.alone else soup.find("img")
-            if not result:
-                msg = "Glaub mir, die Nudes von `{}` willst du nicht!"
-                return await ctx.send(msg.format(user.name))
+            keyword = "Profilbild" if player.alone else "img"
+            result = soup.find(alt=keyword)
+
+            if result and "/avatar/" not in str(result):
+                break
 
         else:
-            await ctx.trigger_typing()
-            for _ in range(0, 30):
-                user = await self.bot.fetch_random(ctx.server)
-                async with self.bot.session.get(user.guest_url) as res:
-                    data = await res.read()
-                soup = BeautifulSoup(data, "html.parser")
-                result = soup.find(alt="Profilbild")
-                if not result:
-                    continue
-                elif str(result).__contains__("/avatar/"):
-                    continue
-                break
+            if dsobj:
+                msg = f"Glaub mir, die Nudes von `{dsobj.name}` willst du nicht!"
             else:
                 msg = "Die maximale Anzahl von Versuchen wurden erreicht"
-                return await ctx.send(embed=error_embed(msg))
+
+            await ctx.send(embed=error_embed(msg))
+            return
 
         async with self.bot.session.get(result['src']) as res2:
-            img = await res2.read()
+            file = BytesIO(await res2.read())
 
-        file = BytesIO(img)
         await ctx.send(file=discord.File(file, "userpic.gif"))
 
     @commands.command(name="emoji", aliases=["cancer"])

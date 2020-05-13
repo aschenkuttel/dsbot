@@ -11,7 +11,7 @@
     "\u00DF"
   ],
   "noCommand": [
-    "Der Command `{}` ist leider nur f\u00fcr dsBot Premium User verf\u00fcgbar.",
+    "Der Command `{}` ist leider nur f\u00fcr dsBot Premium User verf\u00fcgbar",
     "Den Command `{}` kenne ich leider nicht :confused:",
     "In was f\u00fcr einer Welt leben wir in der es den `{}` Command nicht gibt :sob:",
     "Ich w\u00fcnschte es w\u00fcrde den `{}` Command geben :no_mouth:",
@@ -19,8 +19,8 @@
     "Seit Wochen w\u00fcnsche ich mir den `{}` Command... doch niemand h\u00f6rt mir zu :sob:",
     "Du hast dich vertippt oder soll `{}` etwa dein ernst sein?",
     "Bot Cooldown aktiv. Zahle monatlich nur 10 Euro f\u00fcr den vollen Service!",
-    "Du nuschelst dezent oder was soll `{}` bitte sein? Noch nie geh\u00f6rt.",
-    "Ne Sorry, dich ignorier ich heute.",
+    "Du nuschelst dezent oder was soll `{}` bitte sein? Noch nie geh\u00f6rt",
+    "Ne Sorry, dich ignorier ich heute",
     "Dieser Command wurde gesponsert von **RAID: Shadow Legends!**",
     "Du scheinst mir heute ein wenig verwirrt, davon hab ich noch nie geh\u00f6rt...",
     "Den hast du jetzt doch schon 100 Mal versucht :/"
@@ -373,9 +373,9 @@
     ["set", "remove", "conquer", "worlds", "world", "refresh"],
     "St\u00e4mme Features":
     ["bash", "allbash", "player", "tribe", "twstats",
-      "guest", "visit", "daily", "recap", "villages",
-      "bb", "nude", "map", "custom", "rm [rundmail]",
-      "rz [raubzug]", "sl [schnellleiste]"],
+      "guest", "visit", "daily", "top", "recap",
+      "villages", "bb", "nude", "map", "custom",
+      "rm [rundmail]", "rz [raubzug]", "sl [schnellleiste]"],
     "Utilities and Fun":
     ["avatar", "emoji", "poll", "time", "duali",
       "mirror", "orakel"],

@@ -28,13 +28,13 @@ class Config:
         self._config[guild_id][item] = value
         self.save()
 
-    def remove_item(self, guild_id, item):
+    def remove_item(self, guild_id, item, bulk=False):
         config = self._config.get(guild_id)
         if not config:
             return
 
         job = config.pop(item, None)
-        if job is not None:
+        if job is not None and not bulk:
             self.save()
 
         return job

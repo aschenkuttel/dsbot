@@ -40,19 +40,26 @@ class Money(commands.Cog):
         top = ctx.invoked_with.lower() == "top"
         guild = ctx.guild if top else None
 
-        msg = ""
-        data = await self.bot.fetch_iron_list(5, guild)
-        for index, record in enumerate(data):
+        data = []
+        cache = await self.bot.fetch_iron_list(100, guild)
+        for index, record in enumerate(cache):
             if top:
                 player = guild.get_member(record['id'])
             else:
                 player = self.bot.get_user(record['id'])
 
-            name = "Unknown" if not player else player.display_name
-            msg += f"**Rang {index + 1}:** `{pcv(record['amount'])} Eisen` [{name}]\n"
+            if player is None:
+                continue
 
-        if msg:
-            embed = discord.Embed(description=msg, color=discord.Color.blue())
+            base = "**Rang {}:** `{} Eisen` [{.display_name}]"
+            msg = base.format(len(data) + 1, pcv(record['amount']), player)
+            data.append(msg)
+
+            if len(data) == 5:
+                break
+
+        if data:
+            embed = discord.Embed(description="\n".join(data), color=discord.Color.blue())
             await ctx.send(embed=embed)
 
         else:

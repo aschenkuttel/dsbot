@@ -28,7 +28,7 @@ class Rm(commands.Cog):
                   "maximal `10 Stämme` per Command"
             return await ctx.send(msg)
 
-        data = await self.bot.fetch_tribe_member(ctx.server, tribes, True)
+        data = await self.bot.fetch_tribe_member(ctx.server, tribes, name=True)
         if isinstance(data, str):
             return await ctx.send(f"Der Stamm `{data}` existiert so nicht")
         result = [obj.name for obj in data]
@@ -36,23 +36,23 @@ class Rm(commands.Cog):
         await ctx.message.add_reaction("📨")
 
     @commands.command(name="twstats", aliases=["akte"])
-    async def akte_(self, ctx, *, user: utils.DSObject):
+    async def akte_(self, ctx, *, user: utils.DSConverter):
         akte = discord.Embed(title=user.name, url=user.twstats_url)
         await ctx.send(embed=akte)
 
     @commands.command(name="player", aliases=["spieler", "tribe", "stamm"])
     async def ingame_(self, ctx, *, username):
         if ctx.invoked_with.lower() in ("player", "spieler"):
-            dsobj = await self.bot.fetch_player(ctx.server, username, True)
+            dsobj = await self.bot.fetch_player(ctx.server, username, name=True)
         else:
-            dsobj = await self.bot.fetch_tribe(ctx.server, username, True)
+            dsobj = await self.bot.fetch_tribe(ctx.server, username, name=True)
         if not dsobj:
             raise utils.DSUserNotFound(username)
         profile = discord.Embed(title=dsobj.name, url=dsobj.ingame_url)
         await ctx.send(embed=profile)
 
     @commands.command(name="guest")
-    async def guest_(self, ctx, *, user: utils.DSObject):
+    async def guest_(self, ctx, *, user: utils.DSConverter):
         guest = discord.Embed(title=user.name, url=user.guest_url)
         await ctx.send(embed=guest)
 

@@ -41,6 +41,7 @@ class Help(commands.Cog):
         desc = "Erhalte eine ausführliche Erklärung zu\neinzelnen " \
                "Commands mit `{0}help <commandname>`".format(prefix)
         emb_help = discord.Embed(description=desc, color=discord.Color.blue())
+        emb_help.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
 
         for name, cmd_list in self.bot.msg['helpGroups'].items():
 
@@ -258,13 +259,33 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="daily", aliases=["top"])
+    @help.command(name="daily", aliases=["aktueller"])
     async def daily_(self, ctx):
-        title = "`~daily` - `~top`"
-        desc = "Erhalte die aktuelle Top 5 der jeweiligen \"An einem Tag\"-Rangliste."
+        title = "`~daily` - `~aktueller`"
+        desc = "Erhalte die aktuelle Top 5 einiger \"des Tages\"-Ranglisten. " \
+               "Bei Benutzung der deutschen Commandvariante `aktueller` erhält man " \
+               "die gleichen Rangliste nur für Stämme. Die Daten sind aufgrund der " \
+               "Limitierung von Inno nur stündlich aktualisiert und Ranglisten mit " \
+               "Bashpoints zeigen nur den Unterschied und nicht die berrechneten " \
+               "Punkte. Deshalb können letztendliche Ergebnisse auch abweichen und " \
+               "sollen lediglich als Anhaltspunkt dienen."
         cmd_type = "Server Command"
-        cmd_inp = ["`~daily <bash/def/ut/farm/villages/scavenge/conquer>`"]
-        example = ["`~daily bash`"]
+        cmd_inp = ["`~daily <angreifer/verteidiger/unterstützer>`",
+                   "`~aktueller <kämpfer/eroberer/verlierer/>`"]
+        example = ["`~daily eroberer`",
+                   "`~aktueller angreifer`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+    @help.command(name="top")
+    async def top_(self, ctx):
+        title = "`~top`"
+        desc = "Erhalte die ewige Top 5 der jeweiligen \"An einem Tag\"-Rangliste."
+        cmd_type = "Server Command"
+        cmd_inp = ["`~top <bash/def/ut/farm/villages/scavenge/conquer>`"]
+        example = ["`~top bash`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -331,7 +352,7 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="map")
+    @help.command(name="map", aliases=["karte"])
     async def map_(self, ctx):
         title = "`~map` - `~karte`"
         desc = "Erstellt eine Karte der Welt und markiert angegebene Stämme. " \
@@ -344,7 +365,7 @@ class Help(commands.Cog):
                    "`~map <tribe> <tribe> & <tribe> <tribe>`"]
         example = ["`~map`",
                    "`~map <300> <W-Inc>`",
-                   "`~map <300> <W-Inc> & <SPARTA>`"]
+                   "`~map 300 W-Inc & SPARTA`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)

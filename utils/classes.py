@@ -15,6 +15,17 @@ world_titles = {'de': "Welt", 'dep': "Casual", 'dec': "Sonderwelt", 'des': "SDS"
 class DSContext(commands.Context):
     def __init__(self, **attrs):
         super().__init__(**attrs)
+        self._world = None
+        self.server = None
+
+    @property
+    def world(self):
+        return self._world
+
+    @world.setter
+    def world(self, world):
+        self._world = world
+        self.server = world.server
 
     async def safe_send(self, content=None, *, embed=None, file=None, delete_after=None):
         try:
@@ -38,29 +49,6 @@ class DSContext(commands.Context):
             pass
 
 
-# typhint converter which converts to either tribe or player
-class DSObject(commands.Converter):
-    __slots__ = (
-        'id', 'x', 'y', 'world', 'url', 'alone',
-        'name', 'tag', 'tribe_id', 'villages',
-        'points', 'rank', 'player', 'att_bash',
-        'att_rank', 'def_bash', 'def_rank',
-        'all_bash', 'all_rank', 'ut_bash',
-        'member', 'all_points', 'guest_url',
-        'ingame_url', 'twstats_url')
-
-    async def convert(self, ctx, searchable):
-        # conquer add/remove needs guild world
-        if str(ctx.command).startswith("conquer"):
-            raw_world = ctx.bot.config.get_related_world(ctx.guild)
-            ctx.world = utils.World(raw_world)
-
-        obj = await ctx.bot.fetch_both(ctx.server, searchable)
-        if not obj:
-            raise utils.DSUserNotFound(searchable)
-        return obj
-
-
 # own case insensitive member converter / don't judge about slots ty
 class GuildUser(commands.Converter):
     __slots__ = ('id', 'name', 'display_name', 'avatar_url')
@@ -78,17 +66,67 @@ class GuildUser(commands.Converter):
             raise utils.GuildUserNotFound(arg)
 
 
+# typhint converter which converts to either tribe or player
+class DSConverter(commands.Converter):
+    __slots__ = (
+        'id', 'x', 'y', 'world', 'url', 'alone',
+        'name', 'tag', 'tribe_id', 'villages',
+        'points', 'rank', 'player', 'att_bash',
+        'att_rank', 'def_bash', 'def_rank',
+        'all_bash', 'all_rank', 'ut_bash',
+        'member', 'all_points', 'mention',
+        'guest_url', 'ingame_url', 'twstats_url')
+
+    async def convert(self, ctx, searchable):
+        obj = await ctx.bot.fetch_both(ctx.server, searchable)
+        if not obj:
+            raise utils.DSUserNotFound(searchable)
+        return obj
+
+
 # default tribal wars classes
-class Player:
+class DSObject:
     def __init__(self, data):
         self.id = data['id']
-        self.alone = True
         self.world = data['world']
         self.name = utils.converter(data['name'])
-        self.tribe_id = data['tribe_id']
-        self.villages = data['villages']
         self.points = data['points']
         self.rank = data['rank']
+        self.represent = self.name
+
+    @property
+    def type(self):
+        return self.__class__.__name__.lower()
+
+    @property
+    def guest_url(self):
+        dstype = "ally" if self.type == "tribe" else self.type
+        return ingame.format(self.world, 'guest', dstype, self.id)
+
+    @property
+    def ingame_url(self):
+        dstype = "ally" if self.type == "tribe" else self.type
+        return ingame.format(self.world, 'game', dstype, self.id)
+
+    @property
+    def twstats_url(self):
+        return twstats.format(self.world, self.type, self.id)
+
+    @property
+    def mention(self):
+        return f"[{self.represent}]({self.ingame_url})"
+
+    @property
+    def guest_mention(self):
+        return f"[{self.represent}]({self.guest_url})"
+
+
+class Player(DSObject):
+    def __init__(self, data):
+        super().__init__(data)
+        self.alone = True
+        self.tribe_id = data['tribe_id']
+        self.villages = data['villages']
         self.att_bash = data['att_bash']
         self.att_rank = data['att_rank']
         self.def_bash = data['def_bash']
@@ -97,77 +135,32 @@ class Player:
         self.all_rank = data['all_rank']
         self.ut_bash = self.all_bash - self.def_bash - self.att_bash
 
-    @property
-    def guest_url(self):
-        return ingame.format(self.world, 'guest', 'player', self.id)
 
-    @property
-    def ingame_url(self):
-        return ingame.format(self.world, 'game', 'player', self.id)
-
-    @property
-    def twstats_url(self):
-        return twstats.format(self.world, 'player', self.id)
-
-
-class Tribe:
+class Tribe(DSObject):
     def __init__(self, data):
-        self.id = int(data['id'])
+        super().__init__(data)
         self.alone = False
-        self.world = data['world']
-        self.name = utils.converter(data['name'])
         self.tag = utils.converter(data['tag'])
         self.member = data['member']
         self.villages = data['villages']
-        self.points = data['points']
         self.all_points = data['all_points']
-        self.rank = data['rank']
         self.att_bash = data['att_bash']
         self.att_rank = data['att_rank']
         self.def_bash = data['def_bash']
         self.def_rank = data['def_rank']
         self.all_bash = data['all_bash']
         self.all_rank = data['all_rank']
-
-    @property
-    def guest_url(self):
-        return ingame.format(self.world, 'guest', 'ally', self.id)
-
-    @property
-    def ingame_url(self):
-        return ingame.format(self.world, 'game', 'ally', self.id)
-
-    @property
-    def twstats_url(self):
-        return twstats.format(self.world, 'tribe', self.id)
+        self.represent = self.tag
 
 
-class Village:
+class Village(DSObject):
     def __init__(self, data):
-        self.id = int(data['id'])
-        self.name = utils.converter(data['name'])
+        super().__init__(data)
         self.x = data['x']
         self.y = data['y']
         self.player_id = data['player']
-        self.points = data['points']
-        self.rank = data['rank']
-        self.world = data['world']
-
-    @property
-    def coords(self):
-        return f"{self.x}|{self.y}"
-
-    @property
-    def guest_url(self):
-        return ingame.format(self.world, 'guest', 'village', self.id)
-
-    @property
-    def ingame_url(self):
-        return ingame.format(self.world, 'game', 'village', self.id)
-
-    @property
-    def twstats_url(self):
-        return twstats.format(self.world, 'village', self.id)
+        self.coords = f"{self.x}|{self.y}"
+        self.represent = self.coords
 
 
 class MapVillage:
@@ -314,28 +307,29 @@ class DSType:
 
     def try_convers(self, arg):
         if isinstance(arg, int):
-            res = self.try_enum(arg)
-            return res
+            self.try_enum(arg)
+
         elif isinstance(arg, str):
             arg = arg.lower()
-            res = self.try_name(arg)
-            return res
-        return False
+            self.try_name(arg)
+
+        return bool(self.table)
 
     def try_enum(self, arg):
         for index, (name, dstype) in enumerate(self.classes.items()):
             if arg == index:
                 self.Class = dstype
                 self.table = name
-                return True
-        else:
-            return False
 
     def try_name(self, arg):
-        self.Class = self.classes.get(arg)
+        table = re.findall(r'(\D+)\d*', arg)
+        if not table:
+            return
+
+        self.Class = self.classes.get(table[0])
         if self.Class:
-            self.table = arg
-            if arg == 'map':
-                self.table = 'village'
-            return True
-        return False
+
+            if arg == "map":
+                self.table = "village"
+            else:
+                self.table = arg
