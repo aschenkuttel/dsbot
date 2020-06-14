@@ -9,7 +9,7 @@ class Bash(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        self.base = "https://{}.die-staemme.de/guest.php?village" \
+        self.base = "https://{}/guest.php?village" \
                     "=null&screen=ranking&mode=in_a_day&type={}"
         self.keys = {'bash': "kill_att", 'def': "kill_def", 'ut': "kill_sup", 'farm': "loot_res",
                      'villages': "loot_vil", 'scavenge': "scavenge", 'conquer': "conquer"}
@@ -56,13 +56,13 @@ class Bash(commands.Cog):
             s2 = await self.bot.fetch_both(ctx.server, player2)
 
             if not s1 and not s2:
-                msg = f"Auf der `{ctx.world}` gibt es weder einen Stamm noch " \
+                msg = f"Auf der {ctx.world} gibt es weder einen Stamm noch " \
                       f"einen Spieler, der `{player1}` oder `{player2}` heißt"
                 return await ctx.send(msg)
 
             if not s1 or not s2:
                 player = player1 if not s1 else player2
-                msg = f"Auf der `{ctx.world}` gibt es einen Stamm oder Spieler " \
+                msg = f"Auf der {ctx.world} gibt es einen Stamm oder Spieler " \
                       f"namens `{player}` nicht!"
                 return await ctx.send(msg)
 
@@ -157,14 +157,14 @@ class Bash(commands.Cog):
         await ctx.send(answer)
 
     @commands.group(name="top")
-    async def tmp_(self, ctx, state):
+    async def top_(self, ctx, state):
         key = self.keys.get(state.lower())
 
         if key is None:
             cmd = self.bot.get_command("help top")
             return await ctx.invoke(cmd)
 
-        res_link = self.base.format(ctx.server, key)
+        res_link = self.base.format(ctx.world.url, key)
         async with self.bot.session.get(res_link) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
 
@@ -211,7 +211,7 @@ class Bash(commands.Cog):
         base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
                'WHERE {0}.world = $1 AND {1}.world = $1 '
 
-        if award == "utbash":
+        if award == "unterstützer":
             base += 'ORDER BY ({0}.all_bash - {0}.att_bash - {0}.def_bash) - ' \
                     '({1}.all_bash - {1}.att_bash - {1}.def_bash) {3} LIMIT 5'
         else:
@@ -251,7 +251,7 @@ class Bash(commands.Cog):
 
         if ranking:
             description = "\n".join(ranking)
-            title = f"{award.capitalize()} des Tages ({ctx.world})"
+            title = f"{award.capitalize()} des Tages ({ctx.world.show(True)})"
             footer = "Daten aufgrund von Inno nur stündlich aktualisiert"
             embed = discord.Embed(title=title, description=description)
             embed.colour = discord.Color.blue()

@@ -1,4 +1,4 @@
-from utils import GuildUser, pcv, error_embed
+from utils import MemberConverter, pcv, error_embed
 from discord.ext import commands
 import discord
 
@@ -23,7 +23,7 @@ class Money(commands.Cog):
 
     @iron_.command()
     @commands.cooldown(1, 30.0, commands.BucketType.user)
-    async def send(self, ctx, amount: int, *, user: GuildUser):
+    async def send(self, ctx, amount: int, *, user: MemberConverter):
         if not 1000 <= amount <= 500000:
             await ctx.send("Du kannst nur `1000-50.000 Eisen` überweisen")
             ctx.command.reset_cooldown(ctx)

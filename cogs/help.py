@@ -88,6 +88,7 @@ class Help(commands.Cog):
         if ctx.subcommand_passed:
             msg = "Der angegebene Command existiert nicht"
             embed = discord.Embed(color=discord.Color.red(), description=msg)
+            embed.set_footer(text=f"Alle Commands unter {ctx.prefix}help")
             await ctx.send(embed=embed)
         else:
             embed = self.help_embed(ctx.prefix)

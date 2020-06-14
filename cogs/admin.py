@@ -35,10 +35,9 @@ class Admin(commands.Cog):
 
     @commands.command(name="world", aliases=["welt"])
     async def world_(self, ctx):
-        world = self.bot.config.get_related_world(ctx.channel)
-        relation = "Channel" if world == ctx.server else "Server"
-        msg = f"`{ctx.server}` [{relation}]"
-        embed = utils.complete_embed(msg)
+        server = self.bot.config.get_related_world(ctx.channel)
+        relation = "Channel" if server == ctx.server else "Server"
+        embed = utils.complete_embed(f"{ctx.world} [{relation}]")
         await ctx.send(embed=embed)
 
     @commands.command(name="worlds", aliases=["welten"])

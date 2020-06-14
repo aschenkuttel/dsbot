@@ -1,4 +1,4 @@
-from utils import World, DSColor, MapVillage, error_embed, silencer
+from utils import WorldConverter, DSColor, MapVillage, error_embed, silencer
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 import numpy as np
@@ -318,19 +318,27 @@ class Map(commands.Cog):
 
         else:
             all_tribes = []
-            fractions = tribe_names.split('&')
-
-            if len(fractions) == 1:
-                fractions = fractions[0].split(' ')
+            raw_fractions = tribe_names.split('&')
+            fractions = [f for f in raw_fractions if f]
 
             for index, team in enumerate(fractions):
+                names = []
+                quoted = re.findall(r'\"(.+)\"', team)
+                for res in quoted:
+                    team = team.replace(f'"{res}"', ' ')
+                    names.append(res)
 
-                if not team:
-                    continue
+                for name in team.split():
+                    if not name:
+                        continue
+                    names.append(name)
 
-                names = team.split(' ')
-                color_map.append(names)
                 all_tribes.extend(names)
+
+                if len(fractions) == 1:
+                    color_map.extend([obj] for obj in names)
+                else:
+                    color_map.append(names)
 
             tribes = await self.bot.fetch_bulk(ctx.server, all_tribes, "tribe", name=True)
 
@@ -356,6 +364,10 @@ class Map(commands.Cog):
         result = await self.bot.fetch_tribe_member(ctx.server, tribes.keys())
         all_villages = await self.bot.fetch_all(ctx.server, "map")
         players = {pl.id: pl for pl in result}
+
+        if not all_villages:
+            msg = "Auf der Welt gibt es noch keine Dörfer"
+            return await ctx.send(msg)
 
         args = (all_villages, tribes, players)
         image = await self.bot.execute(self.create_basic_map, *args)
@@ -528,7 +540,7 @@ class Map(commands.Cog):
         await self.update_menue(cache, index)
 
     @commands.command(name="custom")
-    async def custom_(self, ctx, world: World = None):
+    async def custom_(self, ctx, world: WorldConverter = None):
         if ctx.author.id in self.cache:
             msg = "Du hast noch eine offene Karte"
             return await ctx.send(embed=error_embed(msg))

@@ -4,11 +4,14 @@ import discord
 import utils
 import re
 
-twstats = "https://de.twstats.com/{}/index.php?page={}&id={}"
-ingame = "https://{}.die-staemme.de/{}.php?screen=info_{}&id={}"
-guest = "https://{}.die-staemme.de/guest.php"
+twstats = "https://{}.twstats.com/{}/index.php?page={}&id={}"
+ingame = "https://{}/{}.php?screen=info_{}&id={}"
 
-world_titles = {'de': "Welt", 'dep': "Casual", 'dec': "Sonderwelt", 'des': "SDS"}
+world_title = {'def': "Welt", 'p': "Casual", 'c': "Sonderwelt", 's': "SDS"}
+world_data = {
+    'de': {'domain': "die-staemme.de", 'icon': ":flag_de:"},
+    'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"}
+}
 
 
 # custom context for simple world implementation
@@ -49,41 +52,6 @@ class DSContext(commands.Context):
             pass
 
 
-# own case insensitive member converter / don't judge about slots ty
-class GuildUser(commands.Converter):
-    __slots__ = ('id', 'name', 'display_name', 'avatar_url')
-
-    async def convert(self, ctx, arg):
-        if re.match(r'<@!?([0-9]+)>$', arg):
-            raise utils.DontPingMe
-        name = arg.lower()
-        for m in ctx.guild.members:
-            if name == m.display_name.lower():
-                return m
-            if name == m.name.lower():
-                return m
-        else:
-            raise utils.GuildUserNotFound(arg)
-
-
-# typhint converter which converts to either tribe or player
-class DSConverter(commands.Converter):
-    __slots__ = (
-        'id', 'x', 'y', 'world', 'url', 'alone',
-        'name', 'tag', 'tribe_id', 'villages',
-        'points', 'rank', 'player', 'att_bash',
-        'att_rank', 'def_bash', 'def_rank',
-        'all_bash', 'all_rank', 'ut_bash',
-        'member', 'all_points', 'mention',
-        'guest_url', 'ingame_url', 'twstats_url')
-
-    async def convert(self, ctx, searchable):
-        obj = await ctx.bot.fetch_both(ctx.server, searchable)
-        if not obj:
-            raise utils.DSUserNotFound(searchable)
-        return obj
-
-
 # default tribal wars classes
 class DSObject:
     def __init__(self, data):
@@ -100,13 +68,11 @@ class DSObject:
 
     @property
     def guest_url(self):
-        dstype = "ally" if self.type == "tribe" else self.type
-        return ingame.format(self.world, 'guest', dstype, self.id)
+        return self.get_ingame_url(visit=True)
 
     @property
     def ingame_url(self):
-        dstype = "ally" if self.type == "tribe" else self.type
-        return ingame.format(self.world, 'game', dstype, self.id)
+        return self.get_ingame_url()
 
     @property
     def twstats_url(self):
@@ -119,6 +85,13 @@ class DSObject:
     @property
     def guest_mention(self):
         return f"[{self.represent}]({self.guest_url})"
+
+    def get_ingame_url(self, visit=False):
+        url_type = 'guest' if visit else 'game'
+        lang, *_ = utils.DSWorld.parse(self.world)
+        header = f"{self.world}.{world_data[lang]['domain']}"
+        dstype = "ally" if self.type == "tribe" else self.type
+        return ingame.format(header, url_type, dstype, self.id)
 
 
 class Player(DSObject):
@@ -175,50 +148,6 @@ class MapVillage:
         self.x -= difference[0]
         self.y -= difference[1]
         return self.x, self.y
-
-
-class World(commands.Converter):
-    def __init__(self, searchable=None):
-        self.prefix = None
-        self.number = None
-        self.title = None
-        self.server = None
-
-        if searchable:
-            self.parse_world(searchable)
-
-    def __str__(self):
-        return f"{self.title} {self.number}"
-
-    def __eq__(self, other):
-        return self.server == other
-
-    @property
-    def guest_url(self):
-        return guest.format(self.server)
-
-    def parse_world(self, searchable):
-        result = re.findall(r'(de[\D]?)(\d+)', searchable)
-        if not result:
-            return
-
-        self.prefix, self.number = result[0]
-        self.title = world_titles.get(self.prefix)
-        self.server = f"{self.prefix}{self.number}"
-
-    async def convert(self, ctx, searchable):
-        self.parse_world(searchable)
-        if self.server in ctx.bot.worlds:
-            return self
-        else:
-            possible = ""
-            numbers = re.findall(r'\d+', searchable)
-            if numbers and not self.number:
-                for world in ctx.bot.worlds:
-                    if numbers[0] in world:
-                        possible = world
-
-            raise utils.UnknownWorld(possible)
 
 
 class Conquer:
@@ -292,6 +221,42 @@ class DSColor:
                    self.bright_orange, self.bright_green, self.dark_blue, self.dark_red,
                    self.dark_yellow, self.dark_orange, self.dark_green, self.bubble_gum]
         return palette
+
+
+class DSWorld:
+    def __init__(self, data=None):
+        self.server = data['world']
+        self.speed = data['speed']
+        self.unit_speed = data['unit_speed']
+        self.moral = data['moral']
+        self.config = data['config']
+        self.lang, self.number, self.title = self.parse(self.server)
+        pkg = world_data.get(self.lang)
+        self.icon, self.domain = pkg['icon'], pkg['domain']
+        self.url = f"{self.server}.{self.domain}"
+
+    def __str__(self):
+        return self.show()
+
+    def __eq__(self, other):
+        return self.server == other
+
+    def show(self, clean=False):
+        if clean:
+            return f"{self.title} {self.number}"
+        else:
+            return f"`{self.title} {self.number}` {self.icon}"
+
+    @property
+    def guest_url(self):
+        return f"https://{self.url}/guest.php"
+
+    @staticmethod
+    def parse(argument):
+        result = re.findall(r'([a-z]{2})([a-z]?)(\d+)', argument)
+        lang, world_type, number = result[0]
+        title = world_title.get(world_type or 'def')
+        return lang, int(number), title
 
 
 class DSType:

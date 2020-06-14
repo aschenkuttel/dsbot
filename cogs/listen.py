@@ -277,9 +277,9 @@ class Listen(commands.Cog):
             msg = raw.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):
-            msg = f"`{error.name}` konnte auf `{ctx.world}` nicht gefunden werden"
+            msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
 
-        elif isinstance(error, utils.GuildUserNotFound):
+        elif isinstance(error, utils.MemberConverterNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
 
         elif isinstance(error, commands.BotMissingPermissions):
@@ -297,7 +297,7 @@ class Listen(commands.Cog):
         else:
             print(f"Command Message: {ctx.message.content}")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-            logger.warning(f"uncommon error ({ctx.world}): {ctx.message.content}")
+            logger.warning(f"uncommon error ({ctx.server}): {ctx.message.content}")
 
 
 def setup(bot):

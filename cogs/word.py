@@ -32,10 +32,10 @@ class Word(commands.Cog):
         data = self.hangman[ctx.guild.id]
         data['life'] -= loss
         if data['life'] <= 0:
+            self.hangman[ctx.guild.id] = False
             base = "**Game Over** | Lösungswort:{}`{}` (15s Cooldown)"
             msg = base.format(os.linesep, data['solution'])
             await ctx.send(msg)
-            self.hangman[ctx.guild.id] = False
             await asyncio.sleep(15)
             self.hangman.pop(ctx.guild.id)
 

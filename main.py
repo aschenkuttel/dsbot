@@ -11,8 +11,6 @@ import utils
 import json
 import os
 
-utils.create_logger('discord')
-
 
 # gets called every message to gather the custom prefix
 def prefix(bot, message):
@@ -27,7 +25,7 @@ def prefix(bot, message):
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.worlds = []
+        self.worlds = {}
         self.ress = None
         self.pool = None
         self.conn = None
@@ -36,8 +34,9 @@ class DSBot(commands.Bot):
         self.prefix = secret.prefix
         self.white = secret.pm_commands
         self.owner_id = 211836670666997762
-        self.logger = utils.create_logger('dsbot')
-        self.data_path = f"{os.path.dirname(__file__)}/data"
+        self.path = os.path.dirname(__file__)
+        self.data_path = f"{self.path}/data"
+        self.logger = utils.create_logger('dsbot', self.path)
         self.msg = json.load(open(f"{self.data_path}/msg.json"))
         self.activity = discord.Activity(type=0, name=self.msg['status'])
         self.add_check(self.global_world)
@@ -82,12 +81,13 @@ class DSBot(commands.Bot):
             else:
                 raise commands.NoPrivateMessage
 
-        cache = self.config.get_world(ctx.channel)
-        if cache:
-            ctx.world = utils.World(cache)
-            return True
+        server = self.config.get_world(ctx.channel)
+        ctx.world = self.worlds.get(server)
 
-        raise utils.WorldMissing()
+        if ctx.world:
+            return True
+        else:
+            raise utils.WorldMissing()
 
     # custom context implementation
     async def on_message(self, message):
@@ -210,17 +210,21 @@ class DSBot(commands.Bot):
 
     # DS Database Methods
     async def refresh_worlds(self):
-        query = 'SELECT world FROM tribe GROUP BY world'
+        query = 'SELECT * FROM world GROUP BY world'
         async with self.pool.acquire() as conn:
             data = await conn.fetch(query)
 
-        cache = [r['world'] for r in data]
-        if not cache:
+        if not data:
             return
 
-        for world in self.worlds:
-            if world not in cache:
-                self.config.remove_world(world)
+        cache = {}
+        for record in data:
+            world = utils.DSWorld(record)
+            cache[world.server] = world
+
+        for server in self.worlds:
+            if server not in cache:
+                self.config.remove_world(server)
 
         self.worlds = cache
 

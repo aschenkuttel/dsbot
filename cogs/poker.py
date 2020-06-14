@@ -174,7 +174,7 @@ class Poker(commands.Cog):
 
     @utils.game_channel_only()
     @commands.command(name="vp", aliases=["videopoker"])
-    async def vp_(self, ctx, bet: int):
+    async def vp_(self, ctx, bet: int = 2000):
         if not 100 <= bet <= 2000:
             raise utils.InvalidBet(100, 2000)
 
@@ -261,7 +261,7 @@ class Poker(commands.Cog):
 
     @utils.game_channel_only()
     @commands.command(name="bj", aliases=["blackjack"])
-    async def bj_(self, ctx, bet: int):
+    async def bj_(self, ctx, bet: int = 50000):
         if not 100 <= bet <= 50000:
             raise utils.InvalidBet(100, 50000)
 

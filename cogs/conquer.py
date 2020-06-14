@@ -134,7 +134,7 @@ class ConquerLoop(commands.Cog):
             return True
 
     async def update_conquer(self):
-        for world in self.bot.worlds:
+        for world, world_obj in self.bot.worlds.items():
 
             if "s" in world:
                 continue
@@ -143,7 +143,7 @@ class ConquerLoop(commands.Cog):
 
             try:
                 sec = self.get_seconds(True)
-                data = await self.fetch_conquer(world, sec)
+                data = await self.fetch_conquer(world_obj, sec)
             except Exception as error:
                 logger.warning(f"{world} skipped: {error}")
                 continue
@@ -207,8 +207,8 @@ class ConquerLoop(commands.Cog):
     async def fetch_conquer(self, world, sec=3600):
         now = datetime.datetime.now()
         cur = now.timestamp() - sec
-        base = "http://{}.die-staemme.de/interface.php?func=get_conquer&since={}"
-        async with self.bot.session.get(base.format(world, cur)) as resp:
+        base = "https://{}/interface.php?func=get_conquer&since={}"
+        async with self.bot.session.get(base.format(world.url, cur)) as resp:
             data = await resp.text('utf-8')
             return data.split('\n')
 

@@ -1,5 +1,6 @@
 from discord.ext import commands
 from datetime import datetime
+import parsedatetime
 import discord
 import asyncio
 import utils
@@ -13,8 +14,16 @@ class Rm(commands.Cog):
         self.duration = 300
         self.cap_dict = {}
         self.number = "{}\N{COMBINING ENCLOSING KEYCAP}"
-        self.troops = ["speer", "schwert", "axt", "bogen", "späher", "lkav", "berittene",
-                       "skav", "ramme", "katapult", "paladin", "ag"]
+        self.troops = {'speer': "spear", 'schwert': "sword", 'axt': "axe",
+                       'bogen': "archer", 'späher': "spy", 'lkav': "light",
+                       'berittene': "marcher", 'skav': "heavy", 'ramme': "ram",
+                       'katapult': "catapult", 'paladin': "knight", 'ag': "snob"}
+        self.movement = {'spear': 18.000000000504, 'sword': 21.999999999296,
+                         'axe': 18.000000000504, 'archer': 18.000000000504,
+                         'spy': 8.99999999928, 'light': 9.999999998,
+                         'marcher': 9.999999998, 'heavy': 11.0000000011,
+                         'ram': 29.9999999976, 'catapult': 29.9999999976,
+                         'knight': 9.999999998, 'snob': 34.9999999993}
         self.base = "javascript: var settings = Array" \
                     "({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}," \
                     " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
@@ -57,8 +66,10 @@ class Rm(commands.Cog):
         await ctx.send(embed=guest)
 
     @commands.command(name="visit", aliases=["besuch"])
-    async def visit_(self, ctx, world: utils.World):
-        description = f"[{world}]({world.guest_url})"
+    async def visit_(self, ctx, world: utils.WorldConverter = None):
+        if world is None:
+            world = ctx.world
+        description = f"[{world.show(True)}]({world.guest_url})"
         await ctx.send(embed=discord.Embed(description=description))
 
     @commands.command(name="sl")
@@ -75,7 +86,8 @@ class Rm(commands.Cog):
         for kwarg in troops:
             name, amount = kwarg.split("=")
             try:
-                index = self.troops.index(name.lower())
+                wiki = list(self.troops.keys())
+                index = wiki.index(name.lower())
             except ValueError:
                 continue
             data[index] = int(amount)
@@ -135,86 +147,60 @@ class Rm(commands.Cog):
         em = discord.Embed(description='\n'.join(cache))
         await ctx.send(embed=em)
 
-    def check_time(self, input_time):
-        if input_time.__contains__(":"):
-            try:
-                datetime.strptime(input_time, '%H:%M:%S')
-                return True
+    @commands.command(name="retime")
+    async def retime_(self, ctx, *, inc):
+        coords = re.findall(r'\d{3}\|\d{3}', inc)
+        datestring = re.findall(r'\d{2}:\d{2}:\d{2}:\d{3}', inc)
 
-            except ValueError:
-                try:
-                    datetime.strptime(input_time, '%H:%M')
-                    return True
-                except ValueError:
-                    return False
-        options = {"hms", "hm", "hs", "ms", "h", "m", "s"}
-        if re.sub(r'\d', '', input_time) in options:
-            if len(input_time) > 9:
-                return False
-            return True
-        else:
-            return False
+        if not datestring or len(coords) != 2:
+            msg = "**Ungültiger Input** - Gesamte Angriffszeile kopieren:\n" \
+                  "`?retime Ramme Dorf (335|490) K43 Dorf (338|489) K43 " \
+                  "Knueppel-Kutte 3.2 heute um 21:09:56:099`"
+            return await ctx.send(msg)
 
-    @commands.dm_only()
-    @commands.command(name="time", aliases=["eieruhr"])
-    async def time_(self, ctx, thyme: str, *reason: str):
-        reason = ' '.join(reason)
+        now = datetime.now()
+        calendar = parsedatetime.Calendar()
+        date, status = calendar.parseDT(datestring[0])
 
-        # ----- Time Input Valid Check ----- #
-        if not self.check_time(thyme):
-            msg = "Benutze folgende Zeitangaben: " \
-                  "`!time 9h23m14s` oder `!time 18:45:24`"
-            return await ctx.send(embed=utils.error_embed(msg))
-        num = 0
+        if now > date:
+            date = date.replace(day=now.day + 1)
 
-        # ----- Max Cap Check ----- #
-        cap_num = self.cap_dict.get(ctx.author.id, 0)
-        if cap_num >= 5:
-            msg = "Du hast dein Limit erreicht - " \
-                  "Pro User nur maximal 5 aktive Timer!"
-            return await ctx.author.send(embed=utils.error_embed(msg))
+        args = inc.split()
 
-        if thyme.__contains__(":"):
-            thym = thyme.split(":")
-            sec = int(thym[2]) if len(thym) == 3 else 0
-            begin = datetime.now()
-            end = begin.replace(hour=int(thym[0]),
-                                minute=int(thym[1]),
-                                second=sec)
-            sec = (end - begin).total_seconds()
-            if sec.__str__().startswith("-"):
-                sec = 24 * 3600 - (-sec)
-            num = int(sec)
+        value = args[0].lower()
+        unit = self.troops.get(value)
 
-        if not thyme.__contains__(":"):
-            thymes = re.findall(r'\d*\D+', thyme)
-            for thy in thymes:
-                if thy.endswith("h"):
-                    hour = int(thy[:-1])
-                    num += hour * 3600
-                if thy.endswith("m"):
-                    minute = int(thy[:-1])
-                    num += minute * 60
-                if thy.endswith("s"):
-                    second = int(thy[:-1])
-                    num += second
+        if unit is None:
+            value = args[-1].lower()
+            unit = self.troops.get(value, value)
 
-        if num > 36000:
-            return await ctx.send(
-                "Du kannst dich maximal bis in 10 Stunden erinnern lassen!")
+            if unit not in self.movement:
+                unit = 'ram'
 
-        self.cap_dict.update({ctx.author.id: cap_num + 1})
-        await ctx.message.add_reaction("⏰")
-        await asyncio.sleep(num)
-        reason = reason or "Du hast keinen Grund angegeben"
-        await ctx.author.send(f"ERINNERUNG <@{ctx.author.id}> | `{reason}`")
-        await ctx.message.remove_reaction("⏰", ctx.bot.user)
+        unit_speed = self.movement.get(unit)
 
-        cur = self.cap_dict.get(ctx.author.id)
-        if cur == 1:
-            self.cap_dict.pop(ctx.author.id)
-        else:
-            self.cap_dict.update({ctx.author.id: cap_num - 1})
+        origin, target = coords
+        target = list(map(int, f"{origin}|{target}".split("|")))
+        x, y = abs(target[0] - target[2]), abs(target[1] - target[3])
+
+        diff = (x * x + y * y) ** 0.5
+        raw_seconds = diff * unit_speed * ctx.world.speed
+        seconds = round(raw_seconds * 60)
+
+        target_date = datetime.fromtimestamp(date.timestamp() + seconds)
+        time = target_date.strftime('%H:%M:%S')
+        msg = f"**Rückkehr:** {time}:000 `[{value.upper()}]`"
+        await ctx.send(msg)
+
+    @commands.command(name="settings", aliases=["einstellungen"])
+    async def settings_(self, ctx, world: utils.WorldConverter = None):
+        if world is None:
+            world = ctx.world
+
+        title = f"Settings der {world.show(clean=True)}"
+        embed = discord.Embed(title=title)
+
+        await ctx.send(embed=embed)
 
     @commands.command(name="poll", aliases=["abstimmung"])
     async def poll_(self, ctx, question, *options):
@@ -265,12 +251,6 @@ class Rm(commands.Cog):
         wimbed = discord.Embed(description=result, color=color)
         wimbed.set_footer(text="Abstimmung beendet")
         await poll.edit(embed=wimbed)
-
-    @rz3_.error
-    async def rz3_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            msg = "Truppenangaben dürfen nur aus Zahlen bestehen"
-            await ctx.send(embed=utils.error_embed(msg))
 
 
 def setup(bot):
