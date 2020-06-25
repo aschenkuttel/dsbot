@@ -1,8 +1,7 @@
 from discord.ext import commands
-from datetime import datetime, timezone
+from datetime import datetime
 import dateparser
 import asyncio
-import asyncpg
 import discord
 import utils
 
@@ -53,8 +52,16 @@ class Reminder(commands.Cog):
         self.preset = "%d/%m/%Y | %H:%M:%S Uhr"
         self.set = {'PREFER_DATES_FROM': 'future'}
         self._task = self.bot.loop.create_task(self.remind_loop())
-        self.lock = asyncio.Event(loop=bot.loop)
+        self._lock = asyncio.Event(loop=bot.loop)
         self.current_reminder = None
+
+    def restart(self, reminder=None):
+        print("trying to")
+        self._task.cancel()
+        self._lock.clear()
+        print("cancel")
+        self.current_reminder = reminder
+        self._task = self.bot.loop.create_task(self.remind_loop())
 
     async def remind_loop(self):
         await self.bot.wait_until_unlocked()
@@ -83,11 +90,11 @@ class Reminder(commands.Cog):
 
                 await self.current_reminder.send()
                 self.current_reminder = None
-                self.lock.clear()
+                self._lock.clear()
 
             else:
                 print("lets wait")
-                await self.lock.wait()
+                await self._lock.wait()
 
     @commands.command(name="now")
     async def now_(self, ctx):
@@ -123,13 +130,12 @@ class Reminder(commands.Cog):
         if difference < 0:
             msg = "Der Zeitpunkt ist bereits vergangen"
             return await ctx.send(embed=utils.error_embed(msg))
-        else:
-            await ctx.send(embed=embed)
 
         arguments = [ctx.author.id, ctx.channel.id, current_date, expected_date, reason]
         reminder = Timer.from_arguments(self.bot, arguments)
 
         if difference < 60:
+            await ctx.send(embed=embed)
             await asyncio.sleep(difference)
             await reminder.send()
 
@@ -141,17 +147,16 @@ class Reminder(commands.Cog):
                 resp = await conn.fetchrow(query, *arguments)
                 reminder.id = resp['id']
 
-            if not self.lock.is_set():
+            if not self._lock.is_set():
                 self.current_reminder = reminder
-                self.lock.set()
+                self._lock.set()
 
             else:
                 if reminder.expiration < self.current_reminder.expiration:
-                    print("trying to")
-                    self._task.cancel()
-                    print("cancel")
-                    self.current_reminder = reminder
-                    self._task = self.bot.loop.create_task(self.remind_loop())
+                    self.restart(reminder)
+
+            embed.description = f"{embed.description[:-3]} (ID {resp['id']}):**"
+            await ctx.send(embed=embed)
 
     @remind.command(name="list")
     async def list_(self, ctx):
@@ -170,17 +175,43 @@ class Reminder(commands.Cog):
                 date = timer.expiration.strftime(self.preset)
                 reminders.append(f"`ID {timer.id}` | **{date}**")
 
-            title = f"Deine Reminder [{len(data)} Insgesamt]:"
+            title = f"Deine Reminder ({len(data)} Insgesamt):"
             embed = discord.Embed(description="\n".join(reminders), title=title)
             await ctx.send(embed=embed)
 
-    @remind.command(name="remove")
-    async def remove_(self, ctx, reminder_id):
-        pass
+    @remind.command(name="remove", aliases=["delete"])
+    async def remove_(self, ctx, reminder_id: int):
+        query = 'DELETE FROM reminder WHERE author_id = $1 AND id = $2'
+        async with self.bot.ress.acquire() as conn:
+            response = await conn.execute(query, ctx.author.id, reminder_id)
+
+        if response == "DELETE 0":
+            msg = "Du hast keinen Reminder mit der angegebenen ID"
+            return await ctx.send(embed=utils.error_embed(msg))
+
+        if self.current_reminder and self.current_reminder.id == reminder_id:
+            self.restart()
+
+        await ctx.send(embed=utils.complete_embed("Der Reminder wurde gelöscht"))
 
     @remind.command(name="clear")
     async def clear_(self, ctx):
-        pass
+        query = 'DELETE FROM reminder WHERE author_id = $1 RETURNING id'
+        async with self.bot.ress.acquire() as conn:
+            deleted_rows = await conn.fetch(query, ctx.author.id)
+
+        if not deleted_rows:
+            msg = "Du hast keine aktiven Reminder"
+            return await ctx.send(embed=utils.error_embed(msg))
+
+        if self.current_reminder:
+            for record in deleted_rows:
+                if record['id'] == self.current_reminder.id:
+                    self.restart()
+                    break
+
+        msg = f"Alle deine Reminder wurden gelöscht ({len(deleted_rows)})"
+        await ctx.send(embed=utils.complete_embed(msg))
 
 
 def setup(bot):
