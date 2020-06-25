@@ -11,8 +11,9 @@ class Bash(commands.Cog):
         self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         self.base = "https://{}/guest.php?village" \
                     "=null&screen=ranking&mode=in_a_day&type={}"
-        self.keys = {'bash': "kill_att", 'def': "kill_def", 'ut': "kill_sup", 'farm': "loot_res",
-                     'villages': "loot_vil", 'scavenge': "scavenge", 'conquer': "conquer"}
+        self.attribute = {'bash': "kill_att", 'def': "kill_def", 'ut': "kill_sup",
+                          'farm': "loot_res", 'villages': "loot_vil",
+                          'scavenge': "scavenge", 'conquer': "conquer"}
         self.values = {
             'angreifer': {'value': "att_bash", 'item': "Bashpoints"},
             'verteidiger': {'value': "def_bash", 'item': "Bashpoints"},
@@ -158,11 +159,11 @@ class Bash(commands.Cog):
 
     @commands.group(name="top")
     async def top_(self, ctx, state):
-        key = self.keys.get(state.lower())
+        key = self.attribute.get(state.lower())
 
         if key is None:
-            cmd = self.bot.get_command("help top")
-            return await ctx.invoke(cmd)
+            msg = f"`{ctx.prefix}top <{'|'.join(self.attribute.keys())}>`"
+            return await ctx.send(embed=error_embed(msg, ctx))
 
         res_link = self.base.format(ctx.world.url, key)
         async with self.bot.session.get(res_link) as r:
@@ -202,8 +203,8 @@ class Bash(commands.Cog):
         award_data = self.values.get(award)
 
         if award_data is None:
-            cmd = self.bot.get_command("help daily")
-            return await ctx.invoke(cmd)
+            msg = f"`{ctx.prefix}daily <{'|'.join(self.values.keys())}>`"
+            return await ctx.send(embed=error_embed(msg, ctx))
 
         dsobj = utils.DSType(int(ctx.invoked_with.lower() == "aktueller"))
         negative = award in ["verlierer"]

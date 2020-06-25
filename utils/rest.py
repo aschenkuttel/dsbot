@@ -38,8 +38,7 @@ def converter(name, php=False):
         encoded = encoded.replace('~', '%7E')
         return encoded.lower()
     else:
-        result = unquote_plus(name)
-        return result.replace("*", "\\*")
+        return unquote_plus(name)
 
 
 def keyword(options, **kwargs):

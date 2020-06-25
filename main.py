@@ -1,3 +1,5 @@
+import asyncio
+
 from discord.ext import commands
 import data.naruto as secret
 import concurrent.futures
@@ -42,8 +44,8 @@ class DSBot(commands.Bot):
         self.add_check(self.global_world)
         self.config = utils.Config(self)
         self.cache = utils.Cache(self)
+        self._lock = asyncio.Event()
         self.remove_command("help")
-        self._lock = True
         self.setup_cogs()
 
     # setup functions
@@ -63,8 +65,11 @@ class DSBot(commands.Bot):
             self.conn = await self.pool.acquire()
             await self.conn.add_listener("log", self.callback)
 
-        self._lock = False
+        self._lock.set()
         print("Erfolgreich Verbunden!")
+
+    async def wait_until_unlocked(self):
+        return await self._lock.wait()
 
     # global check and ctx.world implementation
     async def global_world(self, ctx):
@@ -91,7 +96,7 @@ class DSBot(commands.Bot):
 
     # custom context implementation
     async def on_message(self, message):
-        if self._lock:
+        if not self._lock.is_set():
             return
 
         ctx = await self.get_context(message, cls=utils.DSContext)

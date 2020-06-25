@@ -18,7 +18,6 @@ class ConquerLoop(commands.Cog):
 
     @tasks.loop(hours=72)
     async def guild_timeout(self):
-        await self.bot.wait_until_ready()
         if self.start is True:
             self.start = False
             return
@@ -65,6 +64,7 @@ class ConquerLoop(commands.Cog):
         if not conquer:
             return
 
+        response = False
         for channel_id, conquer_data in conquer.items():
             channel = guild.get_channel(int(channel_id))
             if not channel:
@@ -86,6 +86,7 @@ class ConquerLoop(commands.Cog):
             if not conquer_feed:
                 continue
 
+            response = True
             conquer_pkg = []
             embed = discord.Embed(title=date)
             conquer_feed.append("")
@@ -131,7 +132,7 @@ class ConquerLoop(commands.Cog):
                 else:
                     conquer_pkg.append(line)
 
-            return True
+        return response
 
     async def update_conquer(self):
         for world, world_obj in self.bot.worlds.items():
@@ -253,19 +254,19 @@ class ConquerLoop(commands.Cog):
 
             if conquer.new_player:
                 if conquer.new_tribe:
-                    tribe = f"**{conquer.new_tribe.tag}**"
+                    tribe = f"**{conquer.new_tribe}**"
                 else:
                     tribe = "**N/A**"
 
-                new = f"[{new.name}]({new.ingame_url}) {tribe}"
+                new = f"{new.mention} {tribe}"
 
             if conquer.old_player:
                 if conquer.old_tribe:
-                    tribe = f" **{conquer.old_tribe.tag}**"
+                    tribe = f" **{conquer.old_tribe}**"
                 else:
                     tribe = "**N/A**"
 
-                old = f"[{old.name}]({old.ingame_url}) {tribe}"
+                old = f"{old.mention} {tribe}"
 
             date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
             result.append(f"``{now}`` | {new} adelt {village_hyperlink} von {old}")

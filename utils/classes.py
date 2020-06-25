@@ -60,7 +60,16 @@ class DSObject:
         self.name = utils.converter(data['name'])
         self.points = data['points']
         self.rank = data['rank']
-        self.represent = self.name
+
+    def __str__(self):
+        if isinstance(self, Village):
+            represent = self.coords
+        elif isinstance(self, Tribe):
+            represent = self.tag
+        else:
+            represent = self.name
+
+        return represent.replace("*", "\\*")
 
     @property
     def type(self):
@@ -80,11 +89,11 @@ class DSObject:
 
     @property
     def mention(self):
-        return f"[{self.represent}]({self.ingame_url})"
+        return f"[{self}]({self.ingame_url})"
 
     @property
     def guest_mention(self):
-        return f"[{self.represent}]({self.guest_url})"
+        return f"[{self}]({self.guest_url})"
 
     def get_ingame_url(self, visit=False):
         url_type = 'guest' if visit else 'game'
@@ -123,7 +132,6 @@ class Tribe(DSObject):
         self.def_rank = data['def_rank']
         self.all_bash = data['all_bash']
         self.all_rank = data['all_rank']
-        self.represent = self.tag
 
 
 class Village(DSObject):
@@ -133,7 +141,6 @@ class Village(DSObject):
         self.y = data['y']
         self.player_id = data['player']
         self.coords = f"{self.x}|{self.y}"
-        self.represent = self.coords
 
 
 class MapVillage:
