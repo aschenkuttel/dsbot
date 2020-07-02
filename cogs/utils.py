@@ -30,8 +30,8 @@ class Rm(commands.Cog):
                     "('https://media.innogamescdn.com/com_DS_DE/" \
                     "scripts/qb_main/scriptgenerator.js'); void(0);"
 
-    @commands.command(aliases=["rundmail"])
-    async def rm(self, ctx, *tribes: str):
+    @commands.command(name="rm")
+    async def rm_(self, ctx, *tribes: str):
         if len(tribes) > 10:
             msg = "Der RM Command unterstützt aktuell nur " \
                   "maximal `10 Stämme` per Command"
@@ -44,14 +44,14 @@ class Rm(commands.Cog):
         await ctx.author.send(f"```\n{';'.join(result)}\n```")
         await ctx.message.add_reaction("📨")
 
-    @commands.command(name="twstats", aliases=["akte"])
+    @commands.command(name="twstats")
     async def akte_(self, ctx, *, user: utils.DSConverter):
         akte = discord.Embed(title=user.name, url=user.twstats_url)
         await ctx.send(embed=akte)
 
-    @commands.command(name="player", aliases=["spieler", "tribe", "stamm"])
+    @commands.command(name="player", aliases=["tribe"])
     async def ingame_(self, ctx, *, username):
-        if ctx.invoked_with.lower() in ("player", "spieler"):
+        if ctx.invoked_with.lower() == "player":
             dsobj = await self.bot.fetch_player(ctx.server, username, name=True)
         else:
             dsobj = await self.bot.fetch_tribe(ctx.server, username, name=True)
@@ -65,7 +65,7 @@ class Rm(commands.Cog):
         guest = discord.Embed(title=user.name, url=user.guest_url)
         await ctx.send(embed=guest)
 
-    @commands.command(name="visit", aliases=["besuch"])
+    @commands.command(name="visit")
     async def visit_(self, ctx, world: utils.WorldConverter = None):
         if world is None:
             world = ctx.world
@@ -192,17 +192,44 @@ class Rm(commands.Cog):
         msg = f"**Rückkehr:** {time}:000 `[{value.upper()}]`"
         await ctx.send(msg)
 
-    @commands.command(name="settings", aliases=["einstellungen"])
+    @commands.command(name="settings")
     async def settings_(self, ctx, world: utils.WorldConverter = None):
-        if world is None:
-            world = ctx.world
+        world = world or ctx.world
+        title = f"Settings der {world.show(clean=True)} {world.icon}"
+        embed = discord.Embed(title=title, url=world.settings_url)
 
-        title = f"Settings der {world.show(clean=True)}"
-        embed = discord.Embed(title=title)
+        cache = []
+        for key, data in self.bot.msg['settings'].items():
+            parent, title, description = data.values()
+            value = None
+            if "|" in key:
+                keys = key.split("|")[::-1]
+                raw_value = [f"{world.config[parent][k]}:00" for k in keys]
+                value = description.format(*raw_value)
+            elif parent:
+                raw_value = world.config[parent][key]
+                if key == "fake_limit":
+                    index = 1 if int(raw_value) else 0
+                    value = description[index].format(raw_value)
+                elif description:
+                    try:
+                        value = description[int(raw_value)]
+                    except IndexError:
+                        pass
 
+            else:
+                raw_value = getattr(world, key, None)
+                if str(raw_value)[-1] == "0":
+                    value = int(raw_value)
+                elif key == "moral":
+                    value = description[int(raw_value)]
+
+            cache.append(f"**{title}:** {value or raw_value}")
+
+        embed.description = "\n".join(cache)
         await ctx.send(embed=embed)
 
-    @commands.command(name="poll", aliases=["abstimmung"])
+    @commands.command(name="poll")
     async def poll_(self, ctx, question, *options):
         if len(options) > 9:
             msg = "Die maximale Anzahl der Auswahlmöglichkeiten beträgt 9"

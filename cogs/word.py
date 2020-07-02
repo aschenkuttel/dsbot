@@ -119,7 +119,7 @@ class Word(commands.Cog):
         self.anagram.pop(ctx.guild.id)
 
     @game_channel_only()
-    @commands.command(name="hangman", aliases=["galgenmännchen"])
+    @commands.command(name="hangman")
     async def hangman(self, ctx):
         data = self.hangman.get(ctx.guild.id)
         if data is False:
@@ -143,7 +143,7 @@ class Word(commands.Cog):
             msg = base.format(self.blender(ctx.guild.id))
             await ctx.send(msg)
 
-    @commands.command(name="guess", aliases=["raten"])
+    @commands.command(name="guess")
     @game_channel_only()
     async def guess(self, ctx, *, args):
         data = self.hangman.get(ctx.guild.id)

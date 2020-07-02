@@ -6,7 +6,6 @@ import discord
 import utils
 
 
-# id / author_id / channel_id / creation / expiration / reason
 class Timer:
     def __init__(self, bot, data):
         self.bot = bot
@@ -28,9 +27,6 @@ class Timer:
     async def send(self):
         embed = discord.Embed(colour=discord.Color.dark_gold())
         embed.description = self.reason
-
-        print(self.channel_id)
-        print(self.author_id)
 
         channel = self.bot.get_channel(self.channel_id)
         author = self.bot.get_user(self.author_id)
@@ -55,33 +51,33 @@ class Reminder(commands.Cog):
         self._lock = asyncio.Event(loop=bot.loop)
         self.current_reminder = None
 
-    def restart(self, reminder=None):
-        print("trying to")
+    async def cog_unload(self):
         self._task.cancel()
-        self._lock.clear()
-        print("cancel")
+
+    def restart(self, reminder=None):
+        self._task.cancel()
+
+        if reminder is None:
+            self._lock.clear()
+
         self.current_reminder = reminder
         self._task = self.bot.loop.create_task(self.remind_loop())
 
     async def remind_loop(self):
         await self.bot.wait_until_unlocked()
         while not self.bot.is_closed():
-            print("iter")
 
             if not self.current_reminder:
                 query = 'SELECT * FROM reminder ORDER BY expiration'
                 async with self.bot.ress.acquire() as conn:
                     data = await conn.fetchrow(query)
-                    print(data)
 
                     if data is not None:
-                        print("creation")
                         self.current_reminder = Timer(self.bot, data)
 
             if self.current_reminder:
                 difference = (self.current_reminder.expiration - datetime.now())
                 seconds = difference.total_seconds()
-                print(f"waiting {seconds}")
                 await asyncio.sleep(seconds)
 
                 query = "DELETE FROM reminder WHERE id = $1"
@@ -93,7 +89,6 @@ class Reminder(commands.Cog):
                 self._lock.clear()
 
             else:
-                print("lets wait")
                 await self._lock.wait()
 
     @commands.command(name="now")
@@ -119,12 +114,9 @@ class Reminder(commands.Cog):
         current_date = datetime.now()
         difference = (expected_date - current_date).total_seconds()
 
-        print(current_date)
-        print(expected_date)
-
         embed = discord.Embed(colour=discord.Color.green())
         embed.description = "**Erinnerung registriert:**"
-        represent = expected_date.strftime("%d-%m-%Y | %H:%M:%S Uhr")
+        represent = expected_date.strftime(self.preset)
         embed.set_footer(text=represent)
 
         if difference < 0:
@@ -160,7 +152,7 @@ class Reminder(commands.Cog):
 
     @remind.command(name="list")
     async def list_(self, ctx):
-        query = 'SELECT * FROM reminder WHERE author_id = $1'
+        query = 'SELECT * FROM reminder WHERE author_id = $1 ORDER BY expiration'
         async with self.bot.ress.acquire() as conn:
             data = await conn.fetch(query, ctx.author.id)
 
@@ -179,7 +171,7 @@ class Reminder(commands.Cog):
             embed = discord.Embed(description="\n".join(reminders), title=title)
             await ctx.send(embed=embed)
 
-    @remind.command(name="remove", aliases=["delete"])
+    @remind.command(name="remove")
     async def remove_(self, ctx, reminder_id: int):
         query = 'DELETE FROM reminder WHERE author_id = $1 AND id = $2'
         async with self.bot.ress.acquire() as conn:
@@ -205,10 +197,9 @@ class Reminder(commands.Cog):
             return await ctx.send(embed=utils.error_embed(msg))
 
         if self.current_reminder:
-            for record in deleted_rows:
-                if record['id'] == self.current_reminder.id:
-                    self.restart()
-                    break
+            old_ids = [rec['id'] for rec in deleted_rows]
+            if self.current_reminder.id in old_ids:
+                self.restart()
 
         msg = f"Alle deine Reminder wurden gelöscht ({len(deleted_rows)})"
         await ctx.send(embed=utils.complete_embed(msg))

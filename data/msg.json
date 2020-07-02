@@ -1,5 +1,5 @@
 {
-  "status": "!help [2.0]",
+  "status": "!help",
   "randomMessages": [
     "ae",
     "\u00e4",
@@ -282,81 +282,240 @@
     "Massen-Rekrutierung"
   ],
   "generalQuestion": [
-    ["In welchem Jahr wurde DS ver\u00f6ffentlicht?", "2003"],
-    ["Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau der Kaserne haben?", "3"],
-    ["Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau des Marktplatzes haben?", "3"],
-    ["Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau der Schmiede bauen kannst?", "5"],
-    ["Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau der Werkstatt haben?", "10"],
-    ["Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau des Stalls haben?", "10"],
-    ["Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau des Adelshofs haben?", "20"],
-    ["Welche Stufe muss deine Kaserne f\u00fcr den Bau des Stalls haben?", "5"],
-    ["Welche Stufe muss deine Schmiede f\u00fcr den Bau des Stalls haben?", "5"],
-    ["Welche Stufe muss deine Schmiede f\u00fcr den Bau der Werkstatt haben?", "10"],
-    ["Welche Stufe muss deine Schmiede f\u00fcr den Bau des Adelshof haben?", "20"],
-    ["Welche Stufe muss dein Marktplatz f\u00fcr den Bau des Adelshof haben?", "10"],
-    ["Welche Stufe muss dein Stall f\u00fcr die Erforschung der Lkav haben?", "3"],
-    ["Welche Stufe muss dein Stall f\u00fcr die Erforschung der Skav haben?", "10"],
-    ["Welche Stufe muss deine Werkstatt f\u00fcr die Erforschung der Katapulte haben?", "2"],
-    ["Welche Stufe muss deine Schmiede f\u00fcr die Erforschung der Schwertk\u00e4mpfer haben?", "1"],
-    ["Welche Stufe muss deine Schmiede f\u00fcr die Erforschung der Axtk\u00e4mpfer haben?", "2"],
-    ["Welche Stufe muss deine Schmiede f\u00fcr die Erforschung der Katapulte haben?", "12"],
-    ["Welche Stufe muss deine Schmiede f\u00fcr die Erforschung der Skav haben?", "15"],
-    ["Wie viel PP kostet der Premium-Account f\u00fcr 3 Tage?", "30"],
-    ["Wie viel PP kostet der Premium-Account f\u00fcr 7 Tage?", "60"],
-    ["Wie viel PP kostet der Premium-Account f\u00fcr 30 Tage?", "200"],
-    ["Ab wie vielen Punkten erscheint ein Dorf in der letzten Kartengrafik?", "11000"],
-    ["Wie viel Punkte gibt der Ausbau der ersten Stufe des Adelshofes?", "512"],
-    ["Mit wie vielen Spielern muss man f\u00fcr `Treuer Freund - Gold` befreundet sein?", "100"],
-    ["Wie viele Tag muss man in einem Stamm sein um `Waffenbruder - Gold` zu erhalten?", "360"],
-    ["Wie viele D\u00f6rfer muss man f\u00fcr `Pl\u00fcnderer - Gold` gepl\u00fcndert haben?", "10000"],
-    ["Wie viele M\u00fcnzen muss man f\u00fcr `Kr\u00f6sus - Gold` gepr\u00e4gt haben?", "50000"],
-    ["Wie viele Wallstufen muss man f\u00fcr `Wallbezwinger - Gold` zerst\u00f6rt haben?", "10000"],
-    ["Was ist die maximale Anzahl an UVs die ein Account haben kann?", "3"],
-    ["Wieviel KB darf ein Profilbild nicht \u00fcberschreiten?", "200"],
-    ["Mit welchem Programm kann man gro\u00DFe Mengen an Angriffen schnell verschicken?", "Workbench"],
-    ["Wie viele Konstruktionen kann man ohne Premium Account maximal in der Schleife haben?", "2"],
-    ["Ab wie vielen D\u00f6rfer kann man den Account-Manager benutzen?", "5"],
-    ["Mit wie vielen D\u00f6rfern bekommt man das erste Mal Gratis-AM f\u00fcr 3 Tage?", "10"],
-    ["Was ist die h\u00f6chstm\u00f6gliche Prozentzahl Gl\u00fcck?", "25"],
-    ["Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Schwertk\u00e4mpfer?", "Eisen"],
-    ["Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Axtk\u00e4mpfer?", "Holz"],
-    ["Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Lkav?", "Eisen"],
-    ["Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr berittenen Bogensch\u00fctzen?", "Eisen"],
-    ["Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Rammb\u00f6cke?", "Holz"],
-    ["Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Katapulte?", "Lehm"],
-    ["Wie viel Bauernhofpl\u00e4tze hat der Bauernhof auf Stufe 30?", "24000"],
-    ["Wie viele H\u00e4ndler hat ein Marktplatz auf Stufe 10?", "10"],
-    ["Wie lautet die Abk\u00fcrzung f\u00fcr Speedwelten?", "SDS"],
-    ["Wie lautet die Abk\u00fcrzung f\u00fcr ein Barbarendorf?", "BB"],
-    ["Wie viele `des Tages`-Awards gibt es?", "6"],
-    ["Wie viel Rohstoffe pro Einheit fasst der Speicher auf Stufe 30?", "400000"],
-    ["Welche Farbe hat der Bericht eines Angriffs mit Verlusten?", "Gelb"],
-    ["Wie viel Kontinente hat eine Welt?", "100"],
-    ["Welche Seite ist bekannt f\u00fcr die Top 10 Weltenkarten (ohne www/.de)", "dsreal"]
+    [
+      "In welchem Jahr wurde DS ver\u00f6ffentlicht?",
+      "2003"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau der Kaserne haben?",
+      "3"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau des Marktplatzes haben?",
+      "3"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau der Schmiede bauen kannst?",
+      "5"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau der Werkstatt haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau des Stalls haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgeb\u00e4ude f\u00fcr den Bau des Adelshofs haben?",
+      "20"
+    ],
+    [
+      "Welche Stufe muss deine Kaserne f\u00fcr den Bau des Stalls haben?",
+      "5"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede f\u00fcr den Bau des Stalls haben?",
+      "5"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede f\u00fcr den Bau der Werkstatt haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede f\u00fcr den Bau des Adelshof haben?",
+      "20"
+    ],
+    [
+      "Welche Stufe muss dein Marktplatz f\u00fcr den Bau des Adelshof haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss dein Stall f\u00fcr die Erforschung der Lkav haben?",
+      "3"
+    ],
+    [
+      "Welche Stufe muss dein Stall f\u00fcr die Erforschung der Skav haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss deine Werkstatt f\u00fcr die Erforschung der Katapulte haben?",
+      "2"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede f\u00fcr die Erforschung der Schwertk\u00e4mpfer haben?",
+      "1"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede f\u00fcr die Erforschung der Axtk\u00e4mpfer haben?",
+      "2"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede f\u00fcr die Erforschung der Katapulte haben?",
+      "12"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede f\u00fcr die Erforschung der Skav haben?",
+      "15"
+    ],
+    [
+      "Wie viel PP kostet der Premium-Account f\u00fcr 3 Tage?",
+      "30"
+    ],
+    [
+      "Wie viel PP kostet der Premium-Account f\u00fcr 7 Tage?",
+      "60"
+    ],
+    [
+      "Wie viel PP kostet der Premium-Account f\u00fcr 30 Tage?",
+      "200"
+    ],
+    [
+      "Ab wie vielen Punkten erscheint ein Dorf in der letzten Kartengrafik?",
+      "11000"
+    ],
+    [
+      "Wie viel Punkte gibt der Ausbau der ersten Stufe des Adelshofes?",
+      "512"
+    ],
+    [
+      "Mit wie vielen Spielern muss man f\u00fcr `Treuer Freund - Gold` befreundet sein?",
+      "100"
+    ],
+    [
+      "Wie viele Tag muss man in einem Stamm sein um `Waffenbruder - Gold` zu erhalten?",
+      "360"
+    ],
+    [
+      "Wie viele D\u00f6rfer muss man f\u00fcr `Pl\u00fcnderer - Gold` gepl\u00fcndert haben?",
+      "10000"
+    ],
+    [
+      "Wie viele M\u00fcnzen muss man f\u00fcr `Kr\u00f6sus - Gold` gepr\u00e4gt haben?",
+      "50000"
+    ],
+    [
+      "Wie viele Wallstufen muss man f\u00fcr `Wallbezwinger - Gold` zerst\u00f6rt haben?",
+      "10000"
+    ],
+    [
+      "Was ist die maximale Anzahl an UVs die ein Account haben kann?",
+      "3"
+    ],
+    [
+      "Wieviel KB darf ein Profilbild nicht \u00fcberschreiten?",
+      "200"
+    ],
+    [
+      "Mit welchem Programm kann man gro\u00DFe Mengen an Angriffen schnell verschicken?",
+      "Workbench"
+    ],
+    [
+      "Wie viele Konstruktionen kann man ohne Premium Account maximal in der Schleife haben?",
+      "2"
+    ],
+    [
+      "Ab wie vielen D\u00f6rfer kann man den Account-Manager benutzen?",
+      "5"
+    ],
+    [
+      "Mit wie vielen D\u00f6rfern bekommt man das erste Mal Gratis-AM f\u00fcr 3 Tage?",
+      "10"
+    ],
+    [
+      "Was ist die h\u00f6chstm\u00f6gliche Prozentzahl Gl\u00fcck?",
+      "25"
+    ],
+    [
+      "Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Schwertk\u00e4mpfer?",
+      "Eisen"
+    ],
+    [
+      "Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Axtk\u00e4mpfer?",
+      "Holz"
+    ],
+    [
+      "Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Lkav?",
+      "Eisen"
+    ],
+    [
+      "Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr berittenen Bogensch\u00fctzen?",
+      "Eisen"
+    ],
+    [
+      "Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Rammb\u00f6cke?",
+      "Holz"
+    ],
+    [
+      "Welchen Rohstoff ben\u00f6tigt man zur Mehrheit f\u00fcr Katapulte?",
+      "Lehm"
+    ],
+    [
+      "Wie viel Bauernhofpl\u00e4tze hat der Bauernhof auf Stufe 30?",
+      "24000"
+    ],
+    [
+      "Wie viele H\u00e4ndler hat ein Marktplatz auf Stufe 10?",
+      "10"
+    ],
+    [
+      "Wie lautet die Abk\u00fcrzung f\u00fcr Speedwelten?",
+      "SDS"
+    ],
+    [
+      "Wie lautet die Abk\u00fcrzung f\u00fcr ein Barbarendorf?",
+      "BB"
+    ],
+    [
+      "Wie viele `des Tages`-Awards gibt es?",
+      "6"
+    ],
+    [
+      "Wie viel Rohstoffe pro Einheit fasst der Speicher auf Stufe 30?",
+      "400000"
+    ],
+    [
+      "Welche Farbe hat der Bericht eines Angriffs mit Verlusten?",
+      "Gelb"
+    ],
+    [
+      "Wie viel Kontinente hat eine Welt?",
+      "100"
+    ],
+    [
+      "Welche Seite ist bekannt f\u00fcr die Top 10 Weltenkarten (ohne www/.de)",
+      "dsreal"
+    ]
   ],
   "mapOptions": {
     "<:center:672875546773946369>": {
       "title": "Zoom",
-      "default": "0"},
+      "default": "0"
+    },
     "<:dsmap:672912316240756767>": {
       "title": "Zentrum",
       "default": "500|500"
     },
     "<:friend:672875516117778503>": {
       "title": "Spieler",
-      "default": ""},
+      "default": ""
+    },
     "<:tribe:672862439074693123>": {
       "title": "St\u00e4mme",
-      "default": ""},
+      "default": ""
+    },
     "<:report:672862439242465290>": {
       "title": "Markierung",
-      "default": "Aus"},
+      "default": "Aus"
+    },
     "<:old:672862439112441879>": {
       "title": "Barbarend\u00f6rfer",
-      "default": "An"},
-    "<:button:672910606700904451>": {
-      "title": "Karte erstellen"}
+      "default": "An"
     },
+    "<:button:672910606700904451>": {
+      "title": "Karte erstellen"
+    }
+  },
   "vpMessage": {
     "Paar": "ein",
     "Doppel-Paar": "ein",
@@ -369,31 +528,163 @@
     "Royal Flush": "legit einen..."
   },
   "helpGroups": {
-    "Administratives":
-    ["set", "remove", "conquer", "worlds", "world", "refresh"],
-    "St\u00e4mme Features":
-    ["bash", "allbash", "player", "tribe", "twstats",
-      "guest", "visit", "daily", "top", "recap",
-      "villages", "bb", "nude", "map", "custom",
-      "rm [rundmail]", "rz [raubzug]", "sl [schnellleiste]"],
-    "Utilities and Fun":
-    ["avatar", "emoji", "poll", "time", "duali",
-      "mirror", "orakel"],
-    "Minigames":
-    ["ag [anagram]", "tc [tribalcards]", "hangman", "slots","quiz",
-      "bj [blackjack]", "vp [videopoker]", "dice",  "iron"]
+    "Administratives": [
+      "set",
+      "remove",
+      "conquer",
+      "worlds",
+      "world",
+      "refresh"
+    ],
+    "St\u00e4mme Features": [
+      "bash",
+      "allbash",
+      "player",
+      "tribe",
+      "twstats",
+      "guest",
+      "visit",
+      "daily",
+      "top",
+      "recap",
+      "villages",
+      "bb",
+      "nude",
+      "map",
+      "custom",
+      "settings",
+      "rm [rundmail]",
+      "rz [raubzug]",
+      "sl [schnellleiste]"
+    ],
+    "Utilities and Fun": [
+      "avatar",
+      "emoji",
+      "poll",
+      "time",
+      "duali",
+      "mirror",
+      "orakel"
+    ],
+    "Minigames": [
+      "ag [anagram]",
+      "tc [tribalcards]",
+      "hangman",
+      "slots",
+      "quiz",
+      "bj [blackjack]",
+      "vp [videopoker]",
+      "dice",
+      "iron"
+    ]
   },
-  "dualAnswer":
-      [
-        "Bitte schlagt eure K\u00f6pfe solange an die Wand, bis ihr Erinnerungen aneinander verliert.",
-        "Ihr beide solltet euch nicht einmal im selben Land aufhalten...",
-        "Bitte spielt niemals in einem Stamm.",
-        "Bitte spielt niemals in einem Account.",
-        "Ihr beide in einem Account? Bitte \u00fcberlegt es euch.",
-        "Ihr k\u00f6nnt es versuchen aber es gibt bessere Dualis f\u00fcr euch beide...",
-        "Nice, euch zwei seh ich in einem Account :blush: ",
-        "Uff nicht schlecht. Ihr regelt auf jeden Fall :heart:",
-        "Fast das perfekte Dreamteam :heart_eyes:",
-        "Hiermit erkl\u00e4re ich euch zu Duali und Dualin :heart:"
+  "dualAnswer": [
+    "Bitte schlagt eure K\u00f6pfe solange an die Wand, bis ihr Erinnerungen aneinander verliert.",
+    "Ihr beide solltet euch nicht einmal im selben Land aufhalten...",
+    "Bitte spielt niemals in einem Stamm.",
+    "Bitte spielt niemals in einem Account.",
+    "Ihr beide in einem Account? Bitte \u00fcberlegt es euch.",
+    "Ihr k\u00f6nnt es versuchen aber es gibt bessere Dualis f\u00fcr euch beide...",
+    "Nice, euch zwei seh ich in einem Account :blush: ",
+    "Uff nicht schlecht. Ihr regelt auf jeden Fall :heart:",
+    "Fast das perfekte Dreamteam :heart_eyes:",
+    "Hiermit erkl\u00e4re ich euch zu Duali und Dualin :heart:"
+  ],
+  "settings": {
+    "speed": {
+      "parent": null,
+      "title": "Spielgeschwindigkeit",
+      "description": null
+    },
+    "unit_speed": {
+      "parent": null,
+      "title": "Einheitengeschwindigkeit",
+      "description": null
+    },
+    "moral": {
+      "parent": null,
+      "title": "Moral",
+      "description": [
+        "Inaktiv",
+        "Aktiv",
+        "Aktiv (zeitbasiert)"
       ]
+    },
+    "millis_arrival": {
+      "parent": "commands",
+      "title": "Millisekunden",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "fake_limit": {
+      "parent": "game",
+      "title": "Fakebegrenzung",
+      "description": [
+        "Inaktiv",
+        "{}% der Dorfpunkte"
+      ]
+    },
+    "church": {
+      "parent": "game",
+      "title": "Kirche",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "watchtower": {
+      "parent": "game",
+      "title": "Wachturm",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "end_hour|start_hour": {
+      "parent": "night",
+      "title": "Nachtbonus",
+      "description": "Aktiv von {} bis {}"
+    },
+    "hauls": {
+      "parent": "game",
+      "title": "Beute",
+      "description": [
+        "Inaktiv",
+        "Aktiv",
+        "Begrenzt",
+        "Aktiv mit Raubz\u00fcgen"
+      ]
+    },
+    "archer": {
+      "parent": "game",
+      "title": "Bogensch\u00fctzen",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "gold": {
+      "parent": "snob",
+      "title": "Erzeugung ben\u00ef6tigt",
+      "description": [
+        "Einlagerungen",
+        "Goldm\u00fcnzen"
+      ]
+    },
+    "limit": {
+      "parent": "ally",
+      "title": "Mitgliederlimit",
+      "description": null
+    },
+    "no_harm": {
+      "parent": "ally",
+      "title": "Stammesschutz",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    }
+  }
 }

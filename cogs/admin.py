@@ -33,14 +33,14 @@ class Admin(commands.Cog):
         embed = utils.complete_embed(msg)
         await ctx.send(embed=embed)
 
-    @commands.command(name="world", aliases=["welt"])
+    @commands.command(name="world")
     async def world_(self, ctx):
         server = self.bot.config.get_related_world(ctx.channel)
         relation = "Channel" if server == ctx.server else "Server"
         embed = utils.complete_embed(f"{ctx.world} [{relation}]")
         await ctx.send(embed=embed)
 
-    @commands.command(name="worlds", aliases=["welten"])
+    @commands.command(name="worlds")
     async def worlds_(self, ctx):
         worlds = sorted(self.bot.worlds)
         result = utils.show_list(worlds, line_break=3)

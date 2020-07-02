@@ -23,7 +23,8 @@ class Listen(commands.Cog):
         self.cap = 10
         self.blacklist = []
         self.last_message = {}
-        self.silenced = (commands.BadArgument,
+        self.silenced = (commands.UnexpectedQuoteError,
+                         commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
                          utils.IngameError)

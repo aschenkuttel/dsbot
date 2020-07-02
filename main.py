@@ -1,5 +1,3 @@
-import asyncio
-
 from discord.ext import commands
 import data.naruto as secret
 import concurrent.futures
@@ -8,6 +6,7 @@ import operator
 import discord
 import asyncpg
 import aiohttp
+import asyncio
 import random
 import utils
 import json

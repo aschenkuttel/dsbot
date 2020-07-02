@@ -51,7 +51,7 @@ class Enjoy(commands.Cog):
             await asyncio.sleep(3)
             await ctx.send("Ich bin Done mit dir, DONE!")
 
-    @commands.command(name="duali", aliases=["mitspieler"])
+    @commands.command(name="duali")
     async def duali_(self, ctx, *, user: MemberConverter):
         if user == self.bot.user:
             embed = discord.Embed()
@@ -74,7 +74,7 @@ class Enjoy(commands.Cog):
 
             await ctx.send(f"Ihr passt zu `{result}%` zusammen.\n{answer}")
 
-    @commands.command(name="mirror", aliases=["spiegel"])
+    @commands.command(name="mirror")
     async def mirror_(self, ctx, *, user: MemberConverter = None):
         em = discord.Embed()
         target = user or ctx.author

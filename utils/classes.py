@@ -2,6 +2,7 @@ from discord.ext import commands
 from datetime import datetime
 import discord
 import utils
+import json
 import re
 
 twstats = "https://{}.twstats.com/{}/index.php?page={}&id={}"
@@ -236,7 +237,7 @@ class DSWorld:
         self.speed = data['speed']
         self.unit_speed = data['unit_speed']
         self.moral = data['moral']
-        self.config = data['config']
+        self.config = json.loads(data['config'])
         self.lang, self.number, self.title = self.parse(self.server)
         pkg = world_data.get(self.lang)
         self.icon, self.domain = pkg['icon'], pkg['domain']
@@ -257,6 +258,10 @@ class DSWorld:
     @property
     def guest_url(self):
         return f"https://{self.url}/guest.php"
+
+    @property
+    def settings_url(self):
+        return f"https://{self.url}/page/settings"
 
     @staticmethod
     def parse(argument):

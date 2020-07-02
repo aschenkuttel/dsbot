@@ -80,7 +80,7 @@ class Bash(commands.Cog):
             msg = f"{pcv(data_one)} {arrow} {pcv(data_two)}"
             await ctx.send(embed=discord.Embed(description=msg))
 
-    @commands.command(name="recap", aliases=["tagebuch"])
+    @commands.command(name="recap")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def recap(self, ctx, *, args):
         time = 7

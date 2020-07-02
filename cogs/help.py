@@ -37,6 +37,11 @@ class Help(commands.Cog):
             await asyncio.sleep(600)
             self.cache.pop(ctx.message.id)
 
+    def packing(self, storage, package):
+        pkg = [f"`{c}`" for c in package]
+        storage.append(" ".join(pkg))
+        package.clear()
+
     def help_embed(self, prefix):
         desc = "Erhalte eine ausführliche Erklärung zu\neinzelnen " \
                "Commands mit `{0}help <commandname>`".format(prefix)
@@ -44,15 +49,24 @@ class Help(commands.Cog):
         emb_help.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
 
         for name, cmd_list in self.bot.msg['helpGroups'].items():
+            cmd_list.sort(key=lambda c: len(c))
 
             cache = []
-            for index, cmd in enumerate(cmd_list):
-                if len(cache) in [4, 9, 14]:
-                    cache.append(f"`{cmd}`{os.linesep}")
-                else:
-                    cache.append(f"`{cmd}` ")
+            datapack = []
+            for cmd in cmd_list:
 
-            emb_help.add_field(name=f"{name}:", value="".join(cache), inline=False)
+                if len("".join(cache) + cmd) > 30 and len(cache) > 1:
+                    self.packing(datapack, cache)
+
+                cache.append(cmd)
+
+                if len(cache) == 5 or len(cache) > 1 and "[" in cache[-2]:
+                    self.packing(datapack, cache)
+
+                elif cmd == cmd_list[-1] and cache or "[" in cmd and len(cache) == 2:
+                    self.packing(datapack, cache)
+
+            emb_help.add_field(name=f"{name}:", value="\n".join(datapack), inline=False)
 
         return emb_help
 
@@ -158,9 +172,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="worlds", aliases=["welten"])
+    @help.command(name="worlds")
     async def worlds_(self, ctx):
-        title = "`~worlds` - `~welten`"
+        title = "`~worlds`"
         desc = "Erhalte alle momentan aktive Welten"
         cmd_type = "Admin Command"
         cmd_inp = ["`~worlds`"]
@@ -170,9 +184,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="world", aliases=["welt"])
+    @help.command(name="world")
     async def world_(self, ctx):
-        title = "`~world` - `~welt`"
+        title = "`~world`"
         desc = "Erhalte die Welt des Textchannels oder des Servers"
         cmd_type = "Admin Command"
         cmd_inp = ["`~world`"]
@@ -212,7 +226,7 @@ class Help(commands.Cog):
 
     @help.command(name="player")
     async def player_(self, ctx):
-        title = "`~player` - `~spieler` - `~tribe` - `~stamm`"
+        title = "`~player` - `~tribe`"
         desc = "Erhalte den Gastlogin-Link eines Spieler oder Stammes."
         cmd_type = "Server Command"
         cmd_inp = ["`~player <playername>`",
@@ -224,9 +238,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="twstats", aliases=["akte"])
+    @help.command(name="twstats")
     async def akte_(self, ctx):
-        title = "`~akte` - `~twstats`"
+        title = "`~twstats`"
         desc = "Erhalte die Twstats Akte eines Spielers oder Stammes"
         cmd_type = "Server Command"
         cmd_inp = ["`~akte <playername/tribename>`"]
@@ -236,9 +250,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="guest", aliases=["gast"])
+    @help.command(name="guest")
     async def guest_(self, ctx):
-        title = "`~guest` - `~gast`"
+        title = "`~guest`"
         desc = "Erhalte die Gastlogin-Link eines Spieler oder Stammes"
         cmd_type = "Server Command"
         cmd_inp = ["`~guest <playername/tribename>`"]
@@ -248,9 +262,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="visit", aliases=["besuch"])
+    @help.command(name="visit")
     async def visit_(self, ctx):
-        title = "`~visit` - `~besuch`"
+        title = "`~visit`"
         desc = "Erhalte den Gastlogin-Link einer Welt"
         cmd_type = "Server Command"
         cmd_inp = ["`~visit <world>`"]
@@ -292,9 +306,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="recap", aliases=["tagebuch"])
+    @help.command(name="recap")
     async def recap_(self, ctx):
-        title = "`~recap` - `~tagebuch`"
+        title = "`~recap`"
         desc = "Der Bot fasst die Entwicklung des Spieler, Stammes der " \
                "vergangenen 7 oder gewünschten Tage zusammen. Falls keine " \
                "Tage angegeben werden, wählt der Bot automatisch eine Woche."
@@ -307,9 +321,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="villages", aliases=["dörfer"])
+    @help.command(name="villages")
     async def villages_(self, ctx):
-        title = "`~villages` - `~dörfer`"
+        title = "`~villages`"
         desc = "Erhalte eine Coord-Liste eines Accounts oder Stammes. " \
                "Wenn gewünscht kann man auch einen Kontinent mit angegeben werden. " \
                "Ideal für das Faken mit Workbench."
@@ -322,9 +336,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="bb", aliases=["barbarendörfer"])
+    @help.command(name="bb")
     async def bb_(self, ctx):
-        title = "`~bb` - `~barbarendörfer`"
+        title = "`~bb`"
         desc = "Erhalte alle Koordinaten in einem Radius um ein gewünschtes Dorf. Optionen " \
                "sind Radius(Default = 20, Maximum 100 in jede Richtung) " \
                "und Points(Punktezahl der Dörfer bis zur gewünschten Grenze)"
@@ -337,9 +351,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="nude", aliases=["profilbild"])
+    @help.command(name="nude")
     async def nude_(self, ctx):
-        title = "`~nude` - `~profilbild`"
+        title = "`~nude`"
         desc = "Erhalte das Profilbild eines Spielers, Stammes. Falls " \
                "kein Name angegeben wird, wird ein Bild zufällig " \
                "von allen Spielern der Server-Welt ausgesucht."
@@ -353,9 +367,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="map", aliases=["karte"])
+    @help.command(name="map")
     async def map_(self, ctx):
-        title = "`~map` - `~karte`"
+        title = "`~map`"
         desc = "Erstellt eine Karte der Welt und markiert angegebene Stämme. " \
                "Falls keine angegeben werden erhält man eine Darstellung der Top 10. " \
                "Des weiteren kann man mit einem & Zeichen zwischen mehreren Stämmen diese " \
@@ -372,9 +386,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="custom", aliases=["leinwand"])
+    @help.command(name="custom")
     async def custom_(self, ctx):
-        title = "`~custom` - `~leinwand`"
+        title = "`~custom`"
         desc = "Erstellt eine Karte der channelverbundenen oder angegebenen Welt. " \
                "Die Emotes sind hierbei als \"Knöpfe\" zu betrachten, Optionen wie " \
                "Zoom und Markierung haben mehrere Stufen (5 Minuten Zeitlimit)"
@@ -386,9 +400,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="rm", aliases=["rundmail"])
+    @help.command(name="rm")
     async def rm_(self, ctx):
-        title = "`~rm` - `~rundmail`"
+        title = "`~rm`"
         desc = "Der Bot generiert automatisch eine Liste aller Member der " \
                "angegebenen Stämme damit man diese kopieren und einfügen " \
                "kann. Namen mit Leerzeichen müssen mit \"\" umrandet sein."
@@ -445,7 +459,7 @@ class Help(commands.Cog):
 
     @help.command(name="emoji")
     async def emoji_(self, ctx):
-        title = "`~emoji` - `~cancer`"
+        title = "`~emoji`"
         desc = "Füge deinem Server eine Reihe von DS-Emojis hinzu."
         cmd_type = "Admin Command"
         cmd_inp = ["`~emoji`"]
@@ -457,7 +471,7 @@ class Help(commands.Cog):
 
     @help.command(name="poll")
     async def poll_(self, ctx):
-        title = "`~poll` - `~abstimmung`"
+        title = "`~poll`"
         desc = "Erstelle eine Abstimmung mit bis zu 9 Auswahlmöglichkeiten"
         cmd_type = "Server Command"
         cmd_inp = ["`~poll \"<question>\" <option> <option> ...`"]
@@ -467,9 +481,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="pin", aliases=["anpinnen"])
+    @help.command(name="pin")
     async def pin_(self, ctx):
-        title = "`~pin` - `~anpinnen`"
+        title = "`~pin`"
         desc = "Erhalte den Help Command im Server zum Anpinnen"
         cmd_type = "Admin Command"
         cmd_inp = ["`~pin`"]
@@ -479,17 +493,26 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="time")
-    async def time_(self, ctx):
-        title = "`~time`"
+    @help.command(name="remind")
+    async def remind_(self, ctx):
+        title = "`~remind`"
         desc = "Der Bot erinnert dich nach Ablauf der Zeit per privater " \
-               "Nachricht. Ein Grund kann, muss aber nicht angegeben " \
-               "werden. Folgende Zeitformate sind möglich: " \
-               "<5h2m10s> h=hour, m=minute, s=seconds | <12:30:27>"
+               "Nachricht. Ein Grund is Optional, der Bot richtet sich bei Zeiteingabe an " \
+               "MEZ/MESZ (Deutschland), mit \"now\" könnt ihr die aktuelle Zeit abfragen " \
+               "falls ihr im Ausland seid. Lass dir all deine aktiven Reminder anzeigen, " \
+               "lösche einen einzelnen oder alle."
         cmd_type = "PM Command"
-        cmd_inp = ["`~time <time> <reason>`"]
-        example = ["`~time 50s`",
-                   "`~time 18:22 Pizza aus dem Ofen holen`"]
+        cmd_inp = ["`~remind <time> <neuer Absatz> <reason>`",
+                   "`~remind list`",
+                   "`~remind remove <reminder id>`",
+                   "`~remind clear`",
+                   "`~now`"]
+        example = ["`~remind 50s`",
+                   "`~remind 18:22\nPizza aus dem Ofen holen`",
+                   "`~remind list`",
+                   "`~remind remove 120`",
+                   "`~remind clear`",
+                   "`~now`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -497,7 +520,7 @@ class Help(commands.Cog):
 
     @help.command(name="duali")
     async def duali_(self, ctx):
-        title = "`~duali` - `~mitspieler`"
+        title = "`~duali`"
         desc = "Der Bot sieht vorraus wie gut du und der angegebene " \
                "User in einem Account zusammenspielen würdet."
         cmd_type = "Server Command"
@@ -510,7 +533,7 @@ class Help(commands.Cog):
 
     @help.command(name="mirror")
     async def mirror_(self, ctx):
-        title = "`~mirror` - `~spiegel`"
+        title = "`~mirror`"
         desc = "Der Bot zeigt dir den aktuellen Discord Avatar eines Users." \
                "Falls keiner angegeben ist, wird dir dein Eigener gezeigt"
         cmd_type = "Server Command"
@@ -537,9 +560,9 @@ class Help(commands.Cog):
         await self.mailbox(ctx, embed)
 
     # Minigames
-    @help.command(name="ag")
+    @help.command(name="anagram", aliases=["ag"])
     async def ag_(self, ctx):
-        title = "`~ag` - `~anagram` - `~guess`"
+        title = "`~ag` - `~anagram`"
         desc = "Spiele eine Runde Anagram mit Worten aus DS."
         cmd_type = "Server Command"
         cmd_inp = ["`~ag`",
@@ -556,9 +579,9 @@ class Help(commands.Cog):
         title = "`~tribalcards` - `~tc` - `~play`"
         desc = "Spiel eine Runde Tribalcards. Gespielt wird mit zufälligen " \
                "Accounts der Serverwelt. Der Spielgründer darf anfangen und " \
-               "muss nun eine Eigenschaft auswählen gegen welche die anderen" \
-               " Spieler vergleichen müssen. Der Gewinner beginnt von da an." \
-               " Das Spiel geht solange bis keine Karten mehr übrig sind."
+               "muss nun eine Eigenschaft auswählen gegen welche die anderen " \
+               "Spieler vergleichen müssen. Der Gewinner beginnt von da an. " \
+               "Das Spiel geht solange bis keine Karten mehr übrig sind."
         cmd_type = "Server Command / PM Command"
         cmd_inp = ["`~quartet`",
                    "`~play <card or stat>`"]
@@ -570,9 +593,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="hangman", aliases=["galgenmännchen"])
+    @help.command(name="hangman")
     async def hangman_(self, ctx):
-        title = "`~hangman` - `~galgenmännchen`"
+        title = "`~hangman`"
         desc = "Spiele eine Runde Galgenmännchen. Alle Worte " \
                "kommen bis auf ein paar Ausnahmen in DS vor."
         cmd_type = "Server Command"
@@ -599,9 +622,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="quiz", aliases=["wwm"])
+    @help.command(name="quiz")
     async def quiz_(self, ctx):
-        title = "`~quiz` - `~wwm`"
+        title = "`~quiz`"
         desc = "Ein ds-bezogenes Quiz mit 4 unterschiedlichen Modulen."
         cmd_type = "Server Command"
         cmd_inp = ["`~quiz <game_rounds>`"]
@@ -626,9 +649,9 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="vp", aliases=["videopoker", "draw"])
+    @help.command(name="videopoker", aliases=["vp", "draw"])
     async def vp_(self, ctx):
-        title = "`~vp` - `~videopoker` - `~draw`"
+        title = "`~videopoker` - `~vp` - `~draw`"
         desc = "Du erhältst 5 Karten aus einem typischen 52er Set. Nun hast " \
                "du die Möglichkeit einmal Karten auszutauschen. " \
                "Man spielt um einen gewünschten Einsatz, " \
@@ -643,7 +666,7 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="dice", aliases=["würfelspiel"])
+    @help.command(name="dice")
     async def dice_(self, ctx):
         title = "`~dice` - `~würfelspiel`"
         desc = "Starte ein 1vs1 Würfelspiel, das größere Auge gewinnt beide Einsätze"
@@ -656,7 +679,7 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="iron", aliases=["eisen"])
+    @help.command(name="iron")
     async def iron_(self, ctx):
         title = "`~iron` - `~eisen`"
         desc = "Beim Gewinnen von Spielen (ag, hangman und vp) gewinnt man " \

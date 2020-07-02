@@ -300,7 +300,7 @@ class Map(commands.Cog):
         self.watermark(result)
         return result
 
-    @commands.command(name="map", aliases=["karte"])
+    @commands.command(name="map")
     async def map_(self, ctx, *, tribe_names=None):
         await ctx.trigger_typing()
 
