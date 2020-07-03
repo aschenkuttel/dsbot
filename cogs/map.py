@@ -2,7 +2,6 @@ from utils import WorldConverter, DSColor, MapVillage, error_embed, silencer
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 import numpy as np
-import datetime
 import discord
 import asyncio
 import io
@@ -32,7 +31,6 @@ class Map(commands.Cog):
         ]
         user = commands.BucketType.user
         self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
-        self.bot.loop.create_task(self.map_cleanup())
 
     async def cog_check(self, ctx):
         bucket = self._cd.get_bucket(ctx.message)
@@ -43,27 +41,9 @@ class Map(commands.Cog):
         else:
             return True
 
-    # current workaround since library update will support that with tasks in short future
-    def get_seconds(self, reverse=False, only=0):
-        now = datetime.datetime.now()
-        hours = -1 if reverse else 1
-        clean = now + datetime.timedelta(hours=hours + only)
-        goal_time = clean.replace(minute=0, second=0, microsecond=0)
-        start_time = now.replace(microsecond=0)
-        if reverse:
-            goal_time, start_time = start_time, goal_time
-        goal = (goal_time - start_time).seconds
-        return goal if not only else start_time.timestamp()
-
-    async def map_cleanup(self):
-        seconds = self.get_seconds()
-        await asyncio.sleep(seconds + 60)
-
+    async def called_by_hour(self):
         try:
-            while not self.bot.is_closed():
-                self.map_cache.clear()
-                seconds = self.get_seconds()
-                await asyncio.sleep(seconds + 60)
+            self.map_cache.clear()
 
         except Exception as error:
             self.bot.logger.warning(f"map cache:\n{error}")

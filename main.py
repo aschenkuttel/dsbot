@@ -3,6 +3,7 @@ import data.naruto as secret
 import concurrent.futures
 import functools
 import operator
+import datetime
 import discord
 import asyncpg
 import aiohttp
@@ -40,6 +41,7 @@ class DSBot(commands.Bot):
         self.logger = utils.create_logger('dsbot', self.path)
         self.msg = json.load(open(f"{self.data_path}/msg.json"))
         self.activity = discord.Activity(type=0, name=self.msg['status'])
+        self.loop.create_task(self.loop_per_hour())
         self.add_check(self.global_world)
         self.config = utils.Config(self)
         self.cache = utils.Cache(self)
@@ -125,6 +127,35 @@ class DSBot(commands.Bot):
         pool.shutdown()
         return result
 
+    async def loop_per_hour(self):
+        await self._lock.wait()
+        seconds = self.get_seconds()
+        await asyncio.sleep(seconds)
+
+        while not self.is_closed():
+
+            await self.refresh_worlds()
+
+            for cog in self.cogs.values():
+                loop = getattr(cog, 'called_by_hour', None)
+                if loop is not None:
+                    await loop()
+
+            seconds = self.get_seconds()
+            await asyncio.sleep(seconds)
+
+    # current workaround since library update will support that with tasks in short future
+    def get_seconds(self, reverse=False, only=0):
+        now = datetime.datetime.now()
+        hours = -1 if reverse else 1
+        clean = now + datetime.timedelta(hours=hours + only)
+        goal_time = clean.replace(minute=0, second=0, microsecond=0)
+        start_time = now.replace(microsecond=0)
+        if reverse:
+            goal_time, start_time = start_time, goal_time
+        goal = (goal_time - start_time).seconds
+        return goal if not only else start_time.timestamp()
+
     async def db_connect(self):
         result = []
         databases = 'tribaldata', 'userdata'
@@ -191,18 +222,6 @@ class DSBot(commands.Bot):
         async with self.ress.acquire() as conn:
             data = await conn.fetch(query, *args)
             return data
-
-    async def save_usage(self, cmd):
-        cmd = cmd.lower()
-        query = 'SELECT * FROM usage_data WHERE name = $1'
-
-        async with self.ress.acquire() as conn:
-            data = await conn.fetchrow(query, cmd)
-            new_usage = data['usage'] + 1 if data else 1
-
-            query = 'INSERT INTO usage_data(name, usage) VALUES($1, $2) ' \
-                    'ON CONFLICT (name) DO UPDATE SET usage=$2'
-            await conn.execute(query, cmd, new_usage)
 
     async def fetch_usage(self):
         statement = 'SELECT * FROM usage_data'

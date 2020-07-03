@@ -11,10 +11,9 @@ logger = logging.getLogger('dsbot')
 class ConquerLoop(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self._conquer = {}
-        self.bot.loop.create_task(self.conquer_loop())
-        self.guild_timeout.start()
         self.start = True
+        self._conquer = {}
+        self.guild_timeout.start()
 
     @tasks.loop(hours=72)
     async def guild_timeout(self):
@@ -34,30 +33,24 @@ class ConquerLoop(commands.Cog):
         self.bot.last_message.clear()
         logger.debug(f"{counter} inactive guilds")
 
-    # main loop
-    async def conquer_loop(self):
-        seconds = self.get_seconds()
-        await asyncio.sleep(seconds)
-        while not self.bot.is_closed():
-            try:
-                await self.bot.refresh_worlds()
-                await self.update_conquer()
+    # main loop called from main
+    async def called_by_hour(self):
+        try:
+            await self.update_conquer()
 
-                counter = 0
-                for guild in self.bot.guilds:
-                    resp = await self.conquer_feed(guild)
-                    if resp is True:
-                        counter += 1
+            counter = 0
+            for guild in self.bot.guilds:
+                resp = await self.conquer_feed(guild)
+                if resp is True:
+                    counter += 1
 
-                logger.debug(f"conquer feed complete ({counter} guilds)")
-                wait_pls = self.get_seconds()
-                await asyncio.sleep(wait_pls)
+            logger.debug(f"conquer feed complete ({counter} guilds)")
 
-            except Exception as error:
-                logger.critical(f"conquer Error: {error}")
-                user = self.bot.get_user(self.bot.owner_id)
-                await user.send("conquer task crashed")
-                return
+        except Exception as error:
+            logger.critical(f"conquer Error: {error}")
+            user = self.bot.get_user(self.bot.owner_id)
+            await user.send("conquer task crashed")
+            return
 
     async def conquer_feed(self, guild):
         conquer = self.bot.config.get_item(guild.id, 'conquer')
@@ -143,7 +136,7 @@ class ConquerLoop(commands.Cog):
             self._conquer[world] = []
 
             try:
-                sec = self.get_seconds(True)
+                sec = self.bot.get_seconds(True)
                 data = await self.fetch_conquer(world_obj, sec)
             except Exception as error:
                 logger.warning(f"{world} skipped: {error}")
@@ -162,7 +155,7 @@ class ConquerLoop(commands.Cog):
             player_ids = []
             village_ids = []
             conquer_cache = []
-            old_unix = self.get_seconds(True, 1)
+            old_unix = self.bot.get_seconds(True, 1)
             for entry in cache:
                 vil_id, unix_time, new_owner, old_owner = entry
 
@@ -212,17 +205,6 @@ class ConquerLoop(commands.Cog):
         async with self.bot.session.get(base.format(world.url, cur)) as resp:
             data = await resp.text('utf-8')
             return data.split('\n')
-
-    def get_seconds(self, reverse=False, only=0):
-        now = datetime.datetime.now()
-        hours = -1 if reverse else 1
-        clean = now + datetime.timedelta(hours=hours + only)
-        goal_time = clean.replace(minute=0, second=0, microsecond=0)
-        start_time = now.replace(microsecond=0)
-        if reverse:
-            goal_time, start_time = start_time, goal_time
-        goal = (goal_time - start_time).seconds
-        return goal if not only else start_time.timestamp()
 
     async def conquer_parse(self, world, config):
         data = self._conquer.get(world)

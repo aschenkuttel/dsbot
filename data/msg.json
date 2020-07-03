@@ -667,7 +667,7 @@
     },
     "gold": {
       "parent": "snob",
-      "title": "Erzeugung ben\u00ef6tigt",
+      "title": "Erzeugung ben\u00f6tigt",
       "description": [
         "Einlagerungen",
         "Goldm\u00fcnzen"
@@ -684,6 +684,20 @@
       "description": [
         "Inaktiv",
         "Aktiv"
+      ]
+    },
+    "check": {
+      "parent": "win",
+      "title": "Siegbedingung",
+      "description": [
+        "keine Siegbedingung gewählt",
+        "Spieler (Spieler hält x Punkte und y Dörfer für z Tage)",
+        "Stamm (Stamm hält x Punkte und y Dörfer für z Tage)",
+        "Dominanz",
+        "Runen-Dörfer",
+        "Casual-Endgame",
+        "Zeitalter der Aufklärung",
+        "Große Belagerung"
       ]
     }
   }

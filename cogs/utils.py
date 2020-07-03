@@ -223,6 +223,8 @@ class Rm(commands.Cog):
                     value = int(raw_value)
                 elif key == "moral":
                     value = description[int(raw_value)]
+                else:
+                    value = round(float(raw_value), 3)
 
             cache.append(f"**{title}:** {value or raw_value}")
 
