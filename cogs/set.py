@@ -214,7 +214,7 @@ class Set(commands.Cog):
             msg = "Es befindet sich kein Stamm im Filter"
             return await ctx.send(embed=error_embed(msg))
 
-        world = self.config.get_related_world(ctx.channel)
+        world = self.config.get_world(ctx.channel)
         cache = await self.bot.fetch_bulk(world, conquer['filter'], 'tribe')
         data = [obj.name for obj in cache]
 

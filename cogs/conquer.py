@@ -35,22 +35,15 @@ class ConquerLoop(commands.Cog):
 
     # main loop called from main
     async def called_by_hour(self):
-        try:
-            await self.update_conquer()
+        await self.update_conquer()
 
-            counter = 0
-            for guild in self.bot.guilds:
-                resp = await self.conquer_feed(guild)
-                if resp is True:
-                    counter += 1
+        counter = 0
+        for guild in self.bot.guilds:
+            resp = await self.conquer_feed(guild)
+            if resp is True:
+                counter += 1
 
-            logger.debug(f"conquer feed complete ({counter} guilds)")
-
-        except Exception as error:
-            logger.critical(f"conquer Error: {error}")
-            user = self.bot.get_user(self.bot.owner_id)
-            await user.send("conquer task crashed")
-            return
+        logger.debug(f"conquer feed complete ({counter} guilds)")
 
     async def conquer_feed(self, guild):
         conquer = self.bot.config.get_item(guild.id, 'conquer')
@@ -63,11 +56,7 @@ class ConquerLoop(commands.Cog):
             if not channel:
                 continue
 
-            world = self.bot.config.get_related_world(channel)
-
-            if len(conquer) == 1 and not world:
-                world = self.bot.config.get_related_world(guild)
-
+            world = self.bot.config.get_world(channel)
             if not world:
                 continue
 

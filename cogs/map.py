@@ -42,11 +42,7 @@ class Map(commands.Cog):
             return True
 
     async def called_by_hour(self):
-        try:
-            self.map_cache.clear()
-
-        except Exception as error:
-            self.bot.logger.warning(f"map cache:\n{error}")
+        self.map_cache.clear()
 
     async def timeout(self, cache, user_id, time):
         current = self.cache.get(user_id)
@@ -346,7 +342,7 @@ class Map(commands.Cog):
         players = {pl.id: pl for pl in result}
 
         if not all_villages:
-            msg = "Auf der Welt gibt es noch keine Dörfer"
+            msg = "Auf der Welt gibt es noch keine Dörfer :/"
             return await ctx.send(msg)
 
         args = (all_villages, tribes, players)

@@ -51,7 +51,7 @@ class Reminder(commands.Cog):
         self._lock = asyncio.Event(loop=bot.loop)
         self.current_reminder = None
 
-    async def cog_unload(self):
+    def cog_unload(self):
         self._task.cancel()
 
     def restart(self, reminder=None):
@@ -84,7 +84,9 @@ class Reminder(commands.Cog):
                 async with self.bot.ress.acquire() as conn:
                     await conn.execute(query, self.current_reminder.id)
 
-                await self.current_reminder.send()
+                if seconds > -60:
+                    await self.current_reminder.send()
+
                 self.current_reminder = None
                 self._lock.clear()
 
@@ -97,7 +99,7 @@ class Reminder(commands.Cog):
         represent = now.strftime(self.preset)
         await ctx.send(f"`{represent}`")
 
-    @commands.group(name="remind", aliases=["time"], invoke_without_command=True)
+    @commands.group(name="remind", invoke_without_command=True)
     async def remind(self, ctx, *, argument: commands.clean_content):
         args = argument.split("\n")
         time = args.pop(0)
@@ -139,7 +141,7 @@ class Reminder(commands.Cog):
                 resp = await conn.fetchrow(query, *arguments)
                 reminder.id = resp['id']
 
-            if not self._lock.is_set():
+            if not self.current_reminder:
                 self.current_reminder = reminder
                 self._lock.set()
 

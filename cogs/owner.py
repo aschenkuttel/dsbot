@@ -45,7 +45,7 @@ class Admin(commands.Cog):
     async def stats_(self, ctx):
         data = await self.bot.fetch_usage()
         if not data:
-            return
+            return await ctx.send("no")
         result = [f"`{usage}` [{cmd}]" for cmd, usage in data]
         return await ctx.send(
             embed=discord.Embed(description='\n'.join(result)))

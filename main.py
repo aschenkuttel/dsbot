@@ -77,12 +77,15 @@ class DSBot(commands.Bot):
         if "help" in str(ctx.command):
             return True
 
-        cmd = str(ctx.command).lower()
+        cmd = str(ctx.command)
         if cmd == "set world":
             return True
 
         if ctx.guild is None:
-            if cmd in self.white:
+            parent = ctx.command.parent
+            if parent is None and cmd in self.white:
+                return True
+            elif str(parent) in self.white:
                 return True
             else:
                 raise commands.NoPrivateMessage
@@ -134,12 +137,17 @@ class DSBot(commands.Bot):
 
         while not self.is_closed():
 
+            self.logger.debug("loop per hour")
             await self.refresh_worlds()
 
             for cog in self.cogs.values():
                 loop = getattr(cog, 'called_by_hour', None)
-                if loop is not None:
-                    await loop()
+
+                try:
+                    if loop is not None:
+                        await loop()
+                except Exception as error:
+                    self.logger.debug(f"{cog.name} Task Error: {error}")
 
             seconds = self.get_seconds()
             await asyncio.sleep(seconds)

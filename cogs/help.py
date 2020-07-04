@@ -1,7 +1,6 @@
 from discord.ext import commands
 import discord
 import asyncio
-import os
 
 
 class Help(commands.Cog):
@@ -496,8 +495,8 @@ class Help(commands.Cog):
     @help.command(name="remind")
     async def remind_(self, ctx):
         title = "`~remind`"
-        desc = "Der Bot erinnert dich nach Ablauf der Zeit per privater " \
-               "Nachricht. Ein Grund is Optional, der Bot richtet sich bei Zeiteingabe an " \
+        desc = "Der Bot erinnert dich nach Ablauf der Zeit per Nachricht, " \
+               "ein Grund is Optional. Der Bot richtet sich bei Zeiteingaben an " \
                "MEZ/MESZ (Deutschland), mit \"now\" könnt ihr die aktuelle Zeit abfragen " \
                "falls ihr im Ausland seid. Lass dir all deine aktiven Reminder anzeigen, " \
                "lösche einen einzelnen oder alle."
@@ -642,7 +641,7 @@ class Help(commands.Cog):
                "d[double = noch eine Karte, verdoppelter Einsatz und der Dealer ist am Zug]\n" \
                "Diese kannst du ohne Command in den Chat schreiben"
         cmd_type = "Server Command"
-        cmd_inp = ["`~bj <amount (100-50000)>`"]
+        cmd_inp = ["`~bj <optional=amount(100-50000)>`"]
         example = ["`~bj 50000`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
@@ -657,7 +656,7 @@ class Help(commands.Cog):
                "Man spielt um einen gewünschten Einsatz, " \
                "je nach Hand erhält man immer größeren Gewinn."
         cmd_type = "Server Command"
-        cmd_inp = ["`~vp <amount (100-2000)>`",
+        cmd_inp = ["`~vp <optional=amount(100-2000)>`",
                    "`~draw <cardnumbers>`"]
         example = ["`~vp 2000`",
                    "`~draw 13`"]
