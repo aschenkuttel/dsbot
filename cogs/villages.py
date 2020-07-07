@@ -24,7 +24,7 @@ class Villages(commands.Cog):
 
         await ctx.private_hint()
 
-    @commands.command(name="villages", aliases=["dörfer"])
+    @commands.command(name="villages")
     async def villages_(self, ctx, amount: str, *args):
         if not amount.isdigit() and amount.lower() != "all":
             msg = "Die Anzahl der gewünschten Dörfer muss entweder eine Zahl oder `all` sein."
@@ -85,7 +85,7 @@ class Villages(commands.Cog):
 
         await self.send_coords(ctx, result)
 
-    @commands.command(name="bb", aliases=["barbarendörfer"])
+    @commands.command(name="bb")
     async def bb_(self, ctx, center, *, options=None):
         coord = re.match(r'\d\d\d\|\d\d\d', center)
         if not coord:

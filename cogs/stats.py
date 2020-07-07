@@ -9,10 +9,11 @@ class Bash(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        self.base = "https://{}.die-staemme.de/guest.php?village" \
+        self.base = "https://{}/guest.php?village" \
                     "=null&screen=ranking&mode=in_a_day&type={}"
-        self.keys = {'bash': "kill_att", 'def': "kill_def", 'ut': "kill_sup", 'farm': "loot_res",
-                     'villages': "loot_vil", 'scavenge': "scavenge", 'conquer': "conquer"}
+        self.attribute = {'bash': "kill_att", 'def': "kill_def", 'ut': "kill_sup",
+                          'farm': "loot_res", 'villages': "loot_vil",
+                          'scavenge': "scavenge", 'conquer': "conquer"}
         self.values = {
             'angreifer': {'value': "att_bash", 'item': "Bashpoints"},
             'verteidiger': {'value': "def_bash", 'item': "Bashpoints"},
@@ -56,13 +57,13 @@ class Bash(commands.Cog):
             s2 = await self.bot.fetch_both(ctx.server, player2)
 
             if not s1 and not s2:
-                msg = f"Auf der `{ctx.world}` gibt es weder einen Stamm noch " \
+                msg = f"Auf der {ctx.world} gibt es weder einen Stamm noch " \
                       f"einen Spieler, der `{player1}` oder `{player2}` heißt"
                 return await ctx.send(msg)
 
             if not s1 or not s2:
                 player = player1 if not s1 else player2
-                msg = f"Auf der `{ctx.world}` gibt es einen Stamm oder Spieler " \
+                msg = f"Auf der {ctx.world} gibt es einen Stamm oder Spieler " \
                       f"namens `{player}` nicht!"
                 return await ctx.send(msg)
 
@@ -79,7 +80,7 @@ class Bash(commands.Cog):
             msg = f"{pcv(data_one)} {arrow} {pcv(data_two)}"
             await ctx.send(embed=discord.Embed(description=msg))
 
-    @commands.command(name="recap", aliases=["tagebuch"])
+    @commands.command(name="recap")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def recap(self, ctx, *, args):
         time = 7
@@ -157,14 +158,14 @@ class Bash(commands.Cog):
         await ctx.send(answer)
 
     @commands.group(name="top")
-    async def tmp_(self, ctx, state):
-        key = self.keys.get(state.lower())
+    async def top_(self, ctx, state):
+        key = self.attribute.get(state.lower())
 
         if key is None:
-            cmd = self.bot.get_command("help top")
-            return await ctx.invoke(cmd)
+            msg = f"`{ctx.prefix}top <{'|'.join(self.attribute.keys())}>`"
+            return await ctx.send(embed=error_embed(msg, ctx))
 
-        res_link = self.base.format(ctx.server, key)
+        res_link = self.base.format(ctx.world.url, key)
         async with self.bot.session.get(res_link) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
 
@@ -202,8 +203,8 @@ class Bash(commands.Cog):
         award_data = self.values.get(award)
 
         if award_data is None:
-            cmd = self.bot.get_command("help daily")
-            return await ctx.invoke(cmd)
+            msg = f"`{ctx.prefix}daily <{'|'.join(self.values.keys())}>`"
+            return await ctx.send(embed=error_embed(msg, ctx))
 
         dsobj = utils.DSType(int(ctx.invoked_with.lower() == "aktueller"))
         negative = award in ["verlierer"]
@@ -211,7 +212,7 @@ class Bash(commands.Cog):
         base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
                'WHERE {0}.world = $1 AND {1}.world = $1 '
 
-        if award == "utbash":
+        if award == "unterstützer":
             base += 'ORDER BY ({0}.all_bash - {0}.att_bash - {0}.def_bash) - ' \
                     '({1}.all_bash - {1}.att_bash - {1}.def_bash) {3} LIMIT 5'
         else:
@@ -251,7 +252,7 @@ class Bash(commands.Cog):
 
         if ranking:
             description = "\n".join(ranking)
-            title = f"{award.capitalize()} des Tages ({ctx.world})"
+            title = f"{award.capitalize()} des Tages ({ctx.world.show(True)})"
             footer = "Daten aufgrund von Inno nur stündlich aktualisiert"
             embed = discord.Embed(title=title, description=description)
             embed.colour = discord.Color.blue()

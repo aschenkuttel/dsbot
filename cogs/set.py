@@ -1,4 +1,4 @@
-from utils import World, DSConverter,  WrongChannel, complete_embed, error_embed
+from utils import WorldConverter, DSConverter,  WrongChannel, complete_embed, error_embed
 from discord.ext import commands
 import discord
 
@@ -32,10 +32,10 @@ class Set(commands.Cog):
         await ctx.send(embed=error_embed(msg))
 
     @set.command(name="world")
-    async def set_world(self, ctx, world: World):
+    async def set_world(self, ctx, world: WorldConverter):
         old_world = self.config.get_related_world(ctx.guild)
         res = "bereits" if world == old_world else "nun"
-        msg = f"Der Server ist {res} mit `{world}` verbunden"
+        msg = f"Der Server ist {res} mit {world} verbunden"
 
         if world == old_world:
             await ctx.send(embed=error_embed(msg))
@@ -84,7 +84,7 @@ class Set(commands.Cog):
             await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="channel")
-    async def set_channel(self, ctx, world: World):
+    async def set_channel(self, ctx, world: WorldConverter):
         config = self.config.get_item(ctx.guild.id, 'channel')
         if config is None:
             cache = {str(ctx.channel.id): world.server}
@@ -214,13 +214,13 @@ class Set(commands.Cog):
             msg = "Es befindet sich kein Stamm im Filter"
             return await ctx.send(embed=error_embed(msg))
 
-        world = self.config.get_related_world(ctx.guild)
+        world = self.config.get_world(ctx.channel)
         cache = await self.bot.fetch_bulk(world, conquer['filter'], 'tribe')
         data = [obj.name for obj in cache]
 
         name = "Stamm" if len(data) == 1 else "Stämme"
         title = f"{len(data)} {name} insgesamt:"
-        embed = discord.Embed(title=title, description="\n".join(data[:10]))
+        embed = discord.Embed(title=title, description="\n".join(data[:20]))
         await ctx.send(embed=embed)
 
     @conquer.command(name="clear")

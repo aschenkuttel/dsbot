@@ -89,7 +89,7 @@ class Graphic(commands.Cog):
         await ctx.author.send(file=file)
         await ctx.private_hint()
 
-    @commands.command(name="nude", aliases=["profilbild"])
+    @commands.command(name="nude")
     @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def nude_(self, ctx, *, dsobj: DSConverter = None):
         await ctx.trigger_typing()
@@ -125,7 +125,7 @@ class Graphic(commands.Cog):
 
         await ctx.send(file=discord.File(file, "userpic.gif"))
 
-    @commands.command(name="emoji", aliases=["cancer"])
+    @commands.command(name="emoji")
     @commands.bot_has_permissions(manage_emojis=True)
     async def emoji_(self, ctx):
         counter = 0

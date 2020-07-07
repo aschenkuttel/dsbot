@@ -53,7 +53,7 @@ class DSUserNotFound(commands.CheckFailure):
         super().__init__('dsobj not found')
 
 
-class GuildUserNotFound(commands.CheckFailure):
+class MemberConverterNotFound(commands.CheckFailure):
     def __init__(self, searchable):
         self.name = searchable
         super().__init__('discord user not found')

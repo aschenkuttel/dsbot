@@ -32,10 +32,10 @@ class Word(commands.Cog):
         data = self.hangman[ctx.guild.id]
         data['life'] -= loss
         if data['life'] <= 0:
+            self.hangman[ctx.guild.id] = False
             base = "**Game Over** | Lösungswort:{}`{}` (15s Cooldown)"
             msg = base.format(os.linesep, data['solution'])
             await ctx.send(msg)
-            self.hangman[ctx.guild.id] = False
             await asyncio.sleep(15)
             self.hangman.pop(ctx.guild.id)
 
@@ -119,7 +119,7 @@ class Word(commands.Cog):
         self.anagram.pop(ctx.guild.id)
 
     @game_channel_only()
-    @commands.command(name="hangman", aliases=["galgenmännchen"])
+    @commands.command(name="hangman")
     async def hangman(self, ctx):
         data = self.hangman.get(ctx.guild.id)
         if data is False:
@@ -143,7 +143,7 @@ class Word(commands.Cog):
             msg = base.format(self.blender(ctx.guild.id))
             await ctx.send(msg)
 
-    @commands.command(name="guess", aliases=["raten"])
+    @commands.command(name="guess")
     @game_channel_only()
     async def guess(self, ctx, *, args):
         data = self.hangman.get(ctx.guild.id)

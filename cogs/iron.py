@@ -1,4 +1,4 @@
-from utils import GuildUser, pcv, error_embed
+from utils import MemberConverter, pcv, error_embed
 from discord.ext import commands
 import discord
 
@@ -8,7 +8,7 @@ class Money(commands.Cog):
         self.bot = bot
 
     @commands.group(name="iron")
-    async def iron_(self, ctx):
+    async def iron(self, ctx):
         cmd_list = ("top", "global", "send")
         if ctx.subcommand_passed and ctx.subcommand_passed not in cmd_list:
             msg = f"Falsche Eingabe | `{ctx.prefix}iron <top/global/send>"
@@ -21,9 +21,9 @@ class Money(commands.Cog):
         base = "**Dein Speicher:** `{} Eisen`\n**Globaler Rang:** `{}`"
         await ctx.send(base.format(pcv(money), rank))
 
-    @iron_.command()
+    @iron.command(name="send")
     @commands.cooldown(1, 30.0, commands.BucketType.user)
-    async def send(self, ctx, amount: int, *, user: GuildUser):
+    async def send_(self, ctx, amount: int, *, user: MemberConverter):
         if not 1000 <= amount <= 500000:
             await ctx.send("Du kannst nur `1000-50.000 Eisen` überweisen")
             ctx.command.reset_cooldown(ctx)
@@ -35,7 +35,7 @@ class Money(commands.Cog):
             base = "Du hast `{}` erfolgreich `{} Eisen` überwiesen (30s Cooldown)"
             await ctx.send(base.format(user.display_name, pcv(amount)))
 
-    @iron_.command(name="global", aliases=["top"])
+    @iron.command(name="global", aliases=["top"])
     async def rank_(self, ctx):
         top = ctx.invoked_with.lower() == "top"
         guild = ctx.guild if top else None

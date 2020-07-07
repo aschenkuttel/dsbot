@@ -173,8 +173,8 @@ class Poker(commands.Cog):
             return hands.get("".join(occurs))
 
     @utils.game_channel_only()
-    @commands.command(name="vp", aliases=["videopoker"])
-    async def vp_(self, ctx, bet: int):
+    @commands.command(name="videopoker", aliases=["vp"])
+    async def vp_(self, ctx, bet: int = 2000):
         if not 100 <= bet <= 2000:
             raise utils.InvalidBet(100, 2000)
 
@@ -208,7 +208,7 @@ class Poker(commands.Cog):
                 return
 
     @utils.game_channel_only()
-    @commands.command(name="draw", aliases=["ziehen"])
+    @commands.command(name="draw")
     async def draw_(self, ctx, cards=None):
         data = self.vp.get(ctx.guild.id)
         if data is False:
@@ -260,8 +260,8 @@ class Poker(commands.Cog):
         await self.victory_royale(ctx.guild.id)
 
     @utils.game_channel_only()
-    @commands.command(name="bj", aliases=["blackjack"])
-    async def bj_(self, ctx, bet: int):
+    @commands.command(name="blackjack", aliases=["bj"])
+    async def bj_(self, ctx, bet: int = 50000):
         if not 100 <= bet <= 50000:
             raise utils.InvalidBet(100, 50000)
 

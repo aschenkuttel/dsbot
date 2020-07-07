@@ -1,5 +1,5 @@
 from discord.ext import commands
-from utils import GuildUser
+from utils import MemberConverter
 import discord
 import asyncio
 import random
@@ -51,8 +51,8 @@ class Enjoy(commands.Cog):
             await asyncio.sleep(3)
             await ctx.send("Ich bin Done mit dir, DONE!")
 
-    @commands.command(name="duali", aliases=["mitspieler"])
-    async def duali_(self, ctx, *, user: GuildUser):
+    @commands.command(name="duali")
+    async def duali_(self, ctx, *, user: MemberConverter):
         if user == self.bot.user:
             embed = discord.Embed()
             embed.set_image(url=self.url)
@@ -74,8 +74,8 @@ class Enjoy(commands.Cog):
 
             await ctx.send(f"Ihr passt zu `{result}%` zusammen.\n{answer}")
 
-    @commands.command(name="mirror", aliases=["spiegel"])
-    async def mirror_(self, ctx, *, user: GuildUser = None):
+    @commands.command(name="mirror")
+    async def mirror_(self, ctx, *, user: MemberConverter = None):
         em = discord.Embed()
         target = user or ctx.author
         em.set_image(url=target.avatar_url)

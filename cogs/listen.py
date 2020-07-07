@@ -1,5 +1,6 @@
 from PIL import Image, ImageChops
 from discord.ext import commands
+from collections import Counter
 from datetime import timedelta
 from bs4 import BeautifulSoup
 import traceback
@@ -13,7 +14,6 @@ import sys
 import io
 import re
 
-
 logger = logging.getLogger('dsbot')
 
 
@@ -22,11 +22,23 @@ class Listen(commands.Cog):
         self.bot = bot
         self.cap = 10
         self.blacklist = []
-        self.last_message = {}
-        self.silenced = (commands.BadArgument,
+        self.cmd_counter = Counter()
+        self.silenced = (commands.UnexpectedQuoteError,
+                         commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
                          utils.IngameError)
+
+    async def called_by_hour(self):
+        query = 'INSERT INTO usage_data(name, usage) VALUES($1, $2) ' \
+                'ON CONFLICT (name) DO UPDATE SET usage = usage_data.usage + $2'
+
+        data = [(k, v) for k, v in self.cmd_counter.items()]
+        if not data:
+            return
+
+        async with self.bot.ress.acquire() as conn:
+            await conn.executemany(query, data)
 
     # Report HTML to Image Converter
     def html_lover(self, raw_data):
@@ -195,10 +207,8 @@ class Listen(commands.Cog):
         cid, cmd = (ctx.message.id, ctx.invoked_with)
         logger.debug(f"command completed [{cid}]")
 
-        if ctx.author.id == self.bot.owner_id:
-            return
-        else:
-            await self.bot.save_usage(ctx.invoked_with)
+        if ctx.author.id != self.bot.owner_id:
+            self.cmd_counter[str(ctx.command)] += 1
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
@@ -277,9 +287,9 @@ class Listen(commands.Cog):
             msg = raw.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):
-            msg = f"`{error.name}` konnte auf `{ctx.world}` nicht gefunden werden"
+            msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
 
-        elif isinstance(error, utils.GuildUserNotFound):
+        elif isinstance(error, utils.MemberConverterNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
 
         elif isinstance(error, commands.BotMissingPermissions):
@@ -297,7 +307,7 @@ class Listen(commands.Cog):
         else:
             print(f"Command Message: {ctx.message.content}")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-            logger.warning(f"uncommon error ({ctx.world}): {ctx.message.content}")
+            logger.warning(f"uncommon error ({ctx.server}): {ctx.message.content}")
 
 
 def setup(bot):

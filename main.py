@@ -3,15 +3,15 @@ import data.naruto as secret
 import concurrent.futures
 import functools
 import operator
+import datetime
 import discord
 import asyncpg
 import aiohttp
+import asyncio
 import random
 import utils
 import json
 import os
-
-utils.create_logger('discord')
 
 
 # gets called every message to gather the custom prefix
@@ -27,7 +27,7 @@ def prefix(bot, message):
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.worlds = []
+        self.worlds = {}
         self.ress = None
         self.pool = None
         self.conn = None
@@ -36,15 +36,17 @@ class DSBot(commands.Bot):
         self.prefix = secret.prefix
         self.white = secret.pm_commands
         self.owner_id = 211836670666997762
-        self.logger = utils.create_logger('dsbot')
-        self.data_path = f"{os.path.dirname(__file__)}/data"
+        self.path = os.path.dirname(__file__)
+        self.data_path = f"{self.path}/data"
+        self.logger = utils.create_logger('dsbot', self.path)
         self.msg = json.load(open(f"{self.data_path}/msg.json"))
         self.activity = discord.Activity(type=0, name=self.msg['status'])
+        self.loop.create_task(self.loop_per_hour())
         self.add_check(self.global_world)
         self.config = utils.Config(self)
         self.cache = utils.Cache(self)
+        self._lock = asyncio.Event()
         self.remove_command("help")
-        self._lock = True
         self.setup_cogs()
 
     # setup functions
@@ -64,34 +66,41 @@ class DSBot(commands.Bot):
             self.conn = await self.pool.acquire()
             await self.conn.add_listener("log", self.callback)
 
-        self._lock = False
+        self._lock.set()
         print("Erfolgreich Verbunden!")
+
+    async def wait_until_unlocked(self):
+        return await self._lock.wait()
 
     # global check and ctx.world implementation
     async def global_world(self, ctx):
         if "help" in str(ctx.command):
             return True
 
-        cmd = str(ctx.command).lower()
+        cmd = str(ctx.command)
         if cmd == "set world":
             return True
 
         if ctx.guild is None:
-            if cmd in self.white:
+            parent = ctx.command.parent
+            if parent is None and cmd in self.white:
+                return True
+            elif str(parent) in self.white:
                 return True
             else:
                 raise commands.NoPrivateMessage
 
-        cache = self.config.get_world(ctx.channel)
-        if cache:
-            ctx.world = utils.World(cache)
-            return True
+        server = self.config.get_world(ctx.channel)
+        ctx.world = self.worlds.get(server)
 
-        raise utils.WorldMissing()
+        if ctx.world:
+            return True
+        else:
+            raise utils.WorldMissing()
 
     # custom context implementation
     async def on_message(self, message):
-        if self._lock:
+        if not self._lock.is_set():
             return
 
         ctx = await self.get_context(message, cls=utils.DSContext)
@@ -120,6 +129,40 @@ class DSBot(commands.Bot):
 
         pool.shutdown()
         return result
+
+    async def loop_per_hour(self):
+        await self._lock.wait()
+        seconds = self.get_seconds()
+        await asyncio.sleep(seconds)
+
+        while not self.is_closed():
+
+            self.logger.debug("loop per hour")
+            await self.refresh_worlds()
+
+            for cog in self.cogs.values():
+                loop = getattr(cog, 'called_by_hour', None)
+
+                try:
+                    if loop is not None:
+                        await loop()
+                except Exception as error:
+                    self.logger.debug(f"{cog.name} Task Error: {error}")
+
+            seconds = self.get_seconds()
+            await asyncio.sleep(seconds)
+
+    # current workaround since library update will support that with tasks in short future
+    def get_seconds(self, reverse=False, only=0):
+        now = datetime.datetime.now()
+        hours = -1 if reverse else 1
+        clean = now + datetime.timedelta(hours=hours + only)
+        goal_time = clean.replace(minute=0, second=0, microsecond=0)
+        start_time = now.replace(microsecond=0)
+        if reverse:
+            goal_time, start_time = start_time, goal_time
+        goal = (goal_time - start_time).seconds
+        return goal if not only else start_time.timestamp()
 
     async def db_connect(self):
         result = []
@@ -188,18 +231,6 @@ class DSBot(commands.Bot):
             data = await conn.fetch(query, *args)
             return data
 
-    async def save_usage(self, cmd):
-        cmd = cmd.lower()
-        query = 'SELECT * FROM usage_data WHERE name = $1'
-
-        async with self.ress.acquire() as conn:
-            data = await conn.fetchrow(query, cmd)
-            new_usage = data['usage'] + 1 if data else 1
-
-            query = 'INSERT INTO usage_data(name, usage) VALUES($1, $2) ' \
-                    'ON CONFLICT (name) DO UPDATE SET usage=$2'
-            await conn.execute(query, cmd, new_usage)
-
     async def fetch_usage(self):
         statement = 'SELECT * FROM usage_data'
         async with self.ress.acquire() as conn:
@@ -210,17 +241,21 @@ class DSBot(commands.Bot):
 
     # DS Database Methods
     async def refresh_worlds(self):
-        query = 'SELECT world FROM tribe GROUP BY world'
+        query = 'SELECT * FROM world GROUP BY world'
         async with self.pool.acquire() as conn:
             data = await conn.fetch(query)
 
-        cache = [r['world'] for r in data]
-        if not cache:
+        if not data:
             return
 
-        for world in self.worlds:
-            if world not in cache:
-                self.config.remove_world(world)
+        cache = {}
+        for record in data:
+            world = utils.DSWorld(record)
+            cache[world.server] = world
+
+        for server in self.worlds:
+            if server not in cache:
+                self.config.remove_world(server)
 
         self.worlds = cache
 

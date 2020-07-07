@@ -1,8 +1,7 @@
-import logging
-
 from utils.error import WrongChannel, GameChannelMissing
 from urllib.parse import quote_plus, unquote_plus
 from discord.ext import commands
+import logging
 import discord
 import re
 
@@ -39,8 +38,7 @@ def converter(name, php=False):
         encoded = encoded.replace('~', '%7E')
         return encoded.lower()
     else:
-        result = unquote_plus(name)
-        return result.replace("*", "\\*")
+        return unquote_plus(name)
 
 
 def keyword(options, **kwargs):
@@ -111,10 +109,11 @@ def game_channel_only():
     return commands.check(predicate)
 
 
-def create_logger(name):
+def create_logger(name, halfway):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    handler = logging.FileHandler(filename=f"data/{name}.log", encoding='utf-8', mode='w')
+    path = f"{halfway}/data/{name}.log"
+    handler = logging.FileHandler(filename=path, encoding='utf-8', mode='w')
     handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
     logger.addHandler(handler)
     return logger

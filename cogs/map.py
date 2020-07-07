@@ -1,8 +1,7 @@
-from utils import World, DSColor, MapVillage, error_embed, silencer
+from utils import WorldConverter, DSColor, MapVillage, error_embed, silencer
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 import numpy as np
-import datetime
 import discord
 import asyncio
 import io
@@ -32,7 +31,6 @@ class Map(commands.Cog):
         ]
         user = commands.BucketType.user
         self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
-        self.bot.loop.create_task(self.map_cleanup())
 
     async def cog_check(self, ctx):
         bucket = self._cd.get_bucket(ctx.message)
@@ -43,30 +41,8 @@ class Map(commands.Cog):
         else:
             return True
 
-    # current workaround since library update will support that with tasks in short future
-    def get_seconds(self, reverse=False, only=0):
-        now = datetime.datetime.now()
-        hours = -1 if reverse else 1
-        clean = now + datetime.timedelta(hours=hours + only)
-        goal_time = clean.replace(minute=0, second=0, microsecond=0)
-        start_time = now.replace(microsecond=0)
-        if reverse:
-            goal_time, start_time = start_time, goal_time
-        goal = (goal_time - start_time).seconds
-        return goal if not only else start_time.timestamp()
-
-    async def map_cleanup(self):
-        seconds = self.get_seconds()
-        await asyncio.sleep(seconds + 60)
-
-        try:
-            while not self.bot.is_closed():
-                self.map_cache.clear()
-                seconds = self.get_seconds()
-                await asyncio.sleep(seconds + 60)
-
-        except Exception as error:
-            self.bot.logger.warning(f"map cache:\n{error}")
+    async def called_by_hour(self):
+        self.map_cache.clear()
 
     async def timeout(self, cache, user_id, time):
         current = self.cache.get(user_id)
@@ -300,7 +276,7 @@ class Map(commands.Cog):
         self.watermark(result)
         return result
 
-    @commands.command(name="map", aliases=["karte"])
+    @commands.command(name="map")
     async def map_(self, ctx, *, tribe_names=None):
         await ctx.trigger_typing()
 
@@ -318,19 +294,27 @@ class Map(commands.Cog):
 
         else:
             all_tribes = []
-            fractions = tribe_names.split('&')
-
-            if len(fractions) == 1:
-                fractions = fractions[0].split(' ')
+            raw_fractions = tribe_names.split('&')
+            fractions = [f for f in raw_fractions if f]
 
             for index, team in enumerate(fractions):
+                names = []
+                quoted = re.findall(r'\"(.+)\"', team)
+                for res in quoted:
+                    team = team.replace(f'"{res}"', ' ')
+                    names.append(res)
 
-                if not team:
-                    continue
+                for name in team.split():
+                    if not name:
+                        continue
+                    names.append(name)
 
-                names = team.split(' ')
-                color_map.append(names)
                 all_tribes.extend(names)
+
+                if len(fractions) == 1:
+                    color_map.extend([obj] for obj in names)
+                else:
+                    color_map.append(names)
 
             tribes = await self.bot.fetch_bulk(ctx.server, all_tribes, "tribe", name=True)
 
@@ -356,6 +340,10 @@ class Map(commands.Cog):
         result = await self.bot.fetch_tribe_member(ctx.server, tribes.keys())
         all_villages = await self.bot.fetch_all(ctx.server, "map")
         players = {pl.id: pl for pl in result}
+
+        if not all_villages:
+            msg = "Auf der Welt gibt es noch keine Dörfer :/"
+            return await ctx.send(msg)
 
         args = (all_villages, tribes, players)
         image = await self.bot.execute(self.create_basic_map, *args)
@@ -528,7 +516,7 @@ class Map(commands.Cog):
         await self.update_menue(cache, index)
 
     @commands.command(name="custom")
-    async def custom_(self, ctx, world: World = None):
+    async def custom_(self, ctx, world: WorldConverter = None):
         if ctx.author.id in self.cache:
             msg = "Du hast noch eine offene Karte"
             return await ctx.send(embed=error_embed(msg))

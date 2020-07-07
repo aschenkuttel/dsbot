@@ -11,14 +11,12 @@ logger = logging.getLogger('dsbot')
 class ConquerLoop(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self._conquer = {}
-        self.bot.loop.create_task(self.conquer_loop())
-        self.guild_timeout.start()
         self.start = True
+        self._conquer = {}
+        self.guild_timeout.start()
 
     @tasks.loop(hours=72)
     async def guild_timeout(self):
-        await self.bot.wait_until_ready()
         if self.start is True:
             self.start = False
             return
@@ -35,46 +33,30 @@ class ConquerLoop(commands.Cog):
         self.bot.last_message.clear()
         logger.debug(f"{counter} inactive guilds")
 
-    # main loop
-    async def conquer_loop(self):
-        seconds = self.get_seconds()
-        await asyncio.sleep(seconds)
-        while not self.bot.is_closed():
-            try:
-                await self.bot.refresh_worlds()
-                await self.update_conquer()
+    # main loop called from main
+    async def called_by_hour(self):
+        await self.update_conquer()
 
-                counter = 0
-                for guild in self.bot.guilds:
-                    resp = await self.conquer_feed(guild)
-                    if resp is True:
-                        counter += 1
+        counter = 0
+        for guild in self.bot.guilds:
+            resp = await self.conquer_feed(guild)
+            if resp is True:
+                counter += 1
 
-                logger.debug(f"conquer feed complete ({counter} guilds)")
-                wait_pls = self.get_seconds()
-                await asyncio.sleep(wait_pls)
-
-            except Exception as error:
-                logger.critical(f"conquer Error: {error}")
-                user = self.bot.get_user(self.bot.owner_id)
-                await user.send("conquer task crashed")
-                return
+        logger.debug(f"conquer feed complete ({counter} guilds)")
 
     async def conquer_feed(self, guild):
         conquer = self.bot.config.get_item(guild.id, 'conquer')
         if not conquer:
             return
 
+        response = False
         for channel_id, conquer_data in conquer.items():
             channel = guild.get_channel(int(channel_id))
             if not channel:
                 continue
 
-            world = self.bot.config.get_related_world(channel)
-
-            if len(conquer) == 1 and not world:
-                world = self.bot.config.get_related_world(guild)
-
+            world = self.bot.config.get_world(channel)
             if not world:
                 continue
 
@@ -86,6 +68,7 @@ class ConquerLoop(commands.Cog):
             if not conquer_feed:
                 continue
 
+            response = True
             conquer_pkg = []
             embed = discord.Embed(title=date)
             conquer_feed.append("")
@@ -131,10 +114,10 @@ class ConquerLoop(commands.Cog):
                 else:
                     conquer_pkg.append(line)
 
-            return True
+        return response
 
     async def update_conquer(self):
-        for world in self.bot.worlds:
+        for world, world_obj in self.bot.worlds.items():
 
             if "s" in world:
                 continue
@@ -142,8 +125,8 @@ class ConquerLoop(commands.Cog):
             self._conquer[world] = []
 
             try:
-                sec = self.get_seconds(True)
-                data = await self.fetch_conquer(world, sec)
+                sec = self.bot.get_seconds(True)
+                data = await self.fetch_conquer(world_obj, sec)
             except Exception as error:
                 logger.warning(f"{world} skipped: {error}")
                 continue
@@ -161,7 +144,7 @@ class ConquerLoop(commands.Cog):
             player_ids = []
             village_ids = []
             conquer_cache = []
-            old_unix = self.get_seconds(True, 1)
+            old_unix = self.bot.get_seconds(True, 1)
             for entry in cache:
                 vil_id, unix_time, new_owner, old_owner = entry
 
@@ -207,21 +190,10 @@ class ConquerLoop(commands.Cog):
     async def fetch_conquer(self, world, sec=3600):
         now = datetime.datetime.now()
         cur = now.timestamp() - sec
-        base = "http://{}.die-staemme.de/interface.php?func=get_conquer&since={}"
-        async with self.bot.session.get(base.format(world, cur)) as resp:
+        base = "https://{}/interface.php?func=get_conquer&since={}"
+        async with self.bot.session.get(base.format(world.url, cur)) as resp:
             data = await resp.text('utf-8')
             return data.split('\n')
-
-    def get_seconds(self, reverse=False, only=0):
-        now = datetime.datetime.now()
-        hours = -1 if reverse else 1
-        clean = now + datetime.timedelta(hours=hours + only)
-        goal_time = clean.replace(minute=0, second=0, microsecond=0)
-        start_time = now.replace(microsecond=0)
-        if reverse:
-            goal_time, start_time = start_time, goal_time
-        goal = (goal_time - start_time).seconds
-        return goal if not only else start_time.timestamp()
 
     async def conquer_parse(self, world, config):
         data = self._conquer.get(world)
@@ -253,19 +225,19 @@ class ConquerLoop(commands.Cog):
 
             if conquer.new_player:
                 if conquer.new_tribe:
-                    tribe = f"**{conquer.new_tribe.tag}**"
+                    tribe = f"**{conquer.new_tribe}**"
                 else:
                     tribe = "**N/A**"
 
-                new = f"[{new.name}]({new.ingame_url}) {tribe}"
+                new = f"{new.mention} {tribe}"
 
             if conquer.old_player:
                 if conquer.old_tribe:
-                    tribe = f" **{conquer.old_tribe.tag}**"
+                    tribe = f" **{conquer.old_tribe}**"
                 else:
                     tribe = "**N/A**"
 
-                old = f"[{old.name}]({old.ingame_url}) {tribe}"
+                old = f"{old.mention} {tribe}"
 
             date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
             result.append(f"``{now}`` | {new} adelt {village_hyperlink} von {old}")
