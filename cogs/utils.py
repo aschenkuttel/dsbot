@@ -1,4 +1,5 @@
 from discord.ext import commands
+from bs4 import BeautifulSoup
 from datetime import datetime
 import parsedatetime
 import discord
@@ -51,13 +52,58 @@ class Rm(commands.Cog):
 
     @commands.command(name="player", aliases=["tribe"])
     async def ingame_(self, ctx, *, username):
-        if ctx.invoked_with.lower() == "player":
-            dsobj = await self.bot.fetch_player(ctx.server, username, name=True)
-        else:
-            dsobj = await self.bot.fetch_tribe(ctx.server, username, name=True)
+        player = ctx.invoked_with.lower() == "player"
+        func = self.bot.fetch_player if player else self.bot.fetch_tribe
+        dsobj = await func(ctx.server, username, name=True)
+
         if not dsobj:
             raise utils.DSUserNotFound(username)
-        profile = discord.Embed(title=dsobj.name, url=dsobj.ingame_url)
+
+        rows = [f"**{dsobj.name}** | {ctx.world.show(clean=True)} {ctx.world.icon}"]
+
+        urls = []
+        for url_type in ["ingame", "guest", "twstats"]:
+            url = getattr(dsobj, f"{url_type}_url")
+            urls.append(f"[{url_type.capitalize()}]({url})")
+
+        rows.append(" | ".join(urls))
+
+        points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | `Rang {dsobj.rank}`"
+        villages = f"**Dörfer:** `{utils.seperator(dsobj.villages)}`"
+
+        rows.extend(["", points, villages])
+
+        if player and dsobj.tribe_id:
+            tribe = await self.bot.fetch_tribe(ctx.server, dsobj.tribe_id)
+            desc = tribe.mention if tribe else "Stammeslos"
+            rows[-1] += f" | **Stamm:** {desc}"
+
+        all_bash = f"**Insgesamt**: `{utils.seperator(dsobj.all_bash)}` ({dsobj.all_rank})"
+        att_bash = f"**Angreifer**: `{utils.seperator(dsobj.att_bash)}` ({dsobj.att_rank})"
+        def_bash = f"**Verteidiger**: `{utils.seperator(dsobj.def_bash)}` [{dsobj.def_rank}]"
+
+        rows.extend(["", all_bash, att_bash, def_bash])
+
+        if player:
+            rows.append(f"**Unterstützer:** `{utils.seperator(dsobj.ut_bash)}`")
+
+        profile = discord.Embed(description="\n".join(rows))
+
+        base = "https://{}.twstats.com/image.php?type={}graph&graph=points&id={}&s={}"
+        graph_url = base.format(dsobj.lang, dsobj.type, dsobj.id, ctx.server)
+        profile.set_image(url=graph_url)
+
+        async with self.bot.session.get(dsobj.guest_url) as resp:
+            soup = BeautifulSoup(await resp.read(), "html.parser")
+
+            tbody = soup.find(id='content_value')
+            tables = tbody.findAll('table')
+            tds = tables[1].findAll('td', attrs={'valign': 'top'})
+            images = tds[1].findAll('img')
+
+            if images and images[0]['src'].endswith(("large", "jpg")):
+                profile.set_thumbnail(url=images[0]['src'])
+
         await ctx.send(embed=profile)
 
     @commands.command(name="guest")
@@ -120,7 +166,7 @@ class Rm(commands.Cog):
         if ctx.guild:
             await ctx.private_hint()
 
-    @commands.command(name="rz3", aliases=["rz4"])
+    @commands.command(name="rz", aliases=["rz3", "rz4"])
     async def rz3_(self, ctx, *args: int):
         if len(args) > 7:
             msg = "Das Maximum von 7 verschiedenen Truppentypen wurde überschritten"

@@ -44,7 +44,7 @@ class Casino(commands.Cog):
         else:
             self.pot += 1000
             base = "Leider die falsche Zahl: **{}**\nAktueller Pot: `{}`\nGewinnzahl: **{}**"
-            msg = base.format(number, utils.pcv(self.pot), self.number)
+            msg = base.format(number, utils.seperator(self.pot), self.number)
             self.cache.set('slotpot', self.pot)
             await ctx.send(msg)
 

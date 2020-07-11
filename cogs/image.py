@@ -105,10 +105,13 @@ class Graphic(commands.Cog):
                 data = await res.read()
 
             soup = BeautifulSoup(data, "html.parser")
-            keyword = "Profilbild" if player.alone else "img"
-            result = soup.find(alt=keyword)
+            tbody = soup.find(id='content_value')
+            tables = tbody.findAll('table')
+            tds = tables[1].findAll('td', attrs={'valign': 'top'})
+            images = tds[1].findAll('img')
 
-            if result and "/avatar/" not in str(result):
+            if images and images[0]['src'].endswith(("large", "jpg")):
+                result = images[0]
                 break
 
         else:

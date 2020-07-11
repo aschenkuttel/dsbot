@@ -4,7 +4,7 @@ import discord
 import utils
 import json
 import re
-# https://de.twstats.com/de175/index.php?page=player&id=31359
+
 twstats = "https://{}.twstats.com/{}/index.php?page={}&id={}"
 ingame = "https://{}/{}.php?screen=info_{}&id={}"
 

@@ -1,4 +1,4 @@
-from utils import DSConverter, DSUserNotFound, error_embed, pcv
+from utils import DSConverter, DSUserNotFound, error_embed, seperator
 from discord.ext import commands
 from bs4 import BeautifulSoup
 import discord
@@ -29,13 +29,13 @@ class Bash(commands.Cog):
     @commands.command(name="bash")
     async def bash(self, ctx, *, user: DSConverter):
         title = f"Besiegte Gegner von {user.name}"
-        result = [f"`OFF` | **{pcv(user.att_bash)} Bashpoints**",
-                  f"`DEF` | **{pcv(user.def_bash)} Bashpoints**"]
+        result = [f"`OFF` | **{seperator(user.att_bash)} Bashpoints**",
+                  f"`DEF` | **{seperator(user.def_bash)} Bashpoints**"]
 
         if user.alone:
-            result.append(f"`UNT` | **{pcv(user.ut_bash)} Bashpoints**")
+            result.append(f"`UNT` | **{seperator(user.ut_bash)} Bashpoints**")
 
-        result.append(f"`INS` | **{pcv(user.all_bash)} Bashpoints**")
+        result.append(f"`INS` | **{seperator(user.all_bash)} Bashpoints**")
         embed = discord.Embed(title=title, description='\n'.join(result))
         await ctx.send(embed=embed)
 
@@ -77,7 +77,7 @@ class Bash(commands.Cog):
                 arrow = ":arrow_left:"
             else:
                 arrow = ":arrow_right:"
-            msg = f"{pcv(data_one)} {arrow} {pcv(data_two)}"
+            msg = f"{seperator(data_one)} {arrow} {seperator(data_two)}"
             await ctx.send(embed=discord.Embed(description=msg))
 
     @commands.command(name="recap")
@@ -130,7 +130,7 @@ class Bash(commands.Cog):
                 msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
                 return await ctx.send(msg)
 
-        p_done = pcv(int(point1) - int(point8))
+        p_done = seperator(int(point1) - int(point8))
         if p_done.startswith("-"):
             points_done = f"`{p_done[1:]}` Punkte verloren,"
         else:
@@ -143,7 +143,7 @@ class Bash(commands.Cog):
         else:
             villages_done = f"`{v_done}` {vil} geholt"
 
-        b_done = pcv(int(bash1) - int(bash8))
+        b_done = seperator(int(bash1) - int(bash8))
         if b_done.startswith("-"):
             bashpoints_done = f"`{b_done[1:]}` Bashpoints verloren"
         else:
@@ -247,7 +247,7 @@ class Bash(commands.Cog):
             if value == 1 and item == "Dörfer":
                 item = "Dorf"
 
-            line = f"`{utils.pcv(value)} {item}` | {cur_dsobj.guest_mention}"
+            line = f"`{utils.seperator(value)} {item}` | {cur_dsobj.guest_mention}"
             ranking.append(line)
 
         if ranking:

@@ -15,7 +15,8 @@ class Word(commands.Cog):
 
     async def victory_royale(self, ctx, data):
         length = len(data['solution'])
-        amount = int(250 * length * float(data['life'] / length + 1))
+        original = int(length * (50 - length) / 50)
+        amount = int(250 * length * float(data['life'] / original + 1))
         self.hangman[ctx.guild.id] = False
 
         await self.bot.update_iron(ctx.author.id, amount)
@@ -107,8 +108,8 @@ class Word(commands.Cog):
 
         end_time = datetime.datetime.now()
         diff = float("%.1f" % (end_time - start_time).total_seconds())
-        spec_bonus = (60 - diff) * (50 * (1 - diff / 60)) * (1 - diff / 60)
-        amount_won = int((150 * len(word) + spec_bonus) * (1 - diff / 60 + 1))
+        spec_bonus = (30 - diff) * (50 * (1 - diff / 60)) * (1 - diff / 60)
+        amount_won = int((250 * len(word) + spec_bonus) * (1 - diff / 60 + 1))
 
         base = "`{}` hat das Wort in `{} Sekunden` erraten.\n`{} Eisen` gewonnen (15s Cooldown)"
         msg = base.format(win_msg.author.display_name, diff, amount_won)

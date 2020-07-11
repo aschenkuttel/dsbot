@@ -272,7 +272,7 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.MissingGucci):
             base = "Du hast nur `{} Eisen` auf dem Konto"
-            msg = base.format(utils.pcv(error.purse))
+            msg = base.format(utils.seperator(error.purse))
 
         elif isinstance(error, utils.InvalidBet):
             base = "Der Einsatz muss zwischen {} und {} Eisen liegen"

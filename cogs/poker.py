@@ -65,7 +65,7 @@ class Poker(commands.Cog):
         price = int(data['bet'] + extra)
 
         greet = "Blackjack" if bj else "Glückwunsch"
-        base = f"{greet}, du gewinnst {utils.pcv(price)} Eisen!"
+        base = f"{greet}, du gewinnst {utils.seperator(price)} Eisen!"
         embed = self.present_cards(data, base)
         embed.colour = discord.Color.green()
 

@@ -108,7 +108,7 @@ class Card(commands.Cog):
         which = way[key][1] if gravity else way[key][0]
         question = f"{base} {witcher[key].format(which)}\n\n{options}"
         index = str(data.index(obj) + 1)
-        sweet = f"{stat[key]} {value}" if lowest else f"{utils.pcv(value)} {stat[key]}"
+        sweet = f"{stat[key]} {value}" if lowest else f"{utils.seperator(value)} {stat[key]}"
         answer_str = f"{obj.name} | {sweet}"
 
         await ctx.send(embed=self.quiz_embed(question, cur))
@@ -213,7 +213,7 @@ class Card(commands.Cog):
                     pval = getattr(player, key)
 
                     if key in self.format:
-                        pval = utils.pcv(pval)
+                        pval = utils.seperator(pval)
 
                     pstat = f"**{value}:** `{pval}`"
                     values.append(pstat)
@@ -502,7 +502,7 @@ class Card(commands.Cog):
                     dsobj = played[user].name
                     points = players[user]['points']
                     name = f"Karte von {user.display_name} ({points}):"
-                    value = f"**{prop[data['attribute']]} von {dsobj}:** `{utils.pcv(value)}`"
+                    value = f"**{prop[data['attribute']]} von {dsobj}:** `{utils.seperator(value)}`"
                     embed.add_field(name=name, value=value, inline=False)
 
                 base = "Warte bis {} sich für eine Eigenschaft entschieden hat"
