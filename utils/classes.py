@@ -4,7 +4,7 @@ import discord
 import utils
 import json
 import re
-
+# https://de.twstats.com/de175/index.php?page=player&id=31359
 twstats = "https://{}.twstats.com/{}/index.php?page={}&id={}"
 ingame = "https://{}/{}.php?screen=info_{}&id={}"
 
@@ -58,6 +58,7 @@ class DSObject:
     def __init__(self, data):
         self.id = data['id']
         self.world = data['world']
+        self.lang = self.world[:2]
         self.name = utils.converter(data['name'])
         self.points = data['points']
         self.rank = data['rank']
@@ -86,7 +87,7 @@ class DSObject:
 
     @property
     def twstats_url(self):
-        return twstats.format(self.world, self.type, self.id)
+        return twstats.format(self.lang, self.world, self.type, self.id)
 
     @property
     def mention(self):
@@ -98,8 +99,7 @@ class DSObject:
 
     def get_ingame_url(self, visit=False):
         url_type = 'guest' if visit else 'game'
-        lang, *_ = utils.DSWorld.parse(self.world)
-        header = f"{self.world}.{world_data[lang]['domain']}"
+        header = f"{self.world}.{world_data[self.lang]['domain']}"
         dstype = "ally" if self.type == "tribe" else self.type
         return ingame.format(header, url_type, dstype, self.id)
 

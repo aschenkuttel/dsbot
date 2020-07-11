@@ -74,26 +74,19 @@ class DSBot(commands.Bot):
 
     # global check and ctx.world implementation
     async def global_world(self, ctx):
-        if "help" in str(ctx.command):
-            return True
-
+        parent = ctx.command.parent
         cmd = str(ctx.command)
-        if cmd == "set world":
-            return True
 
-        if ctx.guild is None:
-            parent = ctx.command.parent
-            if parent is None and cmd in self.white:
-                return True
-            elif str(parent) in self.white:
-                return True
-            else:
-                raise commands.NoPrivateMessage
+        if bool({str(parent), cmd} & self.white):
+            return True
+        elif ctx.guild is None:
+            raise commands.NoPrivateMessage()
 
         server = self.config.get_world(ctx.channel)
-        ctx.world = self.worlds.get(server)
+        world = self.worlds.get(server)
 
-        if ctx.world:
+        if world:
+            ctx.world = world
             return True
         else:
             raise utils.WorldMissing()
@@ -310,6 +303,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
+
         return utils.Player(result) if result else None
 
     async def fetch_tribe(self, world, searchable, *, name=False, archive=None):
@@ -324,6 +318,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
+
         return utils.Tribe(result) if result else None
 
     async def fetch_village(self, world, searchable, *, coord=False, archive=None):
@@ -339,6 +334,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, *searchable)
+
         return utils.Village(result) if result else None
 
     async def fetch_both(self, world, searchable, *, name=True, archive=None):
@@ -377,6 +373,7 @@ class DSBot(commands.Bot):
         query = f'SELECT * FROM player WHERE world = $1 AND tribe_id = ANY($2)'
         async with self.pool.acquire() as conn:
             res = await conn.fetch(query, world, allys)
+
         return [utils.Player(rec) for rec in res]
 
     async def fetch_bulk(self, world, iterable, table=None, *, name=False, dic=False):

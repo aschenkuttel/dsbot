@@ -40,6 +40,8 @@ class Listen(commands.Cog):
         async with self.bot.ress.acquire() as conn:
             await conn.executemany(query, data)
 
+        self.cmd_counter.clear()
+
     # Report HTML to Image Converter
     def html_lover(self, raw_data):
         soup = BeautifulSoup(raw_data, 'html.parser')
