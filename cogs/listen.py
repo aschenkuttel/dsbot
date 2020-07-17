@@ -84,10 +84,10 @@ class Listen(commands.Cog):
         if not message.guild:
             return
 
-        self.bot.last_message.add(message.guild.id)
-
         if message.author.id in self.blacklist:
             return
+
+        self.bot.active_guilds.add(message.guild.id)
 
         world = self.bot.config.get_world(message.channel)
         if not world:

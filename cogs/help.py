@@ -208,7 +208,7 @@ class Help(commands.Cog):
         await self.mailbox(ctx, embed)
 
     # Stämme Features
-    @help.command(name="bash", aliases=["allbash", "attbash", "defbash", "utbash"])
+    @help.command(name="bash", aliases=["allbash", "attbash", "defbash", "supbash"])
     async def bash_(self, ctx):
         title = "`~bash` - `~allbash` - `~attbash` - `~defbash` - `~utbash`"
         desc = "Erhalte entweder eine Zusammenfassung eines Accounts, " \

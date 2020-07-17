@@ -68,7 +68,7 @@ class Rm(commands.Cog):
 
         rows.append(" | ".join(urls))
 
-        points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | `Rang {dsobj.rank}`"
+        points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | **Rang:** `{dsobj.rank}`"
         villages = f"**Dörfer:** `{utils.seperator(dsobj.villages)}`"
 
         rows.extend(["", points, villages])
@@ -85,7 +85,7 @@ class Rm(commands.Cog):
         rows.extend(["", all_bash, att_bash, def_bash])
 
         if player:
-            rows.append(f"**Unterstützer:** `{utils.seperator(dsobj.ut_bash)}`")
+            rows.append(f"**Unterstützer:** `{utils.seperator(dsobj.sup_bash)}` ({dsobj.sup_rank})")
 
         profile = discord.Embed(description="\n".join(rows))
 

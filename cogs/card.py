@@ -11,20 +11,20 @@ stat = {"id": "ID",
         "points": "Punkte",
         "villages": "Dörfer",
         "all_bash": "Bashpoints",
-        "ut_bash": "UT Bashpoints"}
+        "sup_bash": "UT Bashpoints"}
 
 way = {"id": ["älteste", "neuste"],
        "rank": ["besten", "schlechtesten"],
        "points": ["meisten", "wenigsten"],
        "villages": ["meisten", "wenigsten"],
-       "all_bash": ["meisten", "wenigsten"],
-       "ut_bash": ["meisten", "wenigsten"]}
+       "sup_bash": ["meisten", "wenigsten"],
+       "all_bash": ["meisten", "wenigsten"]}
 
 pl_options = {"id": "die {} ID?",
               "rank": "den {} Rang?",
               "points": "die {} Punkte?",
-              "all_bash": "die {} besiegten Gegner?",
-              "ut_bash": "die {} Unterstützer-Bashis?"}
+              "sup_bash": "die {} Unterstützer-Bashis?",
+              "all_bash": "die {} besiegten Gegner?"}
 
 tr_options = {"id": "die {} ID?",
               "rank": "den {} Rang?",
@@ -34,7 +34,7 @@ tr_options = {"id": "die {} ID?",
 
 prop = {"name": "Spieler", "id": "ID", "rank": "Rang", "points": "Punkte",
         "villages": "Dörfer", "att_bash": "OFF", "def_bash": "DEF",
-        "ut_bash": "UT", "all_bash": "Insgesamt"}
+        "sup_bash": "SUP", "all_bash": "Insgesamt"}
 
 
 class Card(commands.Cog):
@@ -50,7 +50,7 @@ class Card(commands.Cog):
             self.image_guess
         ]
         self.format = ('points', 'att_bash', 'def_bash',
-                       'ut_bash', 'all_bash')
+                       'sup_bash', 'all_bash')
 
     def quiz_embed(self, desc, rounds, ingame=False):
         title = "Frage " + rounds if not ingame else rounds

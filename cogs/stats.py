@@ -1,6 +1,7 @@
 from utils import DSConverter, DSUserNotFound, error_embed, seperator
 from discord.ext import commands
 from bs4 import BeautifulSoup
+import asyncpg
 import discord
 import utils
 
@@ -11,19 +12,19 @@ class Bash(commands.Cog):
         self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         self.base = "https://{}/guest.php?village" \
                     "=null&screen=ranking&mode=in_a_day&type={}"
-        self.attribute = {'bash': "kill_att", 'def': "kill_def", 'ut': "kill_sup",
+        self.attribute = {'bash': "kill_att", 'def': "kill_def", 'sup': "kill_sup",
                           'farm': "loot_res", 'villages': "loot_vil",
                           'scavenge': "scavenge", 'conquer': "conquer"}
         self.values = {
             'angreifer': {'value': "att_bash", 'item': "Bashpoints"},
             'verteidiger': {'value': "def_bash", 'item': "Bashpoints"},
-            'unterstützer': {'value': "ut_bash", 'item': "Bashpoints"},
+            'unterstützer': {'value': "sup_bash", 'item': "Bashpoints"},
             'kämpfer': {'value': "all_bash", 'item': "Bashpoints"},
             'verlierer': {'value': "villages", 'item': "Dörfer"},
             'eroberer': {'value': "villages", 'item': "Dörfer"}}
         self.translate = {'defbash': "verteidiger",
                           'offbash': "angreifer",
-                          'utbash': "unterstützer",
+                          'supbash': "unterstützer",
                           'allbash': "kämpfer"}
 
     @commands.command(name="bash")
@@ -32,14 +33,14 @@ class Bash(commands.Cog):
         result = [f"`OFF` | **{seperator(user.att_bash)} Bashpoints**",
                   f"`DEF` | **{seperator(user.def_bash)} Bashpoints**"]
 
-        if user.alone:
-            result.append(f"`UNT` | **{seperator(user.ut_bash)} Bashpoints**")
+        if isinstance(user, utils.Player):
+            result.append(f"`UNT` | **{seperator(user.sup_bash)} Bashpoints**")
 
         result.append(f"`INS` | **{seperator(user.all_bash)} Bashpoints**")
         embed = discord.Embed(title=title, description='\n'.join(result))
         await ctx.send(embed=embed)
 
-    @commands.command(name="allbash", aliases=["offbash", "defbash", "utbash"])
+    @commands.command(name="allbash", aliases=["offbash", "defbash", "supbash"])
     async def allbash(self, ctx, *, args):
         if not args.__contains__("/"):
             msg = "Du musst die beiden Spielernamen mit `/` trennen"
@@ -111,11 +112,8 @@ class Bash(commands.Cog):
             point1, villages1, bash1 = dsobj.points, dsobj.villages, dsobj.all_bash
             point8, villages8, bash8 = dsobj8.points, dsobj8.villages, dsobj8.all_bash
 
-        except Exception as error:
-            if "relation" not in str(error):
-                msg = f"recap error:\n{error}"
-                self.bot.logger.warning(msg)
-
+        # upon database reset we use twstats as temporary workaround
+        except asyncpg.UndefinedTableError:
             page_link = f"{dsobj.twstats_url}&mode=history"
             async with self.bot.session.get(page_link) as r:
                 soup = BeautifulSoup(await r.read(), "html.parser")
@@ -210,13 +208,8 @@ class Bash(commands.Cog):
         negative = award in ["verlierer"]
 
         base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
-               'WHERE {0}.world = $1 AND {1}.world = $1 '
-
-        if award == "unterstützer":
-            base += 'ORDER BY ({0}.all_bash - {0}.att_bash - {0}.def_bash) - ' \
-                    '({1}.all_bash - {1}.att_bash - {1}.def_bash) {3} LIMIT 5'
-        else:
-            base += 'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
+               'WHERE {0}.world = $1 AND {1}.world = $1 ' \
+               'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
 
         switch = "ASC" if negative else "DESC"
         query = base.format(dsobj.table, f"{dsobj.table}1", award_data['value'], switch)

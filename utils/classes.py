@@ -114,9 +114,10 @@ class Player(DSObject):
         self.att_rank = data['att_rank']
         self.def_bash = data['def_bash']
         self.def_rank = data['def_rank']
+        self.sup_bash = data['sup_bash']
+        self.sup_rank = data['sup_rank']
         self.all_bash = data['all_bash']
         self.all_rank = data['all_rank']
-        self.ut_bash = self.all_bash - self.def_bash - self.att_bash
 
 
 class Tribe(DSObject):

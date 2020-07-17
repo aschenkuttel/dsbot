@@ -25,7 +25,7 @@ class DSConverter(commands.Converter):
                  'name', 'tag', 'tribe_id', 'villages',
                  'points', 'rank', 'player', 'att_bash',
                  'att_rank', 'def_bash', 'def_rank',
-                 'all_bash', 'all_rank', 'ut_bash',
+                 'all_bash', 'all_rank', 'sup_bash',
                  'member', 'all_points', 'mention',
                  'guest_url', 'ingame_url', 'twstats_url')
 
