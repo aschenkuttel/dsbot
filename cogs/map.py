@@ -41,7 +41,7 @@ class Map(commands.Cog):
         else:
             return True
 
-    def called_by_hour(self):
+    async def called_by_hour(self):
         self.map_cache.clear()
 
     async def timeout(self, cache, user_id, time):

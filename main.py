@@ -158,7 +158,7 @@ class DSBot(commands.Bot):
                     if loop is not None:
                         await loop()
                 except Exception as error:
-                    self.logger.debug(f"{cog.name} Task Error: {error}")
+                    self.logger.debug(f"{cog.qualified_name} Task Error: {error}")
 
             seconds = self.get_seconds()
             await asyncio.sleep(seconds)

@@ -30,7 +30,8 @@ class Casino(commands.Cog):
 
         await self.bot.subtract_iron(ctx.author.id, 1000)
 
-        number = random.randrange(10000, 50001)
+        number = 46860
+        # number = random.randrange(10000, 50001)
         if number == self.number:
             self.number = random.randrange(10000, 50001)
             base = "Glückwunsch, du hast `{} Eisen` gewonnen!\nNeue Gewinnzahl: **{}**"
