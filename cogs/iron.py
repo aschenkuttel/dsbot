@@ -24,7 +24,7 @@ class Money(commands.Cog):
     @iron.command(name="send")
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def send_(self, ctx, amount: int, *, user: MemberConverter):
-        if not 1000 <= amount <= 500000:
+        if not 1000 <= amount <= 50000:
             await ctx.send("Du kannst nur `1000-50.000 Eisen` überweisen")
             ctx.command.reset_cooldown(ctx)
 

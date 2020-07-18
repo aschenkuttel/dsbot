@@ -31,6 +31,12 @@ class ConquerLoop(commands.Cog):
         self.bot.active_guilds.clear()
         logger.debug(f"{counter} inactive guilds")
 
+    @commands.is_owner()
+    @commands.command(name="manual")
+    async def manual(self, ctx):
+        await self.called_by_hour()
+        await ctx.send("manual feed done")
+
     # main loop called from main
     async def called_by_hour(self):
         await self.update_conquer()

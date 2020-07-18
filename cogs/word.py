@@ -61,11 +61,11 @@ class Word(commands.Cog):
             return
 
         elif data:
-            hint = data.get('hint')
-            comment = f"| `{hint}` " if hint else ""
+            comment = f"| `{data['hint']}` " if data.get('hint') else ""
             now = (datetime.datetime.now() - data['time']).seconds
-            msg = f"`{data['word']}` {comment}*(noch {60 - now}s)*"
-            return await ctx.send(msg)
+            content = f"`{data['word']}` {comment}*(noch {60 - now}s)*"
+            data['msg'] = await ctx.send(content)
+            return
 
         word = None
         while not word:
@@ -78,13 +78,12 @@ class Word(commands.Cog):
             random.shuffle(word_list)
 
         show = ' '.join(word_list).upper()
-        hint_list = list(word[:int(len(word) / 4)].upper())
-        hint = f"{' '.join(hint_list)} . . ."
-
         start_time = datetime.datetime.now()
         data = {'word': show, 'win': word, 'time': start_time}
         self.anagram[ctx.guild.id] = data
+
         start_msg = await ctx.send(f"`{show}` (60s Timeout)")
+        self.anagram[ctx.guild.id]['msg'] = start_msg
 
         def check(m):
             if m.channel == ctx.channel:
@@ -93,16 +92,18 @@ class Word(commands.Cog):
 
         try:
             win_msg = await self.bot.wait_for('message', check=check, timeout=30)
+
         except asyncio.TimeoutError:
             try:
+                hint_list = word[:int(len(word) / 4)].upper()
+                hint = f"{' '.join(hint_list)} . . ."
                 self.anagram[ctx.guild.id]['hint'] = hint
-                stuff = f"`{show}` | `{hint}`"
-                await start_msg.edit(content=f"{stuff}(noch 30s)")
+                await data['msg'].edit(content=f"`{show}` | `{hint}` (noch 30s)")
                 win_msg = await self.bot.wait_for('message', check=check, timeout=30)
+
             except asyncio.TimeoutError:
                 await ctx.send(f"Die Zeit ist abgelaufen: `{word}`")
-                self.anagram.pop(ctx.guild.id)
-                return
+                return self.anagram.pop(ctx.guild.id)
 
         self.anagram[ctx.guild.id] = False
 

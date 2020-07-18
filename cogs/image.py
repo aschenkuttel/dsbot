@@ -110,7 +110,7 @@ class Graphic(commands.Cog):
             tds = tables[1].findAll('td', attrs={'valign': 'top'})
             images = tds[1].findAll('img')
 
-            if images and images[0]['src'].endswith(("large", "jpg")):
+            if images and images[0]['src'].endswith("large"):
                 result = images[0]
                 break
 
