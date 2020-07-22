@@ -1,48 +1,95 @@
+from utils import seperator as sep
+from matplotlib import patheffects
 from discord.ext import commands
+import matplotlib.pyplot as plt
+from matplotlib import ticker
 from bs4 import BeautifulSoup
 from datetime import datetime
 import parsedatetime
+import pandas as pd
 import discord
 import asyncio
 import utils
 import math
 import re
+import io
 
 
 class Rm(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.maximum = 0
         self.duration = 300
         self.cap_dict = {}
+        self.troops = self.bot.msg['troops']
+        self.movement = self.bot.msg['movement']
         self.number = "{}\N{COMBINING ENCLOSING KEYCAP}"
-        self.troops = {'speer': "spear", 'schwert': "sword", 'axt': "axe",
-                       'bogen': "archer", 'späher': "spy", 'lkav': "light",
-                       'berittene': "marcher", 'skav': "heavy", 'ramme': "ram",
-                       'katapult': "catapult", 'paladin': "knight", 'ag': "snob"}
-        self.movement = {'spear': 18.000000000504, 'sword': 21.999999999296,
-                         'axe': 18.000000000504, 'archer': 18.000000000504,
-                         'spy': 8.99999999928, 'light': 9.999999998,
-                         'marcher': 9.999999998, 'heavy': 11.0000000011,
-                         'ram': 29.9999999976, 'catapult': 29.9999999976,
-                         'knight': 9.999999998, 'snob': 34.9999999993}
         self.base = "javascript: var settings = Array" \
                     "({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}," \
                     " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
                     "('https://media.innogamescdn.com/com_DS_DE/" \
                     "scripts/qb_main/scriptgenerator.js'); void(0);"
 
+    # temporary fix
+    async def fetch_oldest_tableday(self, conn):
+        query = 'SELECT table_name FROM information_schema.tables ' \
+                'WHERE table_schema=\'public\' AND table_type=\'BASE TABLE\' ' \
+                'AND table_name LIKE \'player%\''
+
+        cache = await conn.fetch(query)
+        tables = [rec['table_name'] for rec in cache]
+        return int(sorted(tables)[-1][-1])
+
+    def create_figure(self):
+        fig = plt.figure(figsize=(10, 4))
+        plt.rc(f'xtick', labelsize=16)
+        plt.rc(f'ytick', labelsize=18)
+
+        # plt.locator_params(axis='x', nbins=4)
+
+        axes = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        plt.xticks([0, 7, 14, 21])
+        axes.margins(x=0)
+
+        for direction in ["bottom", "top", "left", "right"]:
+            axes.spines[direction].set_color('white')
+
+        for coord in ["x", "y"]:
+            coord_axe = getattr(axes, f"{coord}axis")
+            coord_axe.label.set_color('white')
+            axes.tick_params(axis=coord, colors='white')
+
+        def x_format(num, _):
+            return f"-{int((28 - num) / 7)} Woche"
+
+        def y_format(num, _):
+            magnitude = 0
+            while abs(num) >= 1000:
+                magnitude += 1
+                num /= 1000.0
+
+            if magnitude == 0:
+                return int(num)
+            else:
+                return '%.1f%s' % (num, ['', 'K', 'M'][magnitude])
+
+        axes.yaxis.set_major_formatter(ticker.FuncFormatter(y_format))
+        axes.xaxis.set_major_formatter(ticker.FuncFormatter(x_format))
+
+        return axes
+
     @commands.command(name="rm")
     async def rm_(self, ctx, *tribes: str):
         if len(tribes) > 10:
-            msg = "Der RM Command unterstützt aktuell nur " \
-                  "maximal `10 Stämme` per Command"
+            msg = "Nur bis zu `10 Stämme` aufgrund der maximalen Zeichenlänge"
             return await ctx.send(msg)
 
         data = await self.bot.fetch_tribe_member(ctx.server, tribes, name=True)
         if isinstance(data, str):
             return await ctx.send(f"Der Stamm `{data}` existiert so nicht")
+
         result = [obj.name for obj in data]
-        await ctx.author.send(f"```\n{';'.join(result)}\n```")
+        await ctx.author.send(';'.join(result))
         await ctx.message.add_reaction("📨")
 
     @commands.command(name="twstats")
@@ -52,12 +99,37 @@ class Rm(commands.Cog):
 
     @commands.command(name="player", aliases=["tribe"])
     async def ingame_(self, ctx, *, username):
-        player = ctx.invoked_with.lower() == "player"
-        func = self.bot.fetch_player if player else self.bot.fetch_tribe
-        dsobj = await func(ctx.server, username, name=True)
+        ds_type = utils.DSType(ctx.invoked_with.lower())
 
-        if not dsobj:
+        async with self.bot.pool.acquire() as conn:
+            latest = await self.fetch_oldest_tableday(conn)
+
+            queries = []
+            for num in range(0, latest + 1):
+                placeholder = '{0}'
+                num = num or ''
+                base = f'SELECT * FROM {placeholder}{num} WHERE ' \
+                       f'{placeholder}{num}.world = $1 AND '
+
+                if ds_type.table == "player":
+                    base += f'LOWER({placeholder}{num}.name) = $2'
+                else:
+                    base += f'(LOWER({placeholder}{num}.tag) = $2 OR ' \
+                            f'LOWER({placeholder}{num}.name) = $2)'
+
+                queries.append(base)
+
+        query = " UNION ALL ".join(queries).format(ds_type.table)
+
+        async with self.bot.pool.acquire() as conn:
+            searchable = utils.converter(username, True)
+            cache = await conn.fetch(query, ctx.server, searchable)
+            data = [ds_type.Class(rec) for rec in cache]
+
+        if not data:
             raise utils.DSUserNotFound(username)
+        else:
+            dsobj = data[0]
 
         rows = [f"**{dsobj.name}** | {ctx.world.show(clean=True)} {ctx.world.icon}"]
 
@@ -71,27 +143,32 @@ class Rm(commands.Cog):
         points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | **Rang:** `{dsobj.rank}`"
         villages = f"**Dörfer:** `{utils.seperator(dsobj.villages)}`"
 
-        rows.extend(["", points, villages])
-
-        if player and dsobj.tribe_id:
+        if getattr(dsobj, 'tribe_id', None):
             tribe = await self.bot.fetch_tribe(ctx.server, dsobj.tribe_id)
             desc = tribe.mention if tribe else "Stammeslos"
-            rows[-1] += f" | **Stamm:** {desc}"
+            villages += f" | **Stamm:** {desc}"
 
-        all_bash = f"**Insgesamt**: `{utils.seperator(dsobj.all_bash)}` ({dsobj.all_rank})"
-        att_bash = f"**Angreifer**: `{utils.seperator(dsobj.att_bash)}` ({dsobj.att_rank})"
-        def_bash = f"**Verteidiger**: `{utils.seperator(dsobj.def_bash)}` [{dsobj.def_rank}]"
+        rows.extend(["", points, villages, "", "**Besiegte Gegner:**"])
 
-        rows.extend(["", all_bash, att_bash, def_bash])
+        bash_rows = {}
+        for index, stat in enumerate(['all_bash', 'att_bash', 'def_bash', 'sup_bash']):
+            value = getattr(dsobj, stat, None)
+            if value is not None:
+                rank_stat = f"{stat.split('_')[0]}_rank"
+                rank_value = getattr(dsobj, rank_stat)
+                stat_title = self.bot.msg['statTitle'][stat]
+                represent = f"{stat_title}: `{sep(value)}`"
 
-        if player:
-            rows.append(f"**Unterstützer:** `{utils.seperator(dsobj.sup_bash)}` ({dsobj.sup_rank})")
+                if rank_value:
+                    represent += f" | Rang: `{rank_value}`"
+
+                bash_rows[value] = represent
+
+        clean = sorted(bash_rows.items(), key=lambda l: l[0], reverse=True)
+        rows.extend([line[1] for line in clean])
 
         profile = discord.Embed(description="\n".join(rows))
-
-        base = "https://{}.twstats.com/image.php?type={}graph&graph=points&id={}&s={}"
-        graph_url = base.format(dsobj.lang, dsobj.type, dsobj.id, ctx.server)
-        profile.set_image(url=graph_url)
+        profile.colour = discord.Color.blue()
 
         async with self.bot.session.get(dsobj.guest_url) as resp:
             soup = BeautifulSoup(await resp.read(), "html.parser")
@@ -104,7 +181,31 @@ class Rm(commands.Cog):
             if images and images[0]['src'].endswith(("large", "jpg")):
                 profile.set_thumbnail(url=images[0]['src'])
 
-        await ctx.send(embed=profile)
+        filled = [0] * (28 - len(data)) + [d.points for d in data[::-1]]
+        plot_data = pd.DataFrame({'x_coord': range(1, 29), 'y_coord': filled})
+
+        config = {'color': '#3498db',
+                  'linewidth': 5,
+                  'path_effects': [patheffects.SimpleLineShadow(linewidth=8),
+                                   patheffects.Normal()]}
+
+        figure = self.create_figure()
+
+        if not data:
+            plt.ylim(top=50, bottom=-3)
+
+        figure.plot('x_coord', 'y_coord', data=plot_data, **config)
+        figure.grid(axis='y', zorder=1, alpha=0.3)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=100, transparent=True)
+        buf.seek(0)
+        plt.close()
+
+        file = discord.File(buf, "example.png")
+        profile.set_image(url="attachment://example.png")
+
+        await ctx.send(embed=profile, file=file)
 
     @commands.command(name="guest")
     async def guest_(self, ctx, *, user: utils.DSConverter):
@@ -115,6 +216,7 @@ class Rm(commands.Cog):
     async def visit_(self, ctx, world: utils.WorldConverter = None):
         if world is None:
             world = ctx.world
+
         description = f"[{world.show(True)}]({world.guest_url})"
         await ctx.send(embed=discord.Embed(description=description))
 
