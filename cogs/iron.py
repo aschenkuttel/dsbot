@@ -1,4 +1,4 @@
-from utils import MemberConverter, pcv, error_embed
+from utils import MemberConverter, seperator, error_embed
 from discord.ext import commands
 import discord
 
@@ -19,12 +19,12 @@ class Money(commands.Cog):
 
         money, rank = await self.bot.fetch_iron(ctx.author.id, True)
         base = "**Dein Speicher:** `{} Eisen`\n**Globaler Rang:** `{}`"
-        await ctx.send(base.format(pcv(money), rank))
+        await ctx.send(base.format(seperator(money), rank))
 
     @iron.command(name="send")
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def send_(self, ctx, amount: int, *, user: MemberConverter):
-        if not 1000 <= amount <= 500000:
+        if not 1000 <= amount <= 50000:
             await ctx.send("Du kannst nur `1000-50.000 Eisen` überweisen")
             ctx.command.reset_cooldown(ctx)
 
@@ -33,7 +33,7 @@ class Money(commands.Cog):
             await self.bot.update_iron(user.id, amount)
 
             base = "Du hast `{}` erfolgreich `{} Eisen` überwiesen (30s Cooldown)"
-            await ctx.send(base.format(user.display_name, pcv(amount)))
+            await ctx.send(base.format(user.display_name, seperator(amount)))
 
     @iron.command(name="global", aliases=["top"])
     async def rank_(self, ctx):
@@ -52,7 +52,7 @@ class Money(commands.Cog):
                 continue
 
             base = "**Rang {}:** `{} Eisen` [{.display_name}]"
-            msg = base.format(len(data) + 1, pcv(record['amount']), player)
+            msg = base.format(len(data) + 1, seperator(record['amount']), player)
             data.append(msg)
 
             if len(data) == 5:

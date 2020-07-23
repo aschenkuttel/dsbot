@@ -58,6 +58,7 @@ class DSObject:
     def __init__(self, data):
         self.id = data['id']
         self.world = data['world']
+        self.lang = self.world[:2]
         self.name = utils.converter(data['name'])
         self.points = data['points']
         self.rank = data['rank']
@@ -86,7 +87,7 @@ class DSObject:
 
     @property
     def twstats_url(self):
-        return twstats.format(self.world, self.type, self.id)
+        return twstats.format(self.lang, self.world, self.type, self.id)
 
     @property
     def mention(self):
@@ -98,8 +99,7 @@ class DSObject:
 
     def get_ingame_url(self, visit=False):
         url_type = 'guest' if visit else 'game'
-        lang, *_ = utils.DSWorld.parse(self.world)
-        header = f"{self.world}.{world_data[lang]['domain']}"
+        header = f"{self.world}.{world_data[self.lang]['domain']}"
         dstype = "ally" if self.type == "tribe" else self.type
         return ingame.format(header, url_type, dstype, self.id)
 
@@ -114,9 +114,10 @@ class Player(DSObject):
         self.att_rank = data['att_rank']
         self.def_bash = data['def_bash']
         self.def_rank = data['def_rank']
+        self.sup_bash = data['sup_bash']
+        self.sup_rank = data['sup_rank']
         self.all_bash = data['all_bash']
         self.all_rank = data['all_rank']
-        self.ut_bash = self.all_bash - self.def_bash - self.att_bash
 
 
 class Tribe(DSObject):

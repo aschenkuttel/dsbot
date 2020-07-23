@@ -6,4 +6,5 @@ data/naruto.py
 discord.log
 dsbot.log
 datadb.py
+msg.json
 lab.py

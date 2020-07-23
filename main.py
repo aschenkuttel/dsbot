@@ -1,3 +1,4 @@
+from async_timeout import timeout
 from discord.ext import commands
 import data.naruto as secret
 import concurrent.futures
@@ -32,7 +33,7 @@ class DSBot(commands.Bot):
         self.pool = None
         self.conn = None
         self.session = None
-        self.last_message = set()
+        self.active_guilds = set()
         self.prefix = secret.prefix
         self.white = secret.pm_commands
         self.owner_id = 211836670666997762
@@ -45,6 +46,7 @@ class DSBot(commands.Bot):
         self.add_check(self.global_world)
         self.config = utils.Config(self)
         self.cache = utils.Cache(self)
+        self._update = asyncio.Event()
         self._lock = asyncio.Event()
         self.remove_command("help")
         self.setup_cogs()
@@ -55,12 +57,13 @@ class DSBot(commands.Bot):
         if not self.session or not self.pool:
             self.session = aiohttp.ClientSession(loop=self.loop)
             self.pool, self.ress = await self.db_connect()
+            await self.setup_tables()
 
             # adds needed option for vps
             if os.name != "nt":
                 utils.imgkit['xvfb'] = ''
 
-            await self.refresh_worlds()
+            await self.update_worlds()
 
         if not self.conn:
             self.conn = await self.pool.acquire()
@@ -74,26 +77,19 @@ class DSBot(commands.Bot):
 
     # global check and ctx.world implementation
     async def global_world(self, ctx):
-        if "help" in str(ctx.command):
-            return True
-
+        parent = ctx.command.parent
         cmd = str(ctx.command)
-        if cmd == "set world":
-            return True
 
-        if ctx.guild is None:
-            parent = ctx.command.parent
-            if parent is None and cmd in self.white:
-                return True
-            elif str(parent) in self.white:
-                return True
-            else:
-                raise commands.NoPrivateMessage
+        if bool({str(parent), cmd} & self.white):
+            return True
+        elif ctx.guild is None:
+            raise commands.NoPrivateMessage()
 
         server = self.config.get_world(ctx.channel)
-        ctx.world = self.worlds.get(server)
+        world = self.worlds.get(server)
 
-        if ctx.world:
+        if world:
+            ctx.world = world
             return True
         else:
             raise utils.WorldMissing()
@@ -112,13 +108,19 @@ class DSBot(commands.Bot):
 
     def callback(self, *args):
         payload = args[-1]
-        self.logger.debug(f"payload received: {payload}")
-        if payload == "404":
+
+        if payload == "200":
+            self._update.set()
+            return
+
+        elif payload == "404":
             msg = "database script ended with a failure"
         elif payload == "400":
             msg = "engine broke once, restarting"
         else:
             msg = "unknown payload"
+
+        self.logger.debug(f"payload received: {payload}")
         self.loop.create_task(self.report_to_owner(msg))
 
     # defaul executor somehow leaks RAM
@@ -138,7 +140,16 @@ class DSBot(commands.Bot):
         while not self.is_closed():
 
             self.logger.debug("loop per hour")
-            await self.refresh_worlds()
+            try:
+                async with timeout(20, loop=self.loop):
+                    await self._update.wait()
+                    await self.update_worlds()
+                    self.logger.debug("worlds updated")
+                    self._update.clear()
+
+            except asyncio.TimeoutError:
+                self.logger.error("worlds not updated")
+                pass
 
             for cog in self.cogs.values():
                 loop = getattr(cog, 'called_by_hour', None)
@@ -147,7 +158,7 @@ class DSBot(commands.Bot):
                     if loop is not None:
                         await loop()
                 except Exception as error:
-                    self.logger.debug(f"{cog.name} Task Error: {error}")
+                    self.logger.debug(f"{cog.qualified_name} Task Error: {error}")
 
             seconds = self.get_seconds()
             await asyncio.sleep(seconds)
@@ -166,14 +177,36 @@ class DSBot(commands.Bot):
 
     async def db_connect(self):
         result = []
-        databases = 'tribaldata', 'userdata'
-        for db in databases:
-            conn_data = {'host': secret.db_adress, 'port': secret.db_port,
-                         'user': secret.db_user, 'password': secret.db_key,
-                         'database': db, 'loop': self.loop, 'max_size': 50}
+
+        for db in secret.databases:
+            conn_data = {'host': secret.db_adress,
+                         'port': secret.db_port,
+                         'user': secret.db_user,
+                         'password': secret.db_key,
+                         'database': db,
+                         'loop': self.loop,
+                         'max_size': 50}
             cache = await asyncpg.create_pool(**conn_data)
             result.append(cache)
+
         return result
+
+    async def setup_tables(self):
+        reminders = 'CREATE TABLE IF NOT EXISTS reminder' \
+                    '(id SERIAL PRIMARY KEY, author_id BIGINT,' \
+                    'channel_id BIGINT, creation TIMESTAMP,' \
+                    'expiration TIMESTAMP, reason TEXT)'
+
+        iron_data = 'CREATE TABLE IF NOT EXISTS iron_data' \
+                    '(id BIGINT PRIMARY KEY, amount BIGINT)'
+
+        usage_data = 'CREATE TABLE IF NOT EXISTS usage_data' \
+                     '(name TEXT PRIMARY KEY, usage BIGINT)'
+
+        querys = [reminders, iron_data, usage_data]
+
+        async with self.ress.acquire() as conn:
+            await conn.execute(";".join(querys))
 
     async def update_iron(self, user_id, iron):
         async with self.ress.acquire() as conn:
@@ -240,7 +273,7 @@ class DSBot(commands.Bot):
         return sorted(cache.items(), key=operator.itemgetter(1), reverse=True)
 
     # DS Database Methods
-    async def refresh_worlds(self):
+    async def update_worlds(self):
         query = 'SELECT * FROM world GROUP BY world'
         async with self.pool.acquire() as conn:
             data = await conn.fetch(query)
@@ -310,6 +343,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
+
         return utils.Player(result) if result else None
 
     async def fetch_tribe(self, world, searchable, *, name=False, archive=None):
@@ -324,6 +358,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
+
         return utils.Tribe(result) if result else None
 
     async def fetch_village(self, world, searchable, *, coord=False, archive=None):
@@ -339,6 +374,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, *searchable)
+
         return utils.Village(result) if result else None
 
     async def fetch_both(self, world, searchable, *, name=True, archive=None):
@@ -377,6 +413,7 @@ class DSBot(commands.Bot):
         query = f'SELECT * FROM player WHERE world = $1 AND tribe_id = ANY($2)'
         async with self.pool.acquire() as conn:
             res = await conn.fetch(query, world, allys)
+
         return [utils.Player(rec) for rec in res]
 
     async def fetch_bulk(self, world, iterable, table=None, *, name=False, dic=False):

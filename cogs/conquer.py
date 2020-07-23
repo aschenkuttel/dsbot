@@ -23,15 +23,19 @@ class ConquerLoop(commands.Cog):
 
         counter = 0
         for guild in self.bot.guilds:
-            if guild.id in self.bot.last_message:
-                continue
-            else:
+            if guild.id not in self.bot.active_guilds:
                 self.bot.config.remove_item(guild.id, 'conquer', bulk=True)
                 counter += 1
 
         self.bot.config.save()
-        self.bot.last_message.clear()
+        self.bot.active_guilds.clear()
         logger.debug(f"{counter} inactive guilds")
+
+    @commands.is_owner()
+    @commands.command(name="manual")
+    async def manual(self, ctx):
+        await self.called_by_hour()
+        await ctx.send("manual feed done")
 
     # main loop called from main
     async def called_by_hour(self):
@@ -51,7 +55,7 @@ class ConquerLoop(commands.Cog):
             return
 
         response = False
-        for channel_id, conquer_data in conquer.items():
+        for channel_id, conquer_config in conquer.items():
             channel = guild.get_channel(int(channel_id))
             if not channel:
                 continue
@@ -60,7 +64,7 @@ class ConquerLoop(commands.Cog):
             if not world:
                 continue
 
-            data = await self.conquer_parse(world, conquer_data)
+            data = await self.conquer_parse(world, conquer_config)
             if not data:
                 continue
 
@@ -148,6 +152,8 @@ class ConquerLoop(commands.Cog):
             for entry in cache:
                 vil_id, unix_time, new_owner, old_owner = entry
 
+                # skips conquers after conquer timeframe which
+                # would count for the next iteration
                 if unix_time > old_unix:
                     continue
 
@@ -189,9 +195,10 @@ class ConquerLoop(commands.Cog):
 
     async def fetch_conquer(self, world, sec=3600):
         now = datetime.datetime.now()
-        cur = now.timestamp() - sec
         base = "https://{}/interface.php?func=get_conquer&since={}"
-        async with self.bot.session.get(base.format(world.url, cur)) as resp:
+        url = base.format(world.url, now.timestamp() - sec)
+
+        async with self.bot.session.get(url) as resp:
             data = await resp.text('utf-8')
             return data.split('\n')
 

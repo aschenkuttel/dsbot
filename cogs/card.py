@@ -11,20 +11,20 @@ stat = {"id": "ID",
         "points": "Punkte",
         "villages": "Dörfer",
         "all_bash": "Bashpoints",
-        "ut_bash": "UT Bashpoints"}
+        "sup_bash": "UT Bashpoints"}
 
 way = {"id": ["älteste", "neuste"],
        "rank": ["besten", "schlechtesten"],
        "points": ["meisten", "wenigsten"],
        "villages": ["meisten", "wenigsten"],
-       "all_bash": ["meisten", "wenigsten"],
-       "ut_bash": ["meisten", "wenigsten"]}
+       "sup_bash": ["meisten", "wenigsten"],
+       "all_bash": ["meisten", "wenigsten"]}
 
 pl_options = {"id": "die {} ID?",
               "rank": "den {} Rang?",
               "points": "die {} Punkte?",
-              "all_bash": "die {} besiegten Gegner?",
-              "ut_bash": "die {} Unterstützer-Bashis?"}
+              "sup_bash": "die {} Unterstützer-Bashis?",
+              "all_bash": "die {} besiegten Gegner?"}
 
 tr_options = {"id": "die {} ID?",
               "rank": "den {} Rang?",
@@ -34,7 +34,7 @@ tr_options = {"id": "die {} ID?",
 
 prop = {"name": "Spieler", "id": "ID", "rank": "Rang", "points": "Punkte",
         "villages": "Dörfer", "att_bash": "OFF", "def_bash": "DEF",
-        "ut_bash": "UT", "all_bash": "Insgesamt"}
+        "sup_bash": "SUP", "all_bash": "Insgesamt"}
 
 
 class Card(commands.Cog):
@@ -50,7 +50,7 @@ class Card(commands.Cog):
             self.image_guess
         ]
         self.format = ('points', 'att_bash', 'def_bash',
-                       'ut_bash', 'all_bash')
+                       'sup_bash', 'all_bash')
 
     def quiz_embed(self, desc, rounds, ingame=False):
         title = "Frage " + rounds if not ingame else rounds
@@ -108,7 +108,7 @@ class Card(commands.Cog):
         which = way[key][1] if gravity else way[key][0]
         question = f"{base} {witcher[key].format(which)}\n\n{options}"
         index = str(data.index(obj) + 1)
-        sweet = f"{stat[key]} {value}" if lowest else f"{utils.pcv(value)} {stat[key]}"
+        sweet = f"{stat[key]} {value}" if lowest else f"{utils.seperator(value)} {stat[key]}"
         answer_str = f"{obj.name} | {sweet}"
 
         await ctx.send(embed=self.quiz_embed(question, cur))
@@ -213,7 +213,7 @@ class Card(commands.Cog):
                     pval = getattr(player, key)
 
                     if key in self.format:
-                        pval = utils.pcv(pval)
+                        pval = utils.seperator(pval)
 
                     pstat = f"**{value}:** `{pval}`"
                     values.append(pstat)
@@ -264,6 +264,7 @@ class Card(commands.Cog):
             else:
                 result, answer = response
 
+            game_count += 1
             # nobody answered
             if result is None:
                 break
@@ -276,7 +277,6 @@ class Card(commands.Cog):
                 continue
 
             winner = ""
-            game_count += 1
             for index, obj in enumerate(result):
 
                 if obj in self.quiz[ctx.guild.id]:
@@ -502,7 +502,7 @@ class Card(commands.Cog):
                     dsobj = played[user].name
                     points = players[user]['points']
                     name = f"Karte von {user.display_name} ({points}):"
-                    value = f"**{prop[data['attribute']]} von {dsobj}:** `{utils.pcv(value)}`"
+                    value = f"**{prop[data['attribute']]} von {dsobj}:** `{utils.seperator(value)}`"
                     embed.add_field(name=name, value=value, inline=False)
 
                 base = "Warte bis {} sich für eine Eigenschaft entschieden hat"

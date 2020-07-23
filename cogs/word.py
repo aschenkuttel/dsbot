@@ -14,10 +14,11 @@ class Word(commands.Cog):
         self.hangman = {}
 
     async def victory_royale(self, ctx, data):
-        length = len(data['solution'])
-        amount = int(250 * length * float(data['life'] / length + 1))
         self.hangman[ctx.guild.id] = False
 
+        length = len(data['solution'])
+
+        amount = int(200 * length * (data['life'] / 8 + 0.5) + 2500)
         await self.bot.update_iron(ctx.author.id, amount)
 
         base = "Herzlichen Glückwunsch `{}`\n" \
@@ -60,11 +61,11 @@ class Word(commands.Cog):
             return
 
         elif data:
-            hint = data.get('hint')
-            comment = f"| `{hint}` " if hint else ""
+            comment = f"| `{data['hint']}` " if data.get('hint') else ""
             now = (datetime.datetime.now() - data['time']).seconds
-            msg = f"`{data['word']}` {comment}*(noch {60 - now}s)*"
-            return await ctx.send(msg)
+            content = f"`{data['word']}` {comment}*(noch {60 - now}s)*"
+            data['msg'] = await ctx.send(content)
+            return
 
         word = None
         while not word:
@@ -77,13 +78,12 @@ class Word(commands.Cog):
             random.shuffle(word_list)
 
         show = ' '.join(word_list).upper()
-        hint_list = list(word[:int(len(word) / 4)].upper())
-        hint = f"{' '.join(hint_list)} . . ."
-
         start_time = datetime.datetime.now()
         data = {'word': show, 'win': word, 'time': start_time}
         self.anagram[ctx.guild.id] = data
+
         start_msg = await ctx.send(f"`{show}` (60s Timeout)")
+        self.anagram[ctx.guild.id]['msg'] = start_msg
 
         def check(m):
             if m.channel == ctx.channel:
@@ -92,29 +92,33 @@ class Word(commands.Cog):
 
         try:
             win_msg = await self.bot.wait_for('message', check=check, timeout=30)
+
         except asyncio.TimeoutError:
             try:
+                hint_list = word[:int(len(word) / 4)].upper()
+                hint = f"{' '.join(hint_list)} . . ."
                 self.anagram[ctx.guild.id]['hint'] = hint
-                stuff = f"`{show}` | `{hint}`"
-                await start_msg.edit(content=f"{stuff}(noch 30s)")
+                await data['msg'].edit(content=f"`{show}` | `{hint}` (noch 30s)")
                 win_msg = await self.bot.wait_for('message', check=check, timeout=30)
+
             except asyncio.TimeoutError:
                 await ctx.send(f"Die Zeit ist abgelaufen: `{word}`")
-                self.anagram.pop(ctx.guild.id)
-                return
+                return self.anagram.pop(ctx.guild.id)
 
         self.anagram[ctx.guild.id] = False
 
         end_time = datetime.datetime.now()
         diff = float("%.1f" % (end_time - start_time).total_seconds())
-        spec_bonus = (60 - diff) * (50 * (1 - diff / 60)) * (1 - diff / 60)
-        amount_won = int((150 * len(word) + spec_bonus) * (1 - diff / 60 + 1))
 
-        base = "`{}` hat das Wort in `{} Sekunden` erraten.\n`{} Eisen` gewonnen (15s Cooldown)"
-        msg = base.format(win_msg.author.display_name, diff, amount_won)
+        percent = (1 - diff / 60 + 1)
+        amount = int((200 * len(word) + 100 * percent ** 2) * percent)
+
+        base = "`{}` hat das Wort in `{} Sekunden` erraten.\n" \
+               "`{} Eisen` gewonnen (15s Cooldown)"
+        msg = base.format(win_msg.author.display_name, diff, amount)
         await ctx.send(msg)
 
-        await self.bot.update_iron(win_msg.author.id, amount_won)
+        await self.bot.update_iron(win_msg.author.id, amount)
         await asyncio.sleep(15)
         self.anagram.pop(ctx.guild.id)
 
@@ -127,18 +131,16 @@ class Word(commands.Cog):
 
         if data is None:
             word = random.choice(self.bot.msg["hangman"])
-            life = int(len(word) * (50 - len(word)) / 50)
             blanks = list(re.sub(r'[\w]', '_', word))
-            data = {'guessed': [], 'blanks': blanks, 'solution': word, 'life': life}
+            data = {'guessed': [], 'blanks': blanks, 'solution': word, 'life': 8}
             self.hangman[ctx.guild.id] = data
 
             base = "Das Spiel wurde gestartet, errate mit **{}guess**:\n{}"
-            board = f"{self.blender(blanks)} - `{life} Leben`"
+            board = f"{self.blender(blanks)} - `8 Leben`"
             msg = base.format(ctx.prefix, board)
             await ctx.send(msg)
 
         else:
-
             base = "Es läuft bereits ein Spiel:\n{}"
             msg = base.format(self.blender(ctx.guild.id))
             await ctx.send(msg)
@@ -195,10 +197,11 @@ class Word(commands.Cog):
 
         # last character was found
         if blanks == list(win):
-            return await self.victory_royale(ctx, data)
+            await self.victory_royale(ctx, data)
 
-        # sends new blanks with the found chars in it
-        await ctx.send(self.blender(blanks))
+        else:
+            # sends new blanks with the found chars in it
+            await ctx.send(self.blender(blanks))
 
 
 def setup(bot):

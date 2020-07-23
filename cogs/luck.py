@@ -30,9 +30,10 @@ class Casino(commands.Cog):
 
         await self.bot.subtract_iron(ctx.author.id, 1000)
 
-        number = random.randrange(10000, 100000)
+        number = 46860
+        # number = random.randrange(10000, 50001)
         if number == self.number:
-            self.number = random.randrange(10000, 100000)
+            self.number = random.randrange(10000, 50001)
             base = "Glückwunsch, du hast `{} Eisen` gewonnen!\nNeue Gewinnzahl: **{}**"
             msg = base.format(self.pot, self.number)
             await self.bot.update_iron(ctx.author.id, self.pot)
@@ -44,7 +45,7 @@ class Casino(commands.Cog):
         else:
             self.pot += 1000
             base = "Leider die falsche Zahl: **{}**\nAktueller Pot: `{}`\nGewinnzahl: **{}**"
-            msg = base.format(number, utils.pcv(self.pot), self.number)
+            msg = base.format(number, utils.seperator(self.pot), self.number)
             self.cache.set('slotpot', self.pot)
             await ctx.send(msg)
 

@@ -18,8 +18,8 @@ whymtl = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "' \
          '"http://www.w3.org/1999/xhtml">'
 
 
-def pcv(number):
-    return "{0:,}".format(number).replace(",", ".")
+def seperator(number):
+    return "{0:,}".format(int(number)).replace(",", ".")
 
 
 # ignores missing perm error

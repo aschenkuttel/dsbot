@@ -40,6 +40,8 @@ class Listen(commands.Cog):
         async with self.bot.ress.acquire() as conn:
             await conn.executemany(query, data)
 
+        self.cmd_counter.clear()
+
     # Report HTML to Image Converter
     def html_lover(self, raw_data):
         soup = BeautifulSoup(raw_data, 'html.parser')
@@ -82,10 +84,10 @@ class Listen(commands.Cog):
         if not message.guild:
             return
 
-        self.bot.last_message.add(message.guild.id)
-
         if message.author.id in self.blacklist:
             return
+
+        self.bot.active_guilds.add(message.guild.id)
 
         world = self.bot.config.get_world(message.channel)
         if not world:
@@ -188,6 +190,7 @@ class Listen(commands.Cog):
             title = f"{message.author.display_name} um {time}"
             embed = discord.Embed(description=parsed_msg)
             embed.set_author(name=title, icon_url=message.author.avatar_url)
+
             try:
                 await message.channel.send(embed=embed)
                 if not mentions:
@@ -270,7 +273,7 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.MissingGucci):
             base = "Du hast nur `{} Eisen` auf dem Konto"
-            msg = base.format(utils.pcv(error.purse))
+            msg = base.format(utils.seperator(error.purse))
 
         elif isinstance(error, utils.InvalidBet):
             base = "Der Einsatz muss zwischen {} und {} Eisen liegen"
@@ -295,6 +298,8 @@ class Listen(commands.Cog):
         elif isinstance(error, commands.BotMissingPermissions):
             msg = f"Dem Bot fehlen folgende Rechte auf diesem Server:\n" \
                   f"`{', '.join(error.missing_perms)}`"
+        elif isinstance(error, commands.ExpectedClosingQuoteError):
+            msg = "Ein Argument wurde mit einem Anführungszeichen begonnen und nicht geschlossen"
 
         if msg:
             try:
