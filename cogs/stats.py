@@ -34,7 +34,7 @@ class Bash(commands.Cog):
                   f"`DEF` | **{seperator(user.def_bash)} Bashpoints**"]
 
         if isinstance(user, utils.Player):
-            result.append(f"`UNT` | **{seperator(user.sup_bash)} Bashpoints**")
+            result.append(f"`SUP` | **{seperator(user.sup_bash)} Bashpoints**")
 
         result.append(f"`INS` | **{seperator(user.all_bash)} Bashpoints**")
         embed = discord.Embed(title=title, description='\n'.join(result))
@@ -72,12 +72,14 @@ class Bash(commands.Cog):
             attribute = self.values[keyword]['value']
             data_one = getattr(s1, attribute)
             data_two = getattr(s2, attribute)
+
             if data_one == data_two:
                 arrow = ":left_right_arrow:"
             elif data_one > data_two:
                 arrow = ":arrow_left:"
             else:
                 arrow = ":arrow_right:"
+
             msg = f"{seperator(data_one)} {arrow} {seperator(data_two)}"
             await ctx.send(embed=discord.Embed(description=msg))
 

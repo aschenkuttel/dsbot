@@ -298,6 +298,8 @@ class Listen(commands.Cog):
         elif isinstance(error, commands.BotMissingPermissions):
             msg = f"Dem Bot fehlen folgende Rechte auf diesem Server:\n" \
                   f"`{', '.join(error.missing_perms)}`"
+        elif isinstance(error, commands.ExpectedClosingQuoteError):
+            msg = "Ein Argument wurde mit einem Anführungszeichen begonnen und nicht geschlossen"
 
         if msg:
             try:

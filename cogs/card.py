@@ -264,6 +264,7 @@ class Card(commands.Cog):
             else:
                 result, answer = response
 
+            game_count += 1
             # nobody answered
             if result is None:
                 break
@@ -276,7 +277,6 @@ class Card(commands.Cog):
                 continue
 
             winner = ""
-            game_count += 1
             for index, obj in enumerate(result):
 
                 if obj in self.quiz[ctx.guild.id]:

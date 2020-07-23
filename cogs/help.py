@@ -223,39 +223,15 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="player")
+    @help.command(name="player", aliases=["tribe"])
     async def player_(self, ctx):
         title = "`~player` - `~tribe`"
-        desc = "Erhalte den Gastlogin-Link eines Spieler oder Stammes."
+        desc = "Erhalte eine kleine Übersicht eines Accounts/Stamm mit 30-Tage-Graph"
         cmd_type = "Server Command"
         cmd_inp = ["`~player <playername>`",
                    "`~tribe <tribename>`"]
         example = ["`~player Philson Cardoso`",
                    "`~tribe Milf!`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
-    @help.command(name="twstats")
-    async def akte_(self, ctx):
-        title = "`~twstats`"
-        desc = "Erhalte die Twstats Akte eines Spielers oder Stammes"
-        cmd_type = "Server Command"
-        cmd_inp = ["`~akte <playername/tribename>`"]
-        example = ["`~akte madberg`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
-    @help.command(name="guest")
-    async def guest_(self, ctx):
-        title = "`~guest`"
-        desc = "Erhalte die Gastlogin-Link eines Spieler oder Stammes"
-        cmd_type = "Server Command"
-        cmd_inp = ["`~guest <playername/tribename>`"]
-        example = ["`~guest madberg`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)

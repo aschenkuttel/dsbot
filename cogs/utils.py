@@ -45,8 +45,6 @@ class Rm(commands.Cog):
         plt.rc(f'xtick', labelsize=16)
         plt.rc(f'ytick', labelsize=18)
 
-        # plt.locator_params(axis='x', nbins=4)
-
         axes = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         plt.xticks([0, 7, 14, 21])
         axes.margins(x=0)
@@ -91,11 +89,6 @@ class Rm(commands.Cog):
         result = [obj.name for obj in data]
         await ctx.author.send(';'.join(result))
         await ctx.message.add_reaction("📨")
-
-    @commands.command(name="twstats")
-    async def akte_(self, ctx, *, user: utils.DSConverter):
-        akte = discord.Embed(title=user.name, url=user.twstats_url)
-        await ctx.send(embed=akte)
 
     @commands.command(name="player", aliases=["tribe"])
     async def ingame_(self, ctx, *, username):
@@ -153,19 +146,21 @@ class Rm(commands.Cog):
         bash_rows = {}
         for index, stat in enumerate(['all_bash', 'att_bash', 'def_bash', 'sup_bash']):
             value = getattr(dsobj, stat, None)
+
             if value is not None:
                 rank_stat = f"{stat.split('_')[0]}_rank"
                 rank_value = getattr(dsobj, rank_stat)
+                print(rank_value)
                 stat_title = self.bot.msg['statTitle'][stat]
                 represent = f"{stat_title}: `{sep(value)}`"
 
                 if rank_value:
                     represent += f" | Rang: `{rank_value}`"
 
-                bash_rows[value] = represent
+                bash_rows[represent] = value
 
-        clean = sorted(bash_rows.items(), key=lambda l: l[0], reverse=True)
-        rows.extend([line[1] for line in clean])
+        clean = sorted(bash_rows.items(), key=lambda l: l[1], reverse=True)
+        rows.extend([line[0] for line in clean])
 
         profile = discord.Embed(description="\n".join(rows))
         profile.colour = discord.Color.blue()
@@ -206,11 +201,6 @@ class Rm(commands.Cog):
         profile.set_image(url="attachment://example.png")
 
         await ctx.send(embed=profile, file=file)
-
-    @commands.command(name="guest")
-    async def guest_(self, ctx, *, user: utils.DSConverter):
-        guest = discord.Embed(title=user.name, url=user.guest_url)
-        await ctx.send(embed=guest)
 
     @commands.command(name="visit")
     async def visit_(self, ctx, world: utils.WorldConverter = None):

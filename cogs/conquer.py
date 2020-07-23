@@ -152,6 +152,8 @@ class ConquerLoop(commands.Cog):
             for entry in cache:
                 vil_id, unix_time, new_owner, old_owner = entry
 
+                # skips conquers after conquer timeframe which
+                # would count for the next iteration
                 if unix_time > old_unix:
                     continue
 
