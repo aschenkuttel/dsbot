@@ -21,6 +21,10 @@ class MemberConverter(commands.Converter):
 
 
 class DSConverter(commands.Converter):
+
+    def __init__(self, ds_type=None):
+        self.type = ds_type
+
     __slots__ = ('id', 'x', 'y', 'world', 'url', 'alone',
                  'name', 'tag', 'tribe_id', 'villages',
                  'points', 'rank', 'player', 'att_bash',
@@ -30,7 +34,12 @@ class DSConverter(commands.Converter):
                  'guest_url', 'ingame_url', 'twstats_url')
 
     async def convert(self, ctx, argument):
-        obj = await ctx.bot.fetch_both(ctx.server, argument)
+        if self.type:
+            func = getattr(ctx.bot, f"fetch_{self.type}")
+            obj = await func(ctx.server, argument, name=True)
+        else:
+            obj = await ctx.bot.fetch_both(ctx.server, argument)
+
         if not obj:
             raise DSUserNotFound(argument)
         return obj

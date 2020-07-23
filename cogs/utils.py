@@ -21,6 +21,7 @@ class Rm(commands.Cog):
         self.maximum = 0
         self.duration = 300
         self.cap_dict = {}
+        self.members_cache = {}
         self.troops = self.bot.msg['troops']
         self.movement = self.bot.msg['movement']
         self.number = "{}\N{COMBINING ENCLOSING KEYCAP}"
@@ -29,6 +30,9 @@ class Rm(commands.Cog):
                     " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
                     "('https://media.innogamescdn.com/com_DS_DE/" \
                     "scripts/qb_main/scriptgenerator.js'); void(0);"
+
+        user = commands.BucketType.user
+        self._cd = commands.CooldownMapping.from_cooldown(1.0, 2.0, user)
 
     # temporary fix
     async def fetch_oldest_tableday(self, conn):
@@ -76,6 +80,95 @@ class Rm(commands.Cog):
 
         return axes
 
+    @commands.Cog.listener()
+    async def on_reaction_add(self, *args):
+        await self.menue_handler(*args)
+
+    @commands.Cog.listener()
+    async def on_reaction_remove(self, *args):
+        await self.menue_handler(*args)
+
+    async def menue_handler(self, reaction, user):
+        if isinstance(user, discord.Member) and not user.bot:
+            bucket = self._cd.get_bucket(reaction.message)
+            retry_after = bucket.update_rate_limit()
+
+            if retry_after:
+                return
+
+            cache = self.members_cache.get(reaction.message.id)
+            if cache is None:
+                return
+
+            now = datetime.utcnow()
+            last = cache.get('last')
+            if last and (now - last).total_seconds() > 10:
+                cache.pop('last')
+                print("rip")
+            elif last and user == cache['owner']:
+                cache['last'] = now
+                print("refresh")
+            elif last and user != cache['owner']:
+                print("too early")
+                return
+
+            last_index = len(cache['pages']) - 1
+            index = cache['emojis'].index(str(reaction.emoji))
+            current = cache.get('current', 0)
+
+            if index - 1 == current:
+                return
+
+            if index in [0, len(cache['emojis']) - 1]:
+                direction = -1 if index == 0 else 1
+                if current + direction < 0:
+                    current = last_index
+                elif current + direction > last_index:
+                    current = 0
+                else:
+                    current += direction
+            else:
+                current = index - 1
+
+            cache['current'] = current
+            embed = cache['msg'].embeds[0]
+            pages = cache['pages'][current]
+            embed.description = "\n".join(pages)
+            await cache['msg'].edit(embed=embed)
+
+    @commands.command(name="members")
+    async def members_(self, ctx, tribe: utils.DSConverter("tribe")):
+        members = await self.bot.fetch_tribe_member(ctx.server, tribe.id)
+        sorted_members = sorted(members, key=lambda obj: obj.rank)
+
+        if not sorted_members:
+            await ctx.send("Der angegebene Stamm hat keine Mitglieder")
+
+        pages = [[]]
+        for index, member in enumerate(sorted_members, 1):
+            number = f"0{index}" if index < 10 else index
+            line = f"`{number}` | {member.mention}"
+            if len(pages[-1]) == 15:
+                pages.append([line])
+            else:
+                pages[-1].append(line)
+
+        embed = discord.Embed(description="\n".join(pages[0]))
+        pager = await ctx.send(embed=embed)
+
+        numbers = []
+        for num in range(1, len(pages) + 1):
+            numbers.append(self.number.format(num))
+
+        emojis = ["⏪", *numbers, "⏩"]
+        cache = {'pages': pages, 'emojis': emojis,
+                 'msg': pager, 'owner': ctx.author,
+                 'last': ctx.message.created_at}
+        self.members_cache[pager.id] = cache
+
+        for emoji in emojis:
+            await pager.add_reaction(emoji)
+
     @commands.command(name="rm")
     async def rm_(self, ctx, *tribes: str):
         if len(tribes) > 10:
@@ -84,11 +177,13 @@ class Rm(commands.Cog):
 
         data = await self.bot.fetch_tribe_member(ctx.server, tribes, name=True)
         if isinstance(data, str):
-            return await ctx.send(f"Der Stamm `{data}` existiert so nicht")
-
-        result = [obj.name for obj in data]
-        await ctx.author.send(';'.join(result))
-        await ctx.message.add_reaction("📨")
+            await ctx.send(f"Der Stamm `{data}` existiert so nicht")
+        elif not data:
+            await ctx.send("Die angegebenen Stämme haben keine Mitglieder")
+        else:
+            result = [obj.name for obj in data]
+            await ctx.author.send(';'.join(result))
+            await ctx.message.add_reaction("📨")
 
     @commands.command(name="player", aliases=["tribe"])
     async def ingame_(self, ctx, *, username):
