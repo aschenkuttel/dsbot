@@ -14,6 +14,67 @@ import math
 import re
 import io
 
+number_emote = "{}\N{COMBINING ENCLOSING KEYCAP}"
+
+
+class MemberMenue:
+    def __init__(self, ctx, msg, pages, base):
+        self.last = ctx.message.created_at
+        self.owner = ctx.author
+        self.bot = ctx.bot
+        self.msg = msg
+        self.pages = pages
+        self.base = base
+        self.emojis = []
+        self.current = 0
+
+    async def add_buttons(self):
+        numbers = []
+        for num in range(1, len(self.pages) + 1):
+            numbers.append(number_emote.format(num))
+
+        self.emojis = ["⏪", *numbers, "⏩"]
+
+        for emoji in self.emojis:
+            await self.msg.add_reaction(emoji)
+
+    async def update(self, reaction, user):
+        now = datetime.utcnow()
+
+        if self.owner is not None:
+            if (now - self.last).total_seconds() > 10:
+                self.owner = None
+
+            elif user != self.owner:
+                return
+
+        self.last = now
+        last_index = len(self.pages) - 1
+
+        index = self.emojis.index(str(reaction.emoji))
+        if index - 1 == self.current:
+            return
+
+        if index in [0, len(self.emojis) - 1]:
+            direction = -1 if index == 0 else 1
+            self.current += direction
+
+            if self.current < 0:
+                self.current = last_index
+
+            elif self.current > last_index:
+                self.current = 0
+
+        else:
+            self.current = index - 1
+
+        embed = self.msg.embeds[0]
+        embed.title = self.base.format(self.current + 1)
+        page = self.pages[self.current]
+        embed.description = "\n".join(page)
+
+        await self.msg.edit(embed=embed)
+
 
 class Rm(commands.Cog):
     def __init__(self, bot):
@@ -21,14 +82,28 @@ class Rm(commands.Cog):
         self.maximum = 0
         self.duration = 300
         self.cap_dict = {}
+        self.active_pager = {}
         self.troops = self.bot.msg['troops']
         self.movement = self.bot.msg['movement']
-        self.number = "{}\N{COMBINING ENCLOSING KEYCAP}"
         self.base = "javascript: var settings = Array" \
                     "({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}," \
                     " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
                     "('https://media.innogamescdn.com/com_DS_DE/" \
                     "scripts/qb_main/scriptgenerator.js'); void(0);"
+
+        user = commands.BucketType.user
+        self._cd = commands.CooldownMapping.from_cooldown(1.0, 2.0, user)
+
+    async def called_by_hour(self):
+        now = datetime.utcnow()
+        tmp = self.active_pager.copy()
+        for message_id, pager in tmp.items():
+            if (now - pager.last).total_seconds() > 6:
+                self.active_pager.pop(message_id)
+                try:
+                    await pager.msg.clear_reactions()
+                except (discord.Forbidden, discord.NotFound):
+                    pass
 
     # temporary fix
     async def fetch_oldest_tableday(self, conn):
@@ -76,6 +151,66 @@ class Rm(commands.Cog):
 
         return axes
 
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        if user.bot or reaction.message.guild is None:
+            return
+
+        pager = self.active_pager.get(reaction.message.id)
+        if pager is not None:
+            await pager.update(reaction, user)
+
+    @commands.Cog.listener()
+    async def on_reaction_remove(self, reaction, user):
+        if user.bot or reaction.message.guild is None:
+            return
+
+        pager = self.active_pager.get(reaction.message.id)
+        if pager is not None:
+            await pager.update(reaction, user)
+
+    @commands.command(name="members")
+    async def members_(self, ctx, tribe: utils.DSConverter("tribe"), url_type="ingame"):
+        members = await self.bot.fetch_tribe_member(ctx.server, tribe.id)
+        sorted_members = sorted(members, key=lambda obj: obj.rank)
+
+        if not sorted_members:
+            msg = "Der angegebene Stamm hat keine Mitglieder"
+            return await ctx.send(msg)
+
+        elif url_type not in ["ingame", "guest", "twstats"]:
+            msg = "Der angegebene URL-Typ ist nicht vorhanden:\n" \
+                  "`(ingame[default], guest, twstats)`"
+            return await ctx.send(msg)
+
+        tribe_url = getattr(tribe, f"{url_type}_url")
+
+        if url_type == "ingame":
+            url_type = "mention"
+        else:
+            url_type += "_mention"
+
+        pages = [[]]
+        for index, member in enumerate(sorted_members, 1):
+            number = f"0{index}" if index < 10 else index
+            line = f"`{number}` | {getattr(member, url_type)}"
+
+            if len(pages[-1]) == 15:
+                pages.append([line])
+            else:
+                pages[-1].append(line)
+
+        placeholder = "{}"
+        base = f"Member von {tribe.tag} ({placeholder}/{len(pages)})"
+        embed = discord.Embed(title=base.format(1), url=tribe_url)
+        embed.description = "\n".join(pages[0])
+
+        msg = await ctx.send(embed=embed)
+
+        pager = MemberMenue(ctx, msg, pages, base)
+        self.active_pager[msg.id] = pager
+        await pager.add_buttons()
+
     @commands.command(name="rm")
     async def rm_(self, ctx, *tribes: str):
         if len(tribes) > 10:
@@ -84,11 +219,13 @@ class Rm(commands.Cog):
 
         data = await self.bot.fetch_tribe_member(ctx.server, tribes, name=True)
         if isinstance(data, str):
-            return await ctx.send(f"Der Stamm `{data}` existiert so nicht")
-
-        result = [obj.name for obj in data]
-        await ctx.author.send(';'.join(result))
-        await ctx.message.add_reaction("📨")
+            await ctx.send(f"Der Stamm `{data}` existiert so nicht")
+        elif not data:
+            await ctx.send("Die angegebenen Stämme haben keine Mitglieder")
+        else:
+            result = [obj.name for obj in data]
+            await ctx.author.send(';'.join(result))
+            await ctx.message.add_reaction("📨")
 
     @commands.command(name="player", aliases=["tribe"])
     async def ingame_(self, ctx, *, username):
@@ -150,7 +287,6 @@ class Rm(commands.Cog):
             if value is not None:
                 rank_stat = f"{stat.split('_')[0]}_rank"
                 rank_value = getattr(dsobj, rank_stat)
-                print(rank_value)
                 stat_title = self.bot.msg['statTitle'][stat]
                 represent = f"{stat_title}: `{sep(value)}`"
 
@@ -387,7 +523,7 @@ class Rm(commands.Cog):
         poll = await ctx.send(embed=embed)
 
         for num in range(len(options)):
-            emoji = self.number.format(num + 1)
+            emoji = number_emote.format(num + 1)
             await poll.add_reaction(emoji)
 
         await ctx.safe_delete()
