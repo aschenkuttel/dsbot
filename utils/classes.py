@@ -97,6 +97,10 @@ class DSObject:
     def guest_mention(self):
         return f"[{self}]({self.guest_url})"
 
+    @property
+    def twstats_mention(self):
+        return f"[{self}]({self.twstats_url})"
+
     def get_ingame_url(self, visit=False):
         url_type = 'guest' if visit else 'game'
         header = f"{self.world}.{world_data[self.lang]['domain']}"
