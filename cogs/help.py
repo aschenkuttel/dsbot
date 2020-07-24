@@ -249,6 +249,21 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
+    @help.command(name="members")
+    async def members_(self, ctx):
+        title = "`~members`"
+        desc = "Erhalte alle Member eines Stammes,\n" \
+               "mögliche Optionen: `ingame, guest, twstats`"
+        cmd_type = "Server Command"
+        cmd_inp = ["`~members <tribetag>`",
+                   "`~members <tribetag> <url_type=ingame>`"]
+        example = ["`~members W-Inc`",
+                   "`~members W-Inc twstats`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
     @help.command(name="daily", aliases=["aktueller"])
     async def daily_(self, ctx):
         title = "`~daily` - `~aktueller`"

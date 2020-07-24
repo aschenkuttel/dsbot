@@ -43,10 +43,9 @@ class MemberMenue:
 
         if self.owner is not None:
             if (now - self.last).total_seconds() > 10:
-                print("over 10s")
                 self.owner = None
+
             elif user != self.owner:
-                print("not the owner")
                 return
 
         self.last = now
@@ -70,7 +69,7 @@ class MemberMenue:
             self.current = index - 1
 
         embed = self.msg.embeds[0]
-        embed.title = self.base.format(index)
+        embed.title = self.base.format(self.current + 1)
         page = self.pages[self.current]
         embed.description = "\n".join(page)
 
@@ -101,6 +100,10 @@ class Rm(commands.Cog):
         for message_id, pager in tmp.items():
             if (now - pager.last).total_seconds() > 6:
                 self.active_pager.pop(message_id)
+                try:
+                    await pager.msg.clear_reactions()
+                except (discord.Forbidden, discord.NotFound):
+                    pass
 
     # temporary fix
     async def fetch_oldest_tableday(self, conn):
@@ -284,7 +287,6 @@ class Rm(commands.Cog):
             if value is not None:
                 rank_stat = f"{stat.split('_')[0]}_rank"
                 rank_value = getattr(dsobj, rank_stat)
-                print(rank_value)
                 stat_title = self.bot.msg['statTitle'][stat]
                 represent = f"{stat_title}: `{sep(value)}`"
 
