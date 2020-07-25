@@ -1,5 +1,5 @@
-from utils.error import DontPingMe, MemberConverterNotFound, DSUserNotFound, UnknownWorld
-from utils.classes import DSWorld
+from utils.error import DontPingMe, MemberConverterNotFound, DSUserNotFound
+from utils.error import InvalidCoordinate, UnknownWorld
 from discord.ext import commands
 import re
 
@@ -67,9 +67,23 @@ class WorldConverter(commands.Converter):
             return world
 
 
-class TimeConverter(commands.Converter):
-    def __init__(self):
-        pass
+class CoordinateConverter(commands.Converter):
+    def __init__(self, argument=None):
+        self.x = None
+        self.y = None
+        if argument:
+            self.x, self.y = self.parse(argument, valid=True)
 
-    async def convert(self, ctx, arguments):
-        pass
+    async def convert(self, ctx, argument):
+        self.x, self.y = self.parse(argument)
+
+    def parse(self, argument, valid=False):
+        if not valid:
+            coord = re.match(r'\d\d\d\|\d\d\d', argument)
+            if not coord:
+                raise InvalidCoordinate
+            else:
+                argument = coord.string
+
+        raw_x, raw_y = argument.split("|")
+        return int(raw_x), int(raw_y)

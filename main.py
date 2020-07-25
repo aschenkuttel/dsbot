@@ -424,7 +424,9 @@ class DSBot(commands.Bot):
             query = f'{base} AND id = ANY($2)'
         else:
             if dsobj.table == "village":
+                iterable = [vil.replace("|", "") for vil in iterable]
                 query = f'{base} AND CAST(x AS TEXT)||CAST(y as TEXT) = ANY($2)'
+
             else:
                 iterable = [utils.converter(obj, True) for obj in iterable]
                 if dsobj.table == "tribe":

@@ -70,7 +70,8 @@ class Help(commands.Cog):
         return emb_help
 
     def cmd_embed(self, data, ctx):
-        title = "Command: {}".format(data[0])
+        title_base = "Command: {}".format(data[0])
+        title = title_base.replace("~", ctx.prefix)
         desc, cmd_type = data[1:3]
         cmd_inp = "\n".join(data[3])
         example = "\n".join(data[4])

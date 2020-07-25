@@ -17,6 +17,82 @@ import re
 logger = logging.getLogger('dsbot')
 
 
+class UTParser:
+    def __init__(self, bot, server, package):
+        self.bot = bot
+        self.server = server
+        self.package = package
+        self.village_cache = {}
+        self.world = bot.worlds[server]
+        self.players = {}
+        self.target_player = None
+        self.target = None
+
+    async def parse(self):
+        await self.fetch_objects()
+        return await self.embed_builder()
+
+    async def fetch_objects(self):
+        raw = " ".join(self.package)
+        coordinates = re.findall(r'\d\d\d\|\d\d\d', raw)
+        villages = await self.bot.fetch_bulk(self.server, set(coordinates),
+                                             table="village", name=True)
+        self.village_cache = {vil.coords: vil for vil in villages}
+
+        for coord, vil in self.village_cache.items():
+            if vil.player_id in self.players:
+                self.players[vil.player_id].append(vil)
+            else:
+                self.players[vil.player_id] = [vil]
+
+        player_ids = list(self.players.keys())
+        player_objs = await self.bot.fetch_bulk(self.server, player_ids)
+
+        for player in player_objs:
+            vil_list = self.players.pop(player.id)
+            for vil in vil_list:
+                self.players[vil.coords] = player
+
+        self.target = self.village_cache[coordinates[0]]
+        self.target_player = self.players[self.target.coords]
+
+    async def embed_builder(self):
+        embed = discord.Embed(colour=discord.Color.blue())
+        embed.title = f"{self.target_player.name} wird angegriffen!"
+
+        break_point = 0
+        for index, line in enumerate(self.package):
+            if line.startswith("[command]"):
+                break_point = index
+                break
+
+        village_data = self.package[1:break_point]
+        command_data = self.package[break_point:]
+
+        cache = [f"**Dorf:** {self.target.mention}"]
+        for line in village_data:
+            nums = re.findall(r'\d+', line)
+            if "Wallstufe" in line or "Zustimmung" in line:
+                addition = line.replace("[b]", "**")
+                addition = addition.replace("[/b]", "**")
+                addition = addition.replace(nums[0], f"`{nums[0]}`")
+                cache.append(addition)
+            elif "Verteidiger" in line:
+                bows = self.world.config['game']['archer'] == "1"
+
+
+        embed.description = "\n".join(cache)
+
+        speed = self.world.speed
+        if int(speed) == speed:
+            speed = int(speed)
+
+        footer = f"Die Zustimmung steigt um {speed} pro Stunde"
+        embed.set_footer(text=footer)
+
+        return embed
+
+
 class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -98,8 +174,9 @@ class Listen(commands.Cog):
             return
 
         # Report Converter
-        if message.content.__contains__("public_report"):
-            file = await self.fetch_report(message.content)
+        report_urls = re.findall(r'https://.+/public_report/\S*', message.content)
+        if report_urls:
+            file = await self.fetch_report(report_urls[0])
             if file is None:
                 return await utils.silencer(message.add_reaction('❌'))
             try:
@@ -111,13 +188,31 @@ class Listen(commands.Cog):
                 logger.debug("report converted")
                 return
 
-        # Coord Converter
-        result = re.findall(r'\d\d\d\|\d\d\d', message.content)
-        if result:
+        ut_requests = re.findall(r'(\[b].*)|(\[command].*)', message.content)
+        if ut_requests:
+            request_packages = [[]]
+            for title, command in ut_requests:
+                current = request_packages[-1]
+                header = title.startswith("[b]Dorf:[/b]")
+                if header and len(current) == 0:
+                    current.append(title)
+                elif header and len(current) > 0:
+                    request_packages.append([title])
+                elif not header and current:
+                    current.append(title or command)
 
-            result = set(result)
-            coords = [obj.replace('|', '') for obj in result]
-            villages = await self.bot.fetch_bulk(world, coords, "village", name=True)
+            embed = discord.Embed()
+            for pkg in request_packages:
+                parser = UTParser(self.bot, world, pkg)
+                embed = await parser.parse()
+                await message.channel.send(embed=embed)
+            return
+
+        # Coord Converter
+        coordinates = re.findall(r'\d\d\d\|\d\d\d', message.content)
+        if coordinates:
+            coords = set(coordinates)
+            villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
             player_ids = [obj.player_id for obj in villages]
             players = await self.bot.fetch_bulk(world, player_ids, dic=True)
             good = []
@@ -130,10 +225,10 @@ class Listen(commands.Cog):
                     owner = "[Barbarendorf]"
 
                 good.append(f"{vil.mention} {owner}")
-                result.remove(f"{vil.x}|{vil.y}")
+                coordinates.remove(f"{vil.x}|{vil.y}")
 
             found = '\n'.join(good)
-            lost = ','.join(result)
+            lost = ', '.join(coordinates)
             if found:
                 found = f"**Gefundene Koordinaten:**\n{found}"
             if lost:
@@ -258,6 +353,9 @@ class Listen(commands.Cog):
             if error.possible:
                 msg += f"\nMeinst du möglicherweise: `{error.possible}`"
             tip = ctx
+
+        elif isinstance(error, utils.InvalidCoordinate):
+            msg = "Du musst eine gültige Koordinate angeben"
 
         elif isinstance(error, utils.WrongChannel):
             if error.type == "game":

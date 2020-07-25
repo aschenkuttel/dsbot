@@ -48,6 +48,9 @@ class MemberMenue:
             elif user != self.owner:
                 return
 
+        if str(reaction.emoji) not in self.emojis:
+            return
+
         self.last = now
         last_index = len(self.pages) - 1
 
@@ -170,6 +173,7 @@ class Rm(commands.Cog):
             await pager.update(reaction, user)
 
     @commands.command(name="members")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def members_(self, ctx, tribe: utils.DSConverter("tribe"), url_type="ingame"):
         members = await self.bot.fetch_tribe_member(ctx.server, tribe.id)
         sorted_members = sorted(members, key=lambda obj: obj.rank)
@@ -228,6 +232,7 @@ class Rm(commands.Cog):
             await ctx.message.add_reaction("📨")
 
     @commands.command(name="player", aliases=["tribe"])
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def ingame_(self, ctx, *, username):
         ds_type = utils.DSType(ctx.invoked_with.lower())
 
@@ -273,10 +278,12 @@ class Rm(commands.Cog):
         points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | **Rang:** `{dsobj.rank}`"
         villages = f"**Dörfer:** `{utils.seperator(dsobj.villages)}`"
 
-        if getattr(dsobj, 'tribe_id', None):
+        if hasattr(dsobj, 'tribe_id'):
             tribe = await self.bot.fetch_tribe(ctx.server, dsobj.tribe_id)
             desc = tribe.mention if tribe else "Stammeslos"
             villages += f" | **Stamm:** {desc}"
+        else:
+            villages = f"**Mitglieder:** `{dsobj.member}` | {villages}"
 
         rows.extend(["", points, villages, "", "**Besiegte Gegner:**"])
 

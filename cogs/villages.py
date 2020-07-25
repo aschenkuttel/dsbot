@@ -24,6 +24,27 @@ class Villages(commands.Cog):
 
         await ctx.private_hint()
 
+    async def fetch_in_radius(self, world, village, **kwargs):
+        radius = kwargs.get('radius', 20)
+        points = kwargs.get('points', None)
+        extra_query = kwargs.get('extra', None)
+
+        arguments = [world, village.x, village.y, radius]
+
+        query = 'SELECT * FROM village WHERE world = $1 ' \
+                'AND SQRT(POWER(ABS($2 - x), 2) + POWER(ABS($3 - y), 2)) <= $4'
+
+        if points:
+            query += ' AND points <= $5'
+            arguments.append(points)
+
+        if extra_query:
+            query += extra_query
+
+        async with self.bot.pool.acquire() as conn:
+            result = await conn.fetch(query, *arguments)
+            return [utils.Village(rec) for rec in result]
+
     @commands.command(name="villages")
     async def villages_(self, ctx, amount: str, *args):
         if not amount.isdigit() and amount.lower() != "all":
@@ -86,35 +107,25 @@ class Villages(commands.Cog):
         await self.send_coords(ctx, result)
 
     @commands.command(name="bb")
-    async def bb_(self, ctx, center, *, options=None):
-        coord = re.match(r'\d\d\d\|\d\d\d', center)
-        if not coord:
-            msg = "Du musst eine gültige Koordinate eingeben"
-            await ctx.send(msg)
-            return
-
+    async def bb_(self, ctx, village: utils.CoordinateConverter, *, options=None):
         radius, points = utils.keyword(options, radius=20, points=None)
+        kwargs = {'radius': radius, 'points': points, 'extra': ' AND points = 0'}
 
-        x = int(coord.string.split("|")[0])
-        y = int(coord.string.split("|")[1])
-        x_coords = list(range(x - radius, x + radius + 1))
-        y_coords = list(range(y - radius, y + radius + 1))
-
-        arguments = [ctx.server, x_coords, y_coords]
-        query = 'SELECT * FROM village WHERE world = $1 AND ' \
-                'x = ANY($2) AND y = ANY($3) AND player = 0 '
-        if points:
-            query += 'AND points <= $4'
-            arguments.append(points)
-
-        async with self.bot.pool.acquire() as conn:
-            result = await conn.fetch(query, *arguments)
+        result = await self.fetch_in_radius(ctx.server, village, **kwargs)
 
         if not result:
             msg = "Es sind keine Barbarendörfer in Reichweite"
             await ctx.send(msg)
         else:
             await self.send_coords(ctx, result)
+
+    @commands.command(name="graveyard")
+    async def pusherradar_(self, ctx, village: utils.CoordinateConverter):
+        pass
+
+    @commands.command(name="pusherradar")
+    async def pusherradar_(self, ctx, village: utils.CoordinateConverter):
+        pass
 
 
 def setup(bot):

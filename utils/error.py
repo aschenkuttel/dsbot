@@ -23,6 +23,11 @@ class UnknownWorld(commands.CheckFailure):
         super().__init__('unknown world')
 
 
+class InvalidCoordinate(commands.CheckFailure):
+    def __init__(self):
+        super().__init__('invalid coordinate')
+
+
 class MissingGucci(commands.CheckFailure):
     def __init__(self, purse):
         self.purse = purse

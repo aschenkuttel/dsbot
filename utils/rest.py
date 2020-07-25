@@ -42,28 +42,41 @@ def converter(name, php=False):
 
 
 def keyword(options, **kwargs):
-    troops = re.findall(r'[A-z]*=\d*', options or "")
+    troops = re.findall(r'[A-z]*=\S*', options or "")
     cache = {}
     for troop in troops:
-        key, value = troop.split("=")
-        try:
-            cache[key.lower()] = int(value)
-        except ValueError:
+
+        if troop.count("=") != 1:
             continue
 
-    for key, value in kwargs.items():
-        user_input = cache.get(key)
+        orig_key, input_value = troop.split("=")
+        key, value = orig_key.lower(), input_value.lower()
+
+        try:
+            cache[key] = int(value)
+        except ValueError:
+            if value in ["true", "false"]:
+                cache[key] = value == "true"
+            else:
+                cache[key] = input_value
+
+    for argument, default_value in kwargs.items():
+        user_input = cache.get(argument)
         new_value = user_input
-        if isinstance(value, list):
-            default, maximum = value
+
+        if isinstance(default_value, list):
+            minimum, maximum = default_value
+
             if user_input is None:
-                new_value = default
+                new_value = minimum
             elif user_input > maximum:
                 new_value = maximum
-        elif user_input is None:
-            new_value = value
 
-        kwargs[key] = new_value
+        elif user_input is None:
+            new_value = default_value
+
+        kwargs[argument] = new_value
+
     return kwargs.values()
 
 
