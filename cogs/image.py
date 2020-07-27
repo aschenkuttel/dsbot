@@ -53,12 +53,14 @@ class Graphic(commands.Cog):
             yield pic
 
     def setup_emojis(self):
-        path = f"{self.bot.data_path}/emojis/"
-        for file in os.listdir(path):
-            with open(f"{path}/{file}", 'rb') as pic:
-                img = bytearray(pic.read())
-                name = file.split(".")[0]
-            self.emojis[name] = img
+        path = f"{self.bot.data_path}/emojis"
+        for folder in os.listdir(path):
+            new_path = f"{path}/{folder}"
+            for file in os.listdir(new_path):
+                with open(f"{new_path}/{file}", 'rb') as pic:
+                    img = bytearray(pic.read())
+                    name = file.split(".")[0]
+                    self.emojis[name] = img
 
     @commands.command(name="avatar")
     async def avatar_(self, ctx, url):

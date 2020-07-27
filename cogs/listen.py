@@ -30,6 +30,9 @@ class UTParser:
 
     async def parse(self):
         await self.fetch_objects()
+        if not self.village_cache:
+            return
+
         return await self.embed_builder()
 
     async def fetch_objects(self):
@@ -59,18 +62,11 @@ class UTParser:
     async def embed_builder(self):
         embed = discord.Embed(colour=discord.Color.blue())
         embed.title = f"{self.target_player.name} wird angegriffen!"
-
-        break_point = 0
-        for index, line in enumerate(self.package):
-            if line.startswith("[command]"):
-                break_point = index
-                break
-
-        village_data = self.package[1:break_point]
-        command_data = self.package[break_point:]
-
         cache = [f"**Dorf:** {self.target.mention}"]
-        for line in village_data:
+        unit_icon_dict = self.bot.msg['unit_icons']
+
+        field_cache = []
+        for line in self.package[1:]:
             nums = re.findall(r'\d+', line)
             if "Wallstufe" in line or "Zustimmung" in line:
                 addition = line.replace("[b]", "**")
@@ -78,8 +74,57 @@ class UTParser:
                 addition = addition.replace(nums[0], f"`{nums[0]}`")
                 cache.append(addition)
             elif "Verteidiger" in line:
-                bows = self.world.config['game']['archer'] == "1"
+                knight = self.world.config['game']['knight'] == "1"
+                bow = self.world.config['game']['archer'] == "1"
 
+                units = list(unit_icon_dict.values())
+                for unit, icon in unit_icon_dict.items():
+                    if not knight and unit == "knight":
+                        units.remove(icon)
+                    elif not bow and unit == "archer":
+                        units.remove(icon)
+
+                if len(nums) != len(units):
+                    units.remove("<:tw_militia:737220482994274366>")
+
+                stationed = []
+                for index, num in enumerate(nums):
+                    if int(num):
+                        stationed.append(f"{units[index]} {num}")
+
+                cache.extend(["**Verteidiger**:", " ".join(stationed), ""])
+
+            elif line.startswith("[command]"):
+                attacker_coord = re.findall(r'\[coord](.*)\[/coord]', line)
+                village = self.village_cache[attacker_coord[0]]
+                attacker = self.players[attacker_coord[0]]
+
+                possible_info = re.findall(r'\[command](\S*)\[/command]', line)
+                renamed = re.findall(r'\[/command]([^].]*)\[coord]', line)
+                lz_icon = "<:tw_who:737244837149016064>"
+
+                name = renamed[0].strip()
+                if name:
+                    renames = self.bot.msg['unit_renames']
+                    lz_unit = renames.get(name)
+                    icon = unit_icon_dict.get(lz_unit)
+                    if icon:
+                        lz_icon = icon
+
+                raw_time = re.findall(r'-->.*?:(.*)\[player]', line)
+                time = raw_time[0].strip()
+
+                inc_icon = self.bot.msg['inc_icons'].get(possible_info[0])
+                attack = f"{inc_icon} {lz_icon} `{time}` [{village.mention}] **{attacker.name}**"
+
+                if len("\n".join(cache + [attack])) > 2048:
+                    field_cache.append(attack)
+                    if len(field_cache) == 4 or line == self.package[-1]:
+                        embed.add_field(name='\u200b', value="\n".join(field_cache), inline=False)
+                        field_cache.clear()
+
+                else:
+                    cache.append(attack)
 
         embed.description = "\n".join(cache)
 
@@ -87,7 +132,8 @@ class UTParser:
         if int(speed) == speed:
             speed = int(speed)
 
-        footer = f"Die Zustimmung steigt um {speed} pro Stunde"
+        # footer = f"Die Zustimmung steigt um {speed} pro Stunde"
+        footer = "Ausgegraute Rammen sind unbekannte Laufzeiten"
         embed.set_footer(text=footer)
 
         return embed
@@ -173,8 +219,10 @@ class Listen(commands.Cog):
         if message.content.lower().startswith(pre.lower()):
             return
 
+        content = message.clean_content
+
         # Report Converter
-        report_urls = re.findall(r'https://.+/public_report/\S*', message.content)
+        report_urls = re.findall(r'https://.+/public_report/\S*', content)
         if report_urls:
             file = await self.fetch_report(report_urls[0])
             if file is None:
@@ -188,7 +236,7 @@ class Listen(commands.Cog):
                 logger.debug("report converted")
                 return
 
-        ut_requests = re.findall(r'(\[b].*)|(\[command].*)', message.content)
+        ut_requests = re.findall(r'(\[b].*)|(\[command].*)', content)
         if ut_requests:
             request_packages = [[]]
             for title, command in ut_requests:
@@ -205,11 +253,19 @@ class Listen(commands.Cog):
             for pkg in request_packages:
                 parser = UTParser(self.bot, world, pkg)
                 embed = await parser.parse()
-                await message.channel.send(embed=embed)
+                if embed is None:
+                    continue
+
+                try:
+                    await message.channel.send(embed=embed)
+                    await message.delete()
+                except (discord.Forbidden, discord.HTTPException):
+                    continue
+
             return
 
         # Coord Converter
-        coordinates = re.findall(r'\d\d\d\|\d\d\d', message.content)
+        coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
         if coordinates:
             coords = set(coordinates)
             villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
@@ -246,7 +302,6 @@ class Listen(commands.Cog):
         if "|" not in message.content:
             return
 
-        content = message.clean_content
         mentions = message.mentions.copy()
         mentions.extend(message.role_mentions)
         mentions.extend(message.channel_mentions)
@@ -258,6 +313,7 @@ class Listen(commands.Cog):
                 raw = f"@{mention.name}"
             content = content.replace(raw, "")
 
+        # mentions
         names = re.findall(r'(?<!\|)\|([\w][^|]*?)\|(?!\|)', message.clean_content)
         if names:
             parsed_msg = message.clean_content.replace("`", "")
