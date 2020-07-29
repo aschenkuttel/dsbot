@@ -1,7 +1,7 @@
 from PIL import Image, ImageChops
 from discord.ext import commands
 from collections import Counter
-from datetime import timedelta
+from datetime import datetime
 from bs4 import BeautifulSoup
 import traceback
 import logging
@@ -33,7 +33,11 @@ class UTParser:
         if not self.village_cache:
             return
 
-        return await self.embed_builder()
+        try:
+            embed = await self.embed_builder()
+            return embed
+        except Exception as error:
+            logger.error(f"request error: {error}")
 
     async def fetch_objects(self):
         raw = " ".join(self.package)
@@ -149,7 +153,8 @@ class Listen(commands.Cog):
                          commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
-                         utils.IngameError)
+                         utils.IngameError,
+                         utils.SilentError)
 
     async def called_by_hour(self):
         query = 'INSERT INTO usage_data(name, usage) VALUES($1, $2) ' \
@@ -209,21 +214,22 @@ class Listen(commands.Cog):
         if message.author.id in self.blacklist:
             return
 
-        self.bot.active_guilds.add(message.guild.id)
+        guild_id = message.guild.id
+        self.bot.active_guilds.add(guild_id)
 
         world = self.bot.config.get_world(message.channel)
         if not world:
             return
 
-        pre = self.bot.config.get_prefix(message.guild.id)
+        pre = self.bot.config.get_prefix(guild_id)
         if message.content.lower().startswith(pre.lower()):
             return
 
         content = message.clean_content
 
-        # Report Converter
+        # report conversion
         report_urls = re.findall(r'https://.+/public_report/\S*', content)
-        if report_urls:
+        if report_urls and self.bot.config.get_switch(guild_id, 'report'):
             file = await self.fetch_report(report_urls[0])
             if file is None:
                 return await utils.silencer(message.add_reaction('❌'))
@@ -236,8 +242,9 @@ class Listen(commands.Cog):
                 logger.debug("report converted")
                 return
 
+        # ut request conversion
         ut_requests = re.findall(r'(\[b].*)|(\[command].*)', content)
-        if ut_requests:
+        if ut_requests and self.bot.config.get_switch(guild_id, 'request'):
             request_packages = [[]]
             for title, command in ut_requests:
                 current = request_packages[-1]
@@ -249,7 +256,6 @@ class Listen(commands.Cog):
                 elif not header and current:
                     current.append(title or command)
 
-            embed = discord.Embed()
             for pkg in request_packages:
                 parser = UTParser(self.bot, world, pkg)
                 embed = await parser.parse()
@@ -264,9 +270,9 @@ class Listen(commands.Cog):
 
             return
 
-        # Coord Converter
+        # coord conversion
         coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
-        if coordinates:
+        if coordinates and self.bot.config.get_switch(guild_id, 'coord'):
             coords = set(coordinates)
             villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
             player_ids = [obj.player_id for obj in villages]
@@ -298,28 +304,17 @@ class Listen(commands.Cog):
                 logger.debug("coord converted")
                 return
 
-        # DS Player/Tribe Converter
-        if "|" not in message.content:
-            return
-
-        mentions = message.mentions.copy()
-        mentions.extend(message.role_mentions)
-        mentions.extend(message.channel_mentions)
-
-        for mention in mentions:
-            if isinstance(mention, discord.Member):
-                raw = f"@{mention.display_name}"
-            else:
-                raw = f"@{mention.name}"
-            content = content.replace(raw, "")
-
-        # mentions
-        names = re.findall(r'(?<!\|)\|([\w][^|]*?)\|(?!\|)', message.clean_content)
-        if names:
+        # ds mention converter
+        names = re.findall(r'(?<!\|)\|([\S][^|]*?)\|(?!\|)', content)
+        if names and self.bot.config.get_switch(guild_id, 'mention'):
             parsed_msg = message.clean_content.replace("`", "")
             ds_objects = await self.bot.fetch_bulk(world, names[:10], name=True)
             cache = await self.bot.fetch_bulk(world, names[:10], 1, name=True)
             ds_objects.extend(cache)
+
+            mentions = message.mentions.copy()
+            mentions.extend(message.role_mentions)
+            mentions.extend(message.channel_mentions)
 
             found_names = {}
             for dsobj in ds_objects:
@@ -336,7 +331,7 @@ class Listen(commands.Cog):
                 else:
                     parsed_msg = parsed_msg.replace(f"|{name}|", dsobj.mention)
 
-            current = message.created_at + timedelta(hours=1)
+            current = datetime.now()
             time = current.strftime("%H:%M Uhr")
             title = f"{message.author.display_name} um {time}"
             embed = discord.Embed(description=parsed_msg)
@@ -373,13 +368,13 @@ class Listen(commands.Cog):
         cmd = ctx.invoked_with
         msg, tip = None, None
 
-        logger.debug(f"command error [{ctx.message.id}]: {error}")
-
         error = getattr(error, 'original', error)
         if isinstance(error, self.silenced):
             return
 
-        elif isinstance(error, commands.CommandNotFound):
+        logger.debug(f"command error [{ctx.message.id}]: {error}")
+
+        if isinstance(error, commands.CommandNotFound):
             if len(cmd) == cmd.count(ctx.prefix):
                 return
             else:

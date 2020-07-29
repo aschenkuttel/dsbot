@@ -14,23 +14,28 @@ class Config:
         data = {int(key): value for key, value in cache.items()}
         self._config.update(data)
 
-    def get_item(self, guild_id, item, default=None):
+    def get_config(self, guild_id, setup=False):
         config = self._config.get(guild_id)
+        if config is None and setup:
+            config = self._config[guild_id] = {}
+
+        return config
+
+    def get_item(self, guild_id, item, default=None):
+        config = self.get_config(guild_id)
         if config is None:
             return default
         else:
             return config.get(item, default)
 
     def change_item(self, guild_id, item, value):
-        if guild_id not in self._config:
-            self._config[guild_id] = {}
-
-        self._config[guild_id][item] = value
+        config = self.get_config(guild_id, setup=True)
+        config[item] = value
         self.save()
 
     def remove_item(self, guild_id, item, bulk=False):
-        config = self._config.get(guild_id)
-        if not config:
+        config = self.get_config(guild_id)
+        if config is None:
             return
 
         job = config.pop(item, None)
@@ -38,6 +43,26 @@ class Config:
             self.save()
 
         return job
+
+    def update_switch(self, guild_id, key):
+        config = self.get_config(guild_id, setup=True)
+        switches = config.get('switches')
+        if switches is None:
+            switches = config['switches'] = {}
+
+        old = switches.get(key, True)
+        switches[key] = not old
+        self.save()
+
+        return not old
+
+    def get_switch(self, guild_id, key):
+        config = self._config.get(guild_id)
+        if not config:
+            return True
+
+        switches = config.get('switches', {})
+        return switches.get(key, True)
 
     def get_world(self, channel):
         con = self._config.get(channel.guild.id)

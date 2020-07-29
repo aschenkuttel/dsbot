@@ -5,7 +5,7 @@ import random
 import utils
 
 
-class Casino(commands.Cog):
+class Casino(utils.TribalGames):
     def __init__(self, bot):
         self.bot = bot
         self.dice = {}
@@ -25,39 +25,31 @@ class Casino(commands.Cog):
     @utils.game_channel_only()
     @commands.command(name="slots")
     async def slots_(self, ctx):
-        if ctx.guild.id in self.slots:
-            return
-
         await self.bot.subtract_iron(ctx.author.id, 1000)
 
-        number = random.randrange(10000, 50001)
+        number = random.randint(1, 9999)
         if number == self.number:
-            self.number = random.randrange(10000, 50001)
+            self.number = random.randint(1, 9999)
             base = "Glückwunsch, du hast `{} Eisen` gewonnen!\nNeue Gewinnzahl: **{}**"
             msg = base.format(self.pot, self.number)
-            await self.bot.update_iron(ctx.author.id, self.pot)
             self.cache.set('slotnumber', self.number)
-            self.cache.set('slotpot', 0)
             self.pot = 0
-            await ctx.send(msg)
+
+            await self.bot.update_iron(ctx.author.id, self.pot)
 
         else:
             self.pot += 1000
             base = "Leider die falsche Zahl: **{}**\nAktueller Pot: `{}`\nGewinnzahl: **{}**"
             msg = base.format(number, utils.seperator(self.pot), self.number)
-            self.cache.set('slotpot', self.pot)
-            await ctx.send(msg)
 
-        self.slots.append(ctx.guild.id)
-        await asyncio.sleep(10)
-        self.slots.remove(ctx.guild.id)
+        self.cache.set('slotpot', self.pot)
+        async with self.cooldown(ctx, time=10):
+            await ctx.send(msg)
 
     @utils.game_channel_only()
     @commands.command(name="dice")
     async def dice_(self, ctx, argument: typing.Union[int, str]):
-        data = self.dice.get(ctx.guild.id)
-        if data is False:
-            return
+        data = self.get_game_data(ctx)
 
         if isinstance(argument, int):
 
@@ -76,15 +68,12 @@ class Casino(commands.Cog):
                 begin = await ctx.send(msg)
 
                 await asyncio.sleep(60)
-                try:
-                    current = self.dice.get(ctx.guild.id)
-                    if stamp == current['time']:
-                        self.dice.pop(ctx.guild.id)
-                        await self.bot.update_iron(ctx.author.id, argument)
-                        await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
 
-                except TypeError:
-                    return
+                current = self.dice.get(ctx.guild.id)
+                if current and stamp == current['time']:
+                    self.dice.pop(ctx.guild.id)
+                    await self.bot.update_iron(ctx.author.id, argument)
+                    await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
 
             else:
                 base = "Es ist bereits eine Anfrage offen, akzeptiere mit `{}dice accept`"
@@ -107,33 +96,30 @@ class Casino(commands.Cog):
                 second_dice = random.randint(1, 6)
 
                 dices = self.dices[first_dice], self.dices[second_dice]
-                base = "**{.display_name}** {} | {} **{.display_name}**"
+                base = "**{.display_name}** {} | {} **{.display_name}**\n"
                 arena = base.format(data['challenger'], *dices, ctx.author)
 
                 players = [data['challenger'], ctx.author]
                 if first_dice != second_dice:
-                    if first_dice > second_dice:
-                        winner, loser = players
-                    else:
-                        loser, winner = players
+
+                    if first_dice < second_dice:
+                        players.reverse()
+
+                    winner, loser = players
+                    players.remove(loser)
 
                     price = data['amount'] * 2
-                    base = "{}\n**{}** hat beide Einsätze in Höhe von `{} Eisen` gewonnen."
+                    base = "{}**{}** hat beide Einsätze in Höhe von `{} Eisen` gewonnen."
                     msg = base.format(arena, winner.display_name, price)
-                    await self.bot.update_iron(winner.id, price)
 
                 else:
-
-                    for player in players:
-                        await self.bot.update_iron(player.id, data['amount'])
-                        
-                    base = "{}\n**Unentschieden**, die Einsätze gehen an die Spieler zurück."
+                    base = "{}**Unentschieden**, die Einsätze gehen an die Spieler zurück."
                     msg = base.format(arena)
 
-                await ctx.send(msg)
-                self.dice[ctx.guild.id] = False
-                await asyncio.sleep(15)
-                self.dice.pop(ctx.guild.id)
+                async with self.cooldown(ctx):
+                    await ctx.send(msg)
+                    for player in players:
+                        await self.bot.update_iron(player.id, data['amount'])
 
         else:
             base = "Starte entweder ein Spiel `{0}dice <iron>` oder akzeptiere `{0}dice accept`"

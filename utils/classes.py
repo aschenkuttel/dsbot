@@ -1,5 +1,7 @@
+from contextlib import asynccontextmanager
 from discord.ext import commands
 from datetime import datetime
+import asyncio
 import discord
 import utils
 import json
@@ -315,3 +317,56 @@ class DSType:
                 self.table = "village"
             else:
                 self.table = arg
+
+
+class TribalGames(commands.Cog):
+
+    async def cog_check(self, ctx):
+        container = self.get_container(ctx)
+        if isinstance(container, list):
+            self.get_game_data(ctx, container)
+
+        return True
+
+    @asynccontextmanager
+    async def cooldown(self, ctx, time=15):
+        container = self.get_container(ctx)
+        if isinstance(container, list):
+            container.append(ctx.guild.id)
+            method = container.remove
+        else:
+            container[ctx.guild.id] = False
+            method = container.pop
+
+        try:
+            yield
+        finally:
+            await asyncio.sleep(time)
+
+            if ctx.guild.id in container:
+                method(ctx.guild.id)
+
+    def get_container(self, ctx):
+        command = str(ctx.command)
+        if command == "guess":
+            command = "hangman"
+        elif command == "draw":
+            command = "videopoker"
+
+        return getattr(self, command)
+
+    def get_game_data(self, ctx, container=None):
+        if container is None:
+            container = self.get_container(ctx)
+
+        if ctx.guild.id not in container:
+            return None
+
+        if isinstance(container, list):
+            raise utils.SilentError
+        else:
+            data = container[ctx.guild.id]
+            if data is False:
+                raise utils.SilentError
+            else:
+                return data

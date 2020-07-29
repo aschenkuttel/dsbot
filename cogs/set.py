@@ -1,4 +1,4 @@
-from utils import WorldConverter, DSConverter,  WrongChannel, complete_embed, error_embed
+from utils import WorldConverter, DSConverter, WrongChannel, complete_embed, error_embed
 from discord.ext import commands
 import discord
 
@@ -101,6 +101,31 @@ class Set(commands.Cog):
 
         msg = f"Der Channel wurde mit **{world}** gelinked"
         await ctx.send(embed=complete_embed(msg))
+
+    @set.group(name="switch", invoke_without_command=True)
+    async def set_switch(self, ctx, key):
+        key = key.lower()
+        names = self.bot.msg['converterNames']
+
+        if key not in names:
+            msg = f"`{ctx.prefix}set switch <report|request|coord|mention>`"
+            return await ctx.send(embed=error_embed(msg))
+
+        new_value = self.bot.config.update_switch(ctx.guild.id, key)
+        represent = "aktiv" if new_value else "inaktiv"
+        msg = f"Die Konvertierung der `{names[key]}` ist nun **{represent}**"
+        await ctx.send(embed=complete_embed(msg))
+
+    @set_switch.command(name="list")
+    async def switch_list(self, ctx):
+        names = self.bot.msg['converterNames']
+        listed = []
+        for key, value in names.items():
+            state = self.bot.config.get_switch(ctx.guild.id, key)
+            represent = "aktiv" if state else "inaktiv"
+            listed.append(f"`{key}` **{value}:** {represent}")
+
+        await ctx.send("\n".join(listed))
 
     @commands.group(invoke_without_command=True)
     async def remove(self, ctx, entry):

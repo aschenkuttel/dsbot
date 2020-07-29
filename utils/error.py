@@ -47,6 +47,10 @@ class IngameError(commands.CheckFailure):
         super().__init__('another game running')
 
 
+class SilentError(commands.CheckFailure):
+    pass
+
+
 class DontPingMe(commands.CheckFailure):
     def __init__(self):
         super().__init__('discord mention instad of username')

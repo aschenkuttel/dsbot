@@ -6,11 +6,11 @@ import utils
 import os
 
 
-class Poker(commands.Cog):
+class Poker(utils.TribalGames):
     def __init__(self, bot):
         self.bot = bot
-        self.bj = {}
-        self.vp = {}
+        self.blackjack = {}
+        self.videopoker = {}
         self.signs = ["h", "d", "c", "s"]
         self.numbers = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
         self.full_set = [num + card for num in self.numbers for card in self.signs]
@@ -19,13 +19,7 @@ class Poker(commands.Cog):
                        "Straße": 20, "Flush": 40, "Full House": 60,
                        "Vierling": 100, "Straight Flush": 250, "Royal Flush": 500}
 
-    async def victory_royale(self, guild_id, bj=False):
-        cache = self.bj if bj else self.vp
-        cache[guild_id] = False
-        await asyncio.sleep(15)
-        cache.pop(guild_id)
-
-    def dealer(self, ctx, cash, bj=False):
+    def deal(self, ctx, cash, bj=False):
         card_amount = 2 if bj else 5
 
         card_pack = []
@@ -57,7 +51,7 @@ class Poker(commands.Cog):
             stamp = ctx.message.created_at.timestamp()
             extra = {'author': ctx.author, 'bet': cash, 'time': stamp}
             data.update(extra)
-            self.vp[ctx.guild.id] = data
+            self.videopoker[ctx.guild.id] = data
             return data['hand'], stamp
 
     async def player_wins(self, ctx, data, bj=False):
@@ -69,9 +63,9 @@ class Poker(commands.Cog):
         embed = self.present_cards(data, base)
         embed.colour = discord.Color.green()
 
-        await data['msg'].edit(embed=embed)
-        await self.bot.update_iron(ctx.author.id, price)
-        await self.victory_royale(ctx.guild.id, True)
+        async with self.cooldown(ctx):
+            await self.bot.update_iron(ctx.author.id, price)
+            await data['msg'].edit(embed=embed)
 
     async def dealer_wins(self, ctx, data, tie=False, bj=False):
         if tie:
@@ -85,8 +79,8 @@ class Poker(commands.Cog):
         embed = self.present_cards(data, base)
         embed.colour = discord.Color.red()
 
-        await data['msg'].edit(embed=embed)
-        await self.victory_royale(ctx.guild.id, True)
+        async with self.cooldown(ctx):
+            await data['msg'].edit(embed=embed)
 
     def present_cards(self, data, msg, player=False):
         dealer_hand = data['dealer'][:1] + ["X"] if player else data['dealer']
@@ -108,7 +102,7 @@ class Poker(commands.Cog):
 
         return embed
 
-    def blackjack(self, cards):
+    def calculate_result(self, cards):
         card_signs = [c[:-1] for c in cards]
         values = {"J": 10, "Q": 10, "K": 10, "A": 11}
         count = 0
@@ -178,20 +172,15 @@ class Poker(commands.Cog):
         if not 100 <= bet <= 2000:
             raise utils.InvalidBet(100, 2000)
 
-        data = self.vp.get(ctx.guild.id)
-        if data is False:
-            return
-
-        elif data:
+        data = self.get_game_data(ctx)
+        if data:
             name = data['author'].display_name
-            msg = f"`{name}` ist noch in einer aktiven Runde."
-            await ctx.send(msg)
+            await ctx.send(f"**{name}** spielt gerade...")
 
         else:
-
             await self.bot.subtract_iron(ctx.author.id, bet)
 
-            cards, stamp = self.dealer(ctx, bet)
+            cards, stamp = self.deal(ctx, bet)
             base = "Deine Karten: `{}`{}Ersetze diese mit **{}draw 1-5**"
             msg = base.format(" ".join(cards), os.linesep, ctx.prefix)
             begin = await ctx.send(msg)
@@ -199,10 +188,10 @@ class Poker(commands.Cog):
             await asyncio.sleep(60)
 
             try:
-                current = self.vp.get(ctx.guild.id)
+                current = self.videopoker.get(ctx.guild.id)
                 if stamp == current['time']:
                     await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
-                    self.vp.pop(ctx.guild.id)
+                    self.videopoker.pop(ctx.guild.id)
 
             except TypeError:
                 return
@@ -210,17 +199,16 @@ class Poker(commands.Cog):
     @utils.game_channel_only()
     @commands.command(name="draw")
     async def draw_(self, ctx, cards=None):
-        data = self.vp.get(ctx.guild.id)
-        if data is False:
+        data = self.get_game_data(ctx)
+        if not data:
+            msg = "Du musst zuerst eine Runde mit {}vp <100-2000> beginnen"
+            await ctx.send(msg.format(ctx.prefix))
             return
-
-        elif not data:
-            msg = "Du musst zuerst eine Runde mit {}vp <100-2000> beginnen."
-            return await ctx.send(msg.format(ctx.prefix))
 
         elif data['author'] != ctx.author:
             name = data['author'].display_name
-            return await ctx.send(f"{name} ist bereits in einer Runde.")
+            await ctx.send(f"**{name}** spielt gerade...")
+            return
 
         if cards:
             try:
@@ -245,6 +233,7 @@ class Poker(commands.Cog):
             card_rep = f"Du behältst deine Karten: `{' '.join(data['hand'])}`"
 
         result = self.check_result(data['hand'])
+
         if result:
             pronoun = self.bot.msg['vpMessage'][result]
             amount = int(data['bet'] * self.payout[result])
@@ -256,8 +245,8 @@ class Poker(commands.Cog):
             base = "{}{}**Du hast nichts und damit deinen Einsatz verloren** (15s Cooldown)"
             msg = base.format(card_rep, os.linesep)
 
-        await ctx.send(msg)
-        await self.victory_royale(ctx.guild.id)
+        async with self.cooldown(ctx):
+            await ctx.send(msg)
 
     @utils.game_channel_only()
     @commands.command(name="blackjack", aliases=["bj"])
@@ -265,28 +254,25 @@ class Poker(commands.Cog):
         if not 100 <= bet <= 50000:
             raise utils.InvalidBet(100, 50000)
 
-        game = self.bj.get(ctx.guild.id)
-        if game is False:
+        game = self.get_game_data(ctx)
+        if game is not None:
+            await ctx.send(f"**{game.display_name}** spielt gerade...")
             return
-
-        elif game is True:
-            msg = "Es läuft bereits eine Runde Blackjack"
-            return await ctx.send(msg)
 
         await self.bot.subtract_iron(ctx.author.id, bet)
 
-        self.bj[ctx.guild.id] = True
-        hand, dealer, cache = self.dealer(ctx, bet, bj=True)
+        self.blackjack[ctx.guild.id] = ctx.author
+        hand, dealer, cache = self.deal(ctx, bet, bj=True)
 
-        result = self.blackjack(hand)
+        result = self.calculate_result(hand)
         game_data = {'hand': hand, 'result': result, 'dealer': dealer,
-                     'score': self.blackjack(dealer[:1]), 'bet': bet}
+                     'score': self.calculate_result(dealer[:1]), 'bet': bet}
 
         base = "Spiele mit h[hit], s[stand] oder d[double]"
         embed = self.present_cards(game_data, base, player=True)
         begin = await ctx.send(embed=embed)
 
-        dealer_result = self.blackjack(dealer)
+        dealer_result = self.calculate_result(dealer)
         game_data['msg'] = begin
 
         if result == 21:
@@ -320,7 +306,6 @@ class Poker(commands.Cog):
 
                 except asyncio.TimeoutError:
                     await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
-                    await self.victory_royale(ctx.guild.id, bj=True)
                     return
 
             else:
@@ -344,7 +329,7 @@ class Poker(commands.Cog):
                 new_card = random.choice(cache)
                 cache.remove(new_card)
                 hand.append(new_card)
-                result = self.blackjack(hand)
+                result = self.calculate_result(hand)
                 game_data['result'] = result or "RIP"
 
                 if result is False:
@@ -379,7 +364,7 @@ class Poker(commands.Cog):
                     new_card = random.choice(cache)
                     cache.remove(new_card)
                     dealer.append(new_card)
-                    dealer_result = self.blackjack(dealer)
+                    dealer_result = self.calculate_result(dealer)
                     game_data['score'] = dealer_result or "RIP"
 
                     msg = self.present_cards(game_data, base)

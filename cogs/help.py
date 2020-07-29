@@ -115,18 +115,21 @@ class Help(commands.Cog):
         title = "`~set`"
         desc = "Legt die servergebundene oder channelgebundene Welt fest, " \
                "einen \"Game Channel\" welchen die meisten Game Commands benötigen, " \
-               "einen Conquer Channel für stündliche Eroberungen oder einen neuen Prefix"
+               "einen Conquer Channel für stündliche Eroberungen oder einen neuen Prefix.\n" \
+               "Mögliche Switches: `report, request, coord, mention`"
         cmd_type = "Admin Command"
         cmd_inp = ["`~set world <world>`",
                    "`~set channel <world>`",
                    "`~set game`",
                    "`~set conquer`",
-                   "`~set prefix <prefix>`"]
+                   "`~set prefix <prefix>`",
+                   "`~set switch <converter>`"]
         example = ["`~set world de172`",
                    "`~set channel de164`",
                    "`~set game`",
                    "`~set conquer`",
-                   "`~set prefix -`"]
+                   "`~set prefix -`",
+                   "`~set switch mention`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
