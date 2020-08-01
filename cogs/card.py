@@ -462,14 +462,16 @@ class Card(utils.TribalGames):
             if not data['played']:
                 base = "Du musst warten bis sich {} für eine Eigenschaft entschieden hat"
                 msg = base.format(data['beginner'].display_name)
-                return await ctx.send(msg, delete_after=10)
+                await ctx.send(msg, delete_after=10)
+                return
 
             try:
                 index = int(card_or_property) - 1
                 card = userdata['cards'].pop(index)
             except (ValueError, IndexError):
                 msg = "Bitte gebe eine gültige Kartennummer an"
-                return await ctx.send(msg, delete_after=10)
+                await ctx.send(msg, delete_after=10)
+                return
 
             played = data['played']
             players = data['players']

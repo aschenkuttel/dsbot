@@ -142,6 +142,7 @@ class Cache:
     def get(self, key, default=None):
         return self._cache.get(key, default)
 
-    def set(self, key, value):
+    def set(self, key, value, bulk=False):
         self._cache[key] = value
-        self.save()
+        if bulk is False:
+            self.save()

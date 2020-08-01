@@ -1,5 +1,7 @@
 from discord.ext import commands
+import collections
 import asyncio
+import discord
 import typing
 import random
 import utils
@@ -13,6 +15,8 @@ class Casino(utils.TribalGames):
         self.cache = bot.cache
         self.number = self.cache.get('slotnumber')
         self.pot = self.cache.get('slotpot', 0)
+        slotistics = self.cache.get('slotistics')
+        self.slotistics = collections.Counter(slotistics)
         self.dices = {
             1: "<:eins:692344708919459880>",
             2: "<:zwei:692344710534135808>",
@@ -27,24 +31,45 @@ class Casino(utils.TribalGames):
     async def slots_(self, ctx):
         await self.bot.subtract_iron(ctx.author.id, 1000)
 
-        number = random.randint(1, 9999)
+        number = 2942# random.randint(1, 9999)
         if number == self.number:
             self.number = random.randint(1, 9999)
             base = "Glückwunsch, du hast `{} Eisen` gewonnen!\nNeue Gewinnzahl: **{}**"
+            self.cache.set('slotnumber', self.number, bulk=True)
+            self.cache.set('slotistics', {}, bulk=True)
             msg = base.format(self.pot, self.number)
-            self.cache.set('slotnumber', self.number)
+            self.slotistics = collections.Counter()
             self.pot = 0
 
             await self.bot.update_iron(ctx.author.id, self.pot)
 
         else:
             self.pot += 1000
+            self.slotistics[str(ctx.author.id)] += 1000
             base = "Leider die falsche Zahl: **{}**\nAktueller Pot: `{}`\nGewinnzahl: **{}**"
             msg = base.format(number, utils.seperator(self.pot), self.number)
 
-        self.cache.set('slotpot', self.pot)
+        self.cache.set('slotpot', self.pot, bulk=True)
+        self.cache.set('slotistics', self.slotistics)
+
         async with self.cooldown(ctx, time=10):
             await ctx.send(msg)
+
+    @commands.command(name="slotistics")
+    async def slotistics_(self, ctx):
+        statistics = self.cache.get('slotistics')
+        value = statistics.get(str(ctx.author.id), 0)
+        title = f"**Deine Ausgaben:** `{value} Eisen`"
+
+        cache = [title]
+        ranked = sorted(statistics.items(), key=lambda e: e[1], reverse=True)
+        for index, (player_id, value) in enumerate(ranked[:5]):
+            player = self.bot.get_user(int(player_id))
+            name = player.name if player else "Unknown"
+            row = f"**Rang {index + 1}:** `{value} Eisen` [{name}]"
+            cache.append(row)
+
+        await ctx.send(embed=discord.Embed(description="\n".join(cache)))
 
     @utils.game_channel_only()
     @commands.command(name="dice")
