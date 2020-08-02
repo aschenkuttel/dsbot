@@ -1,3 +1,4 @@
+from utils import CoordinateConverter
 from discord.ext import commands
 import discord
 import random
@@ -10,15 +11,34 @@ import os
 class Villages(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.base_options = {'radius': [10, 20], 'points': None}
 
-    async def send_coords(self, ctx, result):
-        coords = [f"{i}. {r['x']}|{r['y']}" for i, r in enumerate(result, 1)]
+    async def send_result(self, ctx, result, object_name):
+        if not result:
+            msg = f"Es sind keine {object_name} in Reichweite"
+            await ctx.send(msg)
+            return
 
-        if len(coords) < 181:
-            await ctx.author.send('\n'.join(coords))
+        coordinate = isinstance(result[0], utils.Village)
+        attribute = "string" if coordinate else "mention"
+
+        represent = []
+        for index, obj in enumerate(result, 1):
+            line = f"{index}. {getattr(obj, attribute)}"
+            represent.append(line)
+
+        msg = "\n".join(represent)
+
+        if len(msg) <= 2000:
+            if not coordinate:
+                embed = discord.Embed(description=msg)
+                await ctx.author.send(embed=embed)
+            else:
+                await ctx.author.send(msg)
+
         else:
             file = io.StringIO()
-            file.write(f'{os.linesep}'.join(coords))
+            file.write(f'{os.linesep}'.join(represent))
             file.seek(0)
             await ctx.author.send(file=discord.File(file, 'villages.txt'))
 
@@ -76,7 +96,8 @@ class Villages(commands.Cog):
             query = "SELECT * FROM player WHERE world = $1 AND tribe_id = $2;"
             async with self.bot.pool.acquire() as conn:
                 cache = await conn.fetch(query, ctx.server, dsobj.id)
-            id_list = [rec['id'] for rec in cache]
+                id_list = [rec['id'] for rec in cache]
+
         else:
             id_list = [dsobj.id]
 
@@ -88,7 +109,8 @@ class Villages(commands.Cog):
             arguments.extend([con[2], con[1]])
 
         async with self.bot.pool.acquire() as conn:
-            result = await conn.fetch(query, *arguments)
+            cache = await conn.fetch(query, *arguments)
+            result = [utils.Village(rec) for rec in cache]
 
         random.shuffle(result)
         if amount != "all":
@@ -104,12 +126,13 @@ class Villages(commands.Cog):
             else:
                 result = result[:int(amount)]
 
-        await self.send_coords(ctx, result)
+        await self.send_result(ctx, result, "Dörfer")
 
     @commands.command(name="bb")
     async def bb_(self, ctx, village: utils.CoordinateConverter, *, options=None):
-        radius, points = utils.keyword(options, radius=20, points=None)
-        kwargs = {'radius': radius, 'points': points, 'extra': ' AND points = 0'}
+        radius, points = utils.keyword(options, **self.base_options)
+        kwargs = {'radius': radius, 'points': points,
+                  'extra': ' AND village.player = 0'}
 
         result = await self.fetch_in_radius(ctx.server, village, **kwargs)
 
@@ -117,11 +140,28 @@ class Villages(commands.Cog):
             msg = "Es sind keine Barbarendörfer in Reichweite"
             await ctx.send(msg)
         else:
-            await self.send_coords(ctx, result)
+            await self.send_result(ctx, result, "Barbarendörfer")
 
-    @commands.command(name="graveyard")
-    async def pusherradar_(self, ctx, village: utils.CoordinateConverter):
-        pass
+    @commands.command(name="inactive", aliases=["graveyard"])
+    async def graveyard_(self, ctx, village: utils.CoordinateConverter, *, options=None):
+        args = utils.keyword(options, **self.base_options, since=[3, 14])
+        radius, points, inactive_since = args
+
+        kwargs = {'radius': radius, 'points': points}
+        all_villages = await self.fetch_in_radius(ctx.server, village, **kwargs)
+        player_ids = set([vil.player_id for vil in all_villages])
+
+        arch = f"player{inactive_since}"
+        query = f'SELECT * FROM player, {arch} WHERE ' \
+                f'player.world = $1 AND player.id = ANY($2) AND ' \
+                f'{arch}.world = $1 AND {arch}.id = ANY($2) AND ' \
+                f'player.points <= {arch}.points'
+
+        async with self.bot.pool.acquire() as conn:
+            cache = await conn.fetch(query, ctx.server, player_ids)
+            result = [utils.Player(rec) for rec in cache]
+
+        await self.send_result(ctx, result, "Spieler")
 
     @commands.command(name="pusherradar")
     async def pusherradar_(self, ctx, village: utils.CoordinateConverter):

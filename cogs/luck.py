@@ -31,7 +31,7 @@ class Casino(utils.TribalGames):
     async def slots_(self, ctx):
         await self.bot.subtract_iron(ctx.author.id, 1000)
 
-        number = 2942# random.randint(1, 9999)
+        number = random.randint(1, 9999)
         if number == self.number:
             self.number = random.randint(1, 9999)
             base = "Glückwunsch, du hast `{} Eisen` gewonnen!\nNeue Gewinnzahl: **{}**"

@@ -74,8 +74,13 @@ class CoordinateConverter(commands.Converter):
         if argument:
             self.x, self.y = self.parse(argument, valid=True)
 
+    @property
+    def string(self):
+        return f"{self.x}|{self.y}"
+
     async def convert(self, ctx, argument):
         self.x, self.y = self.parse(argument)
+        return self
 
     def parse(self, argument, valid=False):
         if not valid:

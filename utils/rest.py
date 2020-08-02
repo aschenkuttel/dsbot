@@ -67,8 +67,9 @@ def keyword(options, **kwargs):
         if isinstance(default_value, list):
             minimum, maximum = default_value
 
-            if user_input is None:
+            if user_input is None or user_input < minimum:
                 new_value = minimum
+
             elif user_input > maximum:
                 new_value = maximum
 
