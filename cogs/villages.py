@@ -144,21 +144,44 @@ class Villages(commands.Cog):
 
     @commands.command(name="inactive", aliases=["graveyard"])
     async def graveyard_(self, ctx, village: utils.CoordinateConverter, *, options=None):
-        args = utils.keyword(options, **self.base_options, since=[3, 14])
+        args = utils.keyword(options, **self.base_options, since=[3, 14], tribe=None)
         radius, points, inactive_since = args
 
-        kwargs = {'radius': radius, 'points': points}
-        all_villages = await self.fetch_in_radius(ctx.server, village, **kwargs)
+        all_villages = await self.fetch_in_radius(ctx.server, village, radius=radius)
         player_ids = set([vil.player_id for vil in all_villages])
 
-        arch = f"player{inactive_since}"
-        query = f'SELECT * FROM player, {arch} WHERE ' \
-                f'player.world = $1 AND player.id = ANY($2) AND ' \
-                f'{arch}.world = $1 AND {arch}.id = ANY($2) AND ' \
-                f'player.points <= {arch}.points'
+        arguments = [ctx.server, player_ids]
+        base = 'SELECT * FROM player WHERE world = $1 AND player.id'
+
+        query_pkg = {}
+        for num in range(inactive_since + 1):
+            arch = f"player{num or ''}"
+
+            if num == 0:
+                query_pkg[arch] = 'SELECT player.id FROM {} WHERE ' \
+                                  'player.world = $1 AND ' \
+                                  'player.id = ANY($2)'
+
+                if points is not None:
+                    query_pkg[arch] += ' AND player.points <= $3'
+                    arguments.append(points)
+
+            else:
+                previous = num - 1 if num - 1 else ""
+                query_pkg[arch] = f'{arch}.world = $1 AND {arch}.id = player.id ' \
+                                  f'AND {arch}.points >= player{previous}.points'
+
+        tables = ", ".join(query_pkg.keys())
+        clauses = " AND ".join(query_pkg.values())
+        query = f'{base} IN ({clauses.format(tables)})'
+        print(query)
+        # query = f'SELECT * FROM player, {arch} WHERE ' \
+        #         f'player.world = $1 AND player.id = ANY($2) AND ' \
+        #         f'{arch}.world = $1 AND player.id = {arch}.id AND ' \
+        #         f'player.points <= {arch}.points'
 
         async with self.bot.pool.acquire() as conn:
-            cache = await conn.fetch(query, ctx.server, player_ids)
+            cache = await conn.fetch(query, *arguments)
             result = [utils.Player(rec) for rec in cache]
 
         await self.send_result(ctx, result, "Spieler")

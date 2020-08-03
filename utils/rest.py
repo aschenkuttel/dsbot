@@ -64,10 +64,12 @@ def keyword(options, **kwargs):
         user_input = cache.get(argument)
         new_value = user_input
 
-        if isinstance(default_value, list):
-            minimum, maximum = default_value
+        if isinstance(default_value, (list, int)):
+            if isinstance(default_value, int):
+                default_value = [default_value, default_value]
 
-            if user_input is None or user_input < minimum:
+            minimum, maximum = default_value
+            if not isinstance(user_input, int) or user_input < minimum:
                 new_value = minimum
 
             elif user_input > maximum:
