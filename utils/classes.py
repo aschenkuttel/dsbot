@@ -370,3 +370,9 @@ class TribalGames(commands.Cog):
                 raise utils.SilentError
             else:
                 return data
+
+
+class Keyword:
+    def __init__(self, value, sign="="):
+        self.value = value
+        self.sign = sign

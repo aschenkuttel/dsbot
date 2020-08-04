@@ -1,6 +1,7 @@
 from utils.error import WrongChannel, GameChannelMissing
 from urllib.parse import quote_plus, unquote_plus
 from discord.ext import commands
+from utils import Keyword
 import logging
 import discord
 import re
@@ -42,46 +43,72 @@ def converter(name, php=False):
 
 
 def keyword(options, **kwargs):
-    troops = re.findall(r'[A-z]*=\S*', options or "")
+    troops = re.findall(r'[A-z]*[<=>]\S*', options or "")
     cache = {}
-    for troop in troops:
 
-        if troop.count("=") != 1:
+    for troop in troops:
+        sign = re.findall(r'[<=>]', troop.lower())[0]
+        if troop.count(sign) != 1:
             continue
 
-        orig_key, input_value = troop.split("=")
+        orig_key, input_value = troop.split(sign)
         key, value = orig_key.lower(), input_value.lower()
 
-        try:
-            cache[key] = int(value)
-        except ValueError:
-            if value in ["true", "false"]:
-                cache[key] = value == "true"
-            else:
-                cache[key] = input_value
+        if input_value.isdigit():
+            true_value = int(value)
+
+        elif value in ["true", "false"]:
+            true_value = value == "true"
+
+        else:
+            true_value = input_value
+
+        cache[key] = [sign, true_value]
 
     for argument, default_value in kwargs.items():
-        user_input = cache.get(argument)
+        input_pkg = cache.get(argument)
+
+        if input_pkg is None:
+            if isinstance(default_value, list):
+                kwargs[argument] = Keyword(default_value[1])
+
+            continue
+
+        else:
+            sign, user_input = input_pkg
+
         new_value = user_input
 
-        if isinstance(default_value, (list, int)):
-            if isinstance(default_value, int):
-                default_value = [default_value, default_value]
+        if default_value in [None, False, True]:
+            if not isinstance(user_input, bool):
+                new_value = default_value
 
-            minimum, maximum = default_value
-            if not isinstance(user_input, int) or user_input < minimum:
-                new_value = minimum
+        elif isinstance(default_value, list):
+            minimum, default, maximum = default_value
+            new_value = parse_integer(user_input, default, [minimum, maximum])
 
-            elif user_input > maximum:
-                new_value = maximum
-
-        elif user_input is None:
-            new_value = default_value
+        elif isinstance(default_value, int):
+            new_value = parse_integer(user_input, default_value)
 
         kwargs[argument] = new_value
 
     return kwargs.values()
 
+
+def parse_integer(user_input, default, boundaries=None):
+    if not isinstance(user_input, int):
+        result = default
+    else:
+        result = user_input
+
+    if boundaries:
+        minimum, maximum = boundaries
+        if user_input < minimum:
+            result = minimum
+        elif user_input > maximum:
+            result = maximum
+
+    return result
 
 # default embeds
 def error_embed(text, ctx=None):

@@ -96,13 +96,13 @@ class Bash(commands.Cog):
                 dsobj = await self.bot.fetch_both(ctx.server, ' '.join(args))
         else:
             dsobj = await self.bot.fetch_both(ctx.server, ' '.join(args))
+
         if not dsobj:
             raise DSUserNotFound(' '.join(args))
 
         if not 30 > time > 0:
             msg = "Das Maximum für den Recap Command sind 29 Tage"
             return await ctx.send(embed=error_embed(msg))
-
         try:
             dsobj8 = await self.bot.fetch_both(ctx.server, dsobj.id, name=False, archive=time)
 

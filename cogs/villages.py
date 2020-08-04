@@ -11,7 +11,7 @@ import os
 class Villages(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.base_options = {'radius': [10, 20], 'points': None}
+        self.base_options = {'radius': [1, 5, 20], 'points': None}
 
     async def send_result(self, ctx, result, object_name):
         if not result:
@@ -145,7 +145,8 @@ class Villages(commands.Cog):
     @commands.command(name="inactive", aliases=["graveyard"])
     async def graveyard_(self, ctx, village: utils.CoordinateConverter, *, options=None):
         args = utils.keyword(options, **self.base_options, since=[3, 14], tribe=None)
-        radius, points, inactive_since = args
+        radius, points, inactive_since, tribe = args
+        print(radius)
 
         all_villages = await self.fetch_in_radius(ctx.server, village, radius=radius)
         player_ids = set([vil.player_id for vil in all_villages])
@@ -174,21 +175,13 @@ class Villages(commands.Cog):
         tables = ", ".join(query_pkg.keys())
         clauses = " AND ".join(query_pkg.values())
         query = f'{base} IN ({clauses.format(tables)})'
-        print(query)
-        # query = f'SELECT * FROM player, {arch} WHERE ' \
-        #         f'player.world = $1 AND player.id = ANY($2) AND ' \
-        #         f'{arch}.world = $1 AND player.id = {arch}.id AND ' \
-        #         f'player.points <= {arch}.points'
 
         async with self.bot.pool.acquire() as conn:
             cache = await conn.fetch(query, *arguments)
             result = [utils.Player(rec) for rec in cache]
+            print(result)
 
         await self.send_result(ctx, result, "Spieler")
-
-    @commands.command(name="pusherradar")
-    async def pusherradar_(self, ctx, village: utils.CoordinateConverter):
-        pass
 
 
 def setup(bot):
