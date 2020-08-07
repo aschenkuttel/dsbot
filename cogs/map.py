@@ -362,7 +362,7 @@ class Map(commands.Cog):
         value = cache['values'][index]
         options = embed.description
         field = options.split("\n")[index]
-        old_value = re.findall(r'\[.*\]', field)[0]
+        old_value = re.findall(r'\[.*]', field)[0]
 
         if isinstance(value, bool):
             current_value = "An" if value else "Aus"

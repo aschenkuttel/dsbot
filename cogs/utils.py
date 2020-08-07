@@ -115,8 +115,9 @@ class Rm(commands.Cog):
                 'AND table_name LIKE \'player%\''
 
         cache = await conn.fetch(query)
-        tables = [rec['table_name'] for rec in cache]
-        return int(sorted(tables)[-1][-1])
+        tables = " ".join([rec['table_name'] for rec in cache])
+        numbers = [int(n) for n in re.findall(r'\d+', tables)]
+        return sorted(numbers)[-1]
 
     def create_figure(self):
         fig = plt.figure(figsize=(10, 4))
@@ -238,6 +239,8 @@ class Rm(commands.Cog):
 
         async with self.bot.pool.acquire() as conn:
             latest = await self.fetch_oldest_tableday(conn)
+            if latest > 28:
+                latest = 28
 
             queries = []
             for num in range(0, latest + 1):

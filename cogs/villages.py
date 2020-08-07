@@ -1,5 +1,6 @@
 from utils import CoordinateConverter
 from discord.ext import commands
+from collections import Counter
 import discord
 import random
 import utils
@@ -20,7 +21,7 @@ class Villages(commands.Cog):
             return
 
         coordinate = isinstance(result[0], utils.Village)
-        attribute = "string" if coordinate else "mention"
+        attribute = "coords" if coordinate else "mention"
 
         represent = []
         for index, obj in enumerate(result, 1):
@@ -32,7 +33,7 @@ class Villages(commands.Cog):
         if len(msg) <= 2000:
             if not coordinate:
                 embed = discord.Embed(description=msg)
-                await ctx.author.send(embed=embed)
+                await ctx.send(embed=embed)
             else:
                 await ctx.author.send(msg)
 
@@ -41,22 +42,22 @@ class Villages(commands.Cog):
             file.write(f'{os.linesep}'.join(represent))
             file.seek(0)
             await ctx.author.send(file=discord.File(file, 'villages.txt'))
-
-        await ctx.private_hint()
+            await ctx.private_hint()
 
     async def fetch_in_radius(self, world, village, **kwargs):
         radius = kwargs.get('radius', 20)
-        points = kwargs.get('points', None)
-        extra_query = kwargs.get('extra', None)
+        points = kwargs.get('points')
+        extra_query = kwargs.get('extra')
 
-        arguments = [world, village.x, village.y, radius]
+        arguments = [world, village.x, village.y, radius.value]
 
         query = 'SELECT * FROM village WHERE world = $1 ' \
                 'AND SQRT(POWER(ABS($2 - x), 2) + POWER(ABS($3 - y), 2)) <= $4'
 
         if points:
-            query += ' AND points <= $5'
-            arguments.append(points)
+            query += f' AND points {points.sign} $5'
+            arguments.append(points.value)
+            print(arguments)
 
         if extra_query:
             query += extra_query
@@ -129,7 +130,7 @@ class Villages(commands.Cog):
         await self.send_result(ctx, result, "Dörfer")
 
     @commands.command(name="bb")
-    async def bb_(self, ctx, village: utils.CoordinateConverter, *, options=None):
+    async def bb_(self, ctx, village: CoordinateConverter, *, options=None):
         radius, points = utils.keyword(options, **self.base_options)
         kwargs = {'radius': radius, 'points': points,
                   'extra': ' AND village.player = 0'}
@@ -143,43 +144,58 @@ class Villages(commands.Cog):
             await self.send_result(ctx, result, "Barbarendörfer")
 
     @commands.command(name="inactive", aliases=["graveyard"])
-    async def graveyard_(self, ctx, village: utils.CoordinateConverter, *, options=None):
-        args = utils.keyword(options, **self.base_options, since=[3, 14], tribe=None)
+    async def graveyard_(self, ctx, village: CoordinateConverter, *, options=None):
+        args = utils.keyword(options, **self.base_options, since=[1, 3, 14], tribe=None)
         radius, points, inactive_since, tribe = args
-        print(radius)
 
         all_villages = await self.fetch_in_radius(ctx.server, village, radius=radius)
         player_ids = set([vil.player_id for vil in all_villages])
 
-        arguments = [ctx.server, player_ids]
-        base = 'SELECT * FROM player WHERE world = $1 AND player.id'
+        base = []
+        for num in range(inactive_since.value + 1):
+            table = f"player{num or ''}"
+            query_part = f'SELECT * FROM {table} ' \
+                         f'WHERE {table}.world = $1 ' \
+                         f'AND {table}.id = ANY($2)'
 
-        query_pkg = {}
-        for num in range(inactive_since + 1):
-            arch = f"player{num or ''}"
+            if tribe.value in [True, False]:
+                state = "!=" if tribe.value else "="
+                query_part += f' AND {table}.tribe_id {state} 0'
 
-            if num == 0:
-                query_pkg[arch] = 'SELECT player.id FROM {} WHERE ' \
-                                  'player.world = $1 AND ' \
-                                  'player.id = ANY($2)'
+            base.append(query_part)
 
-                if points is not None:
-                    query_pkg[arch] += ' AND player.points <= $3'
-                    arguments.append(points)
+        query = " UNION ALL ".join(base)
+        async with self.bot.pool.acquire() as conn:
+            cache = await conn.fetch(query, ctx.server, player_ids)
+            result = [utils.Player(rec) for rec in cache]
+
+        player_cache = {}
+        day_counter = Counter()
+        for player in result:
+            last = player_cache.get(player.id)
+            if last is None:
+
+                if not points.compare(player.points):
+                    player_cache[player.id] = False
+                else:
+                    player_cache[player.id] = player
+
+            elif last is False:
+                continue
+
+            elif last.points <= player.points:
+                player_cache[player.id] = player
+                day_counter[player.id] += 1
 
             else:
-                previous = num - 1 if num - 1 else ""
-                query_pkg[arch] = f'{arch}.world = $1 AND {arch}.id = player.id ' \
-                                  f'AND {arch}.points >= player{previous}.points'
+                player_cache[player.id] = False
 
-        tables = ", ".join(query_pkg.keys())
-        clauses = " AND ".join(query_pkg.values())
-        query = f'{base} IN ({clauses.format(tables)})'
-
-        async with self.bot.pool.acquire() as conn:
-            cache = await conn.fetch(query, *arguments)
-            result = [utils.Player(rec) for rec in cache]
-            print(result)
+        result = []
+        for player_id, player in player_cache.items():
+            if day_counter[player_id] != inactive_since.value:
+                continue
+            else:
+                result.append(player)
 
         await self.send_result(ctx, result, "Spieler")
 

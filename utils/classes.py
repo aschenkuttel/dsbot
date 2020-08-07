@@ -376,3 +376,11 @@ class Keyword:
     def __init__(self, value, sign="="):
         self.value = value
         self.sign = sign
+
+    def compare(self, other_value):
+        if self.sign == "<":
+            return other_value < self.value
+        elif self.sign == ">":
+            return other_value > self.value
+        else:
+            return other_value == self.value

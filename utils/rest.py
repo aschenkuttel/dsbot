@@ -70,7 +70,8 @@ def keyword(options, **kwargs):
 
         if input_pkg is None:
             if isinstance(default_value, list):
-                kwargs[argument] = Keyword(default_value[1])
+                num = 1 if len(default_value) == 3 else 0
+                kwargs[argument] = Keyword(default_value[num])
 
             continue
 
@@ -78,21 +79,25 @@ def keyword(options, **kwargs):
             sign, user_input = input_pkg
 
         new_value = user_input
-
-        if default_value in [None, False, True]:
+        if default_value in [False, True]:
             if not isinstance(user_input, bool):
                 new_value = default_value
 
         elif isinstance(default_value, list):
-            minimum, default, maximum = default_value
+            if len(default_value) == 3:
+                minimum, default, maximum = default_value
+            else:
+                minimum, maximum = default_value
+                default = minimum
+
             new_value = parse_integer(user_input, default, [minimum, maximum])
 
         elif isinstance(default_value, int):
             new_value = parse_integer(user_input, default_value)
 
-        kwargs[argument] = new_value
+        kwargs[argument] = Keyword(new_value, sign)
 
-    return kwargs.values()
+    return list(kwargs.values())
 
 
 def parse_integer(user_input, default, boundaries=None):
@@ -109,6 +114,7 @@ def parse_integer(user_input, default, boundaries=None):
             result = maximum
 
     return result
+
 
 # default embeds
 def error_embed(text, ctx=None):
