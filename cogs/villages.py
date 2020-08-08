@@ -12,7 +12,7 @@ import os
 class Villages(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.base_options = {'radius': [1, 5, 20], 'points': None}
+        self.base_options = {'radius': [1, 10, 25], 'points': None}
 
     async def send_result(self, ctx, result, object_name):
         if not result:
@@ -38,6 +38,12 @@ class Villages(commands.Cog):
                 await ctx.author.send(msg)
 
         else:
+            if not coordinate:
+                represent = []
+                for index, obj in enumerate(result, 1):
+                    line = f"{index}. {getattr(obj, 'name')}"
+                    represent.append(line)
+
             file = io.StringIO()
             file.write(f'{os.linesep}'.join(represent))
             file.seek(0)
@@ -136,12 +142,7 @@ class Villages(commands.Cog):
                   'extra': ' AND village.player = 0'}
 
         result = await self.fetch_in_radius(ctx.server, village, **kwargs)
-
-        if not result:
-            msg = "Es sind keine Barbarendörfer in Reichweite"
-            await ctx.send(msg)
-        else:
-            await self.send_result(ctx, result, "Barbarendörfer")
+        await self.send_result(ctx, result, "Barbarendörfer")
 
     @commands.command(name="inactive", aliases=["graveyard"])
     async def graveyard_(self, ctx, village: CoordinateConverter, *, options=None):
@@ -175,7 +176,7 @@ class Villages(commands.Cog):
             last = player_cache.get(player.id)
             if last is None:
 
-                if not points.compare(player.points):
+                if points and not points.compare(player.points):
                     player_cache[player.id] = False
                 else:
                     player_cache[player.id] = player
@@ -183,6 +184,7 @@ class Villages(commands.Cog):
             elif last is False:
                 continue
 
+            # sets player false if he made points
             elif last.points <= player.points:
                 player_cache[player.id] = player
                 day_counter[player.id] += 1

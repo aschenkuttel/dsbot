@@ -384,3 +384,6 @@ class Keyword:
             return other_value > self.value
         else:
             return other_value == self.value
+
+    def __bool__(self):
+        return self.value is not None

@@ -71,8 +71,9 @@ def keyword(options, **kwargs):
         if input_pkg is None:
             if isinstance(default_value, list):
                 num = 1 if len(default_value) == 3 else 0
-                kwargs[argument] = Keyword(default_value[num])
+                default_value = num
 
+            kwargs[argument] = Keyword(default_value)
             continue
 
         else:
