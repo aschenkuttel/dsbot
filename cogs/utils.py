@@ -236,6 +236,9 @@ class Rm(commands.Cog):
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def ingame_(self, ctx, *, username):
         ds_type = utils.DSType(ctx.invoked_with.lower())
+        dsobj = await ds_type.fetch(ctx, username, name=True)
+        if dsobj is None:
+            raise utils.DSUserNotFound(username)
 
         async with self.bot.pool.acquire() as conn:
             latest = await self.fetch_oldest_tableday(conn)
@@ -244,30 +247,16 @@ class Rm(commands.Cog):
 
             queries = []
             for num in range(0, latest + 1):
-                placeholder = '{0}'
-                num = num or ''
-                base = f'SELECT * FROM {placeholder}{num} WHERE ' \
-                       f'{placeholder}{num}.world = $1 AND '
-
-                if ds_type.table == "player":
-                    base += f'LOWER({placeholder}{num}.name) = $2'
-                else:
-                    base += f'(LOWER({placeholder}{num}.tag) = $2 OR ' \
-                            f'LOWER({placeholder}{num}.name) = $2)'
+                table = f"{ds_type.table}{num or ''}"
+                base = f'SELECT * FROM {table} WHERE ' \
+                       f'{table}.world = $1 AND {table}.id = $2'
 
                 queries.append(base)
 
-        query = " UNION ALL ".join(queries).format(ds_type.table)
-
+        query = " UNION ALL ".join(queries)
         async with self.bot.pool.acquire() as conn:
-            searchable = utils.converter(username, True)
-            cache = await conn.fetch(query, ctx.server, searchable)
-            data = [ds_type.Class(rec) for rec in cache]
-
-        if not data:
-            raise utils.DSUserNotFound(username)
-        else:
-            dsobj = data[0]
+            records = await conn.fetch(query, ctx.server, dsobj.id)
+            data = [ds_type.Class(rec) for rec in records]
 
         rows = [f"**{dsobj.name}** | {ctx.world.show(clean=True)} {ctx.world.icon}"]
 
@@ -279,15 +268,15 @@ class Rm(commands.Cog):
         rows.append(" | ".join(urls))
 
         points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | **Rang:** `{dsobj.rank}`"
-        villages = f"**Dörfer:** `{utils.seperator(dsobj.villages)}`"
 
         if hasattr(dsobj, 'tribe_id'):
             tribe = await self.bot.fetch_tribe(ctx.server, dsobj.tribe_id)
-            desc = tribe.mention if tribe else "Stammeslos"
-            villages += f" | **Stamm:** {desc}"
+            desc = tribe.mention if tribe else "None"
+            villages = f"**Stamm:** {desc}"
         else:
-            villages = f"**Mitglieder:** `{dsobj.member}` | {villages}"
+            villages = f"**Mitglieder:** `{dsobj.member}`"
 
+        villages += f" | **Dörfer:** `{utils.seperator(dsobj.villages)}`"
         rows.extend(["", points, villages, "", "**Besiegte Gegner:**"])
 
         bash_rows = {}

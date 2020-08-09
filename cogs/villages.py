@@ -33,7 +33,7 @@ class Villages(commands.Cog):
         if len(msg) <= 2000:
             if not coordinate:
                 embed = discord.Embed(description=msg)
-                await ctx.send(embed=embed)
+                await ctx.author.send(embed=embed)
             else:
                 await ctx.author.send(msg)
 
@@ -173,10 +173,11 @@ class Villages(commands.Cog):
         player_cache = {}
         day_counter = Counter()
         for player in result:
+
             last = player_cache.get(player.id)
             if last is None:
 
-                if points and not points.compare(player.points):
+                if not points.compare(player.points):
                     player_cache[player.id] = False
                 else:
                     player_cache[player.id] = player
@@ -184,7 +185,6 @@ class Villages(commands.Cog):
             elif last is False:
                 continue
 
-            # sets player false if he made points
             elif last.points <= player.points:
                 player_cache[player.id] = player
                 day_counter[player.id] += 1
@@ -199,7 +199,7 @@ class Villages(commands.Cog):
             else:
                 result.append(player)
 
-        await self.send_result(ctx, result, "Spieler")
+        await self.send_result(ctx, result, "inaktiver Spieler")
 
 
 def setup(bot):

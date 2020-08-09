@@ -29,9 +29,9 @@ class UTParser:
         self.target = None
 
     async def parse(self):
-        await self.fetch_objects()
-        if not self.village_cache:
-            return
+        resp = await self.fetch_objects()
+        if resp is False or not self.village_cache:
+            return False
 
         try:
             embed = await self.embed_builder()
@@ -45,6 +45,9 @@ class UTParser:
         villages = await self.bot.fetch_bulk(self.server, set(coordinates),
                                              table="village", name=True)
         self.village_cache = {vil.coords: vil for vil in villages}
+
+        if len(villages) != set(coordinates):
+            return False
 
         for coord, vil in self.village_cache.items():
             if vil.player_id in self.players:
@@ -131,13 +134,7 @@ class UTParser:
                     cache.append(attack)
 
         embed.description = "\n".join(cache)
-
-        speed = self.world.speed
-        if int(speed) == speed:
-            speed = int(speed)
-
-        # footer = f"Die Zustimmung steigt um {speed} pro Stunde"
-        footer = "Ausgegraute Rammen sind unbekannte Laufzeiten"
+        footer = "Ausgegraute Rammen = unbekannte Laufzeiten"
         embed.set_footer(text=footer)
 
         return embed
@@ -232,7 +229,8 @@ class Listen(commands.Cog):
         if report_urls and self.bot.config.get_switch(guild_id, 'report'):
             file = await self.fetch_report(report_urls[0])
             if file is None:
-                return await utils.silencer(message.add_reaction('❌'))
+                await utils.silencer(message.add_reaction('❌'))
+                return
             try:
                 await message.channel.send(file=discord.File(file, "report.png"))
                 await message.delete()
@@ -259,9 +257,9 @@ class Listen(commands.Cog):
             for pkg in request_packages:
                 parser = UTParser(self.bot, world, pkg)
                 embed = await parser.parse()
-                if embed is None:
-                    continue
-
+                if embed is False:
+                    await utils.silencer(message.add_reaction('❌'))
+                    return
                 try:
                     await message.channel.send(embed=embed)
                     await message.delete()

@@ -318,6 +318,10 @@ class DSType:
             else:
                 self.table = arg
 
+    async def fetch(self, ctx, *args, **kwargs):
+        method = getattr(ctx.bot, f"fetch_{self.table}")
+        return await method(ctx.server, *args, **kwargs)
+
 
 class TribalGames(commands.Cog):
 
@@ -378,6 +382,9 @@ class Keyword:
         self.sign = sign
 
     def compare(self, other_value):
+        if self.value is None:
+            return True
+
         if self.sign == "<":
             return other_value < self.value
         elif self.sign == ">":

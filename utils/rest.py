@@ -146,6 +146,19 @@ def show_list(iterable, sep=", ", line_break=2):
     return result
 
 
+def unpack_join(record):
+    rows = []
+    tmp_row = {}
+    for key, value in record.items():
+        if key in tmp_row:
+            rows.append(tmp_row)
+            tmp_row.clear()
+
+        tmp_row[key] = value
+
+    return rows
+
+
 def game_channel_only():
     def predicate(ctx):
         config = ctx.bot.config
