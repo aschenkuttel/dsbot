@@ -206,7 +206,7 @@ class Bash(commands.Cog):
             msg = f"`{ctx.prefix}daily <{'|'.join(self.values.keys())}>`"
             return await ctx.send(embed=error_embed(msg, ctx))
 
-        dsobj = utils.DSType(int(ctx.invoked_with.lower() == "aktueller"))
+        dstype = utils.DSType(int(ctx.invoked_with.lower() == "aktueller"))
         negative = award in ["verlierer"]
 
         base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
@@ -214,19 +214,16 @@ class Bash(commands.Cog):
                'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
 
         switch = "ASC" if negative else "DESC"
-        query = base.format(dsobj.table, f"{dsobj.table}1", award_data['value'], switch)
+        query = base.format(dstype.table, f"{dstype.table}1", award_data['value'], switch)
 
         async with self.bot.pool.acquire() as conn:
             data = await conn.fetch(query, ctx.server)
 
         ranking = []
         for record in data:
-            num = int(len(record) / 2)
-            both_data = list(record.items())
-            cur_record = {key: value for key, value in both_data[:num]}
-            old_record = {key: value for key, value in both_data[num:]}
-
-            old_dsobj, cur_dsobj = dsobj.Class(old_record), dsobj.Class(cur_record)
+            records = utils.unpack_join(record)
+            cur_dsobj = dstype.Class(records[0])
+            old_dsobj = dstype.Class(records[1])
             cur_value = getattr(cur_dsobj, award_data['value'], 0)
             old_value = getattr(old_dsobj, award_data['value'], 0)
 

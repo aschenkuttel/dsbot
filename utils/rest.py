@@ -151,10 +151,13 @@ def unpack_join(record):
     tmp_row = {}
     for key, value in record.items():
         if key in tmp_row:
-            rows.append(tmp_row)
+            rows.append(tmp_row.copy())
             tmp_row.clear()
 
         tmp_row[key] = value
+
+    if tmp_row:
+        rows.append(tmp_row)
 
     return rows
 

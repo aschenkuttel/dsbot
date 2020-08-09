@@ -94,9 +94,6 @@ class Rm(commands.Cog):
                     "('https://media.innogamescdn.com/com_DS_DE/" \
                     "scripts/qb_main/scriptgenerator.js'); void(0);"
 
-        user = commands.BucketType.user
-        self._cd = commands.CooldownMapping.from_cooldown(1.0, 2.0, user)
-
     async def called_by_hour(self):
         now = datetime.utcnow()
         tmp = self.active_pager.copy()
