@@ -278,18 +278,22 @@ class Rm(commands.Cog):
 
         bash_rows = {}
         for index, stat in enumerate(['all_bash', 'att_bash', 'def_bash', 'sup_bash']):
-            value = getattr(dsobj, stat, None)
 
-            if value is not None:
+            if index == 3 and isinstance(dsobj, utils.Tribe):
+                value = await dsobj.fetch_supbash(ctx)
+                rank_value = None
+            else:
+                value = getattr(dsobj, stat)
                 rank_stat = f"{stat.split('_')[0]}_rank"
                 rank_value = getattr(dsobj, rank_stat)
-                stat_title = self.bot.msg['statTitle'][stat]
-                represent = f"{stat_title}: `{sep(value)}`"
 
-                if rank_value:
-                    represent += f" | Rang: `{rank_value}`"
+            stat_title = self.bot.msg['statTitle'][stat]
+            represent = f"{stat_title}: `{sep(value)}`"
 
-                bash_rows[represent] = value
+            if rank_value:
+                represent += f" | Rang: `{rank_value}`"
+
+            bash_rows[represent] = value
 
         clean = sorted(bash_rows.items(), key=lambda l: l[1], reverse=True)
         rows.extend([line[0] for line in clean])

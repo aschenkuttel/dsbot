@@ -413,8 +413,7 @@ class DSBot(commands.Bot):
         query = f'SELECT * FROM player WHERE world = $1 AND tribe_id = ANY($2)'
         async with self.pool.acquire() as conn:
             res = await conn.fetch(query, world, allys)
-
-        return [utils.Player(rec) for rec in res]
+            return [utils.Player(rec) for rec in res]
 
     async def fetch_bulk(self, world, iterable, table=None, *, name=False, dic=False):
         dsobj = utils.DSType(table or 0)

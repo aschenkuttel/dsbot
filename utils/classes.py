@@ -141,6 +141,14 @@ class Tribe(DSObject):
         self.all_bash = data['all_bash']
         self.all_rank = data['all_rank']
 
+    async def fetch_supbash(self, ctx):
+        query = 'SELECT player.sup_bash FROM player ' \
+                'WHERE world = $1 AND player.tribe_id = $2'
+
+        async with ctx.bot.pool.acquire() as conn:
+            data = await conn.fetch(query, ctx.server, self.id)
+            return sum([rec['sup_bash'] for rec in data])
+
 
 class Village(DSObject):
     def __init__(self, data):

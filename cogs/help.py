@@ -214,7 +214,7 @@ class Help(commands.Cog):
     # Stämme Features
     @help.command(name="bash", aliases=["allbash", "attbash", "defbash", "supbash"])
     async def bash_(self, ctx):
-        title = "`~bash` - `~allbash` - `~attbash` - `~defbash` - `~utbash`"
+        title = "`~bash` - `~allbash` - `~attbash` - `~defbash` - `~supbash`"
         desc = "Erhalte entweder eine Zusammenfassung eines Accounts, " \
                "Stammes oder vergleiche 2 Spieler/Stämme und deren Bashpoints"
         cmd_type = "Server Command"
