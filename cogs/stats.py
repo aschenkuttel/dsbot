@@ -51,37 +51,54 @@ class Bash(commands.Cog):
 
         if player1.lower() == player2.lower():
             await ctx.send("Dein Witz :arrow_right: Unlustig")
+            return
 
+        s1 = await self.bot.fetch_both(ctx.server, player1)
+        s2 = await self.bot.fetch_both(ctx.server, player2)
+
+        if not s1 and not s2:
+            msg = f"Auf der {ctx.world} gibt es weder einen Stamm noch " \
+                  f"einen Spieler, der `{player1}` oder `{player2}` heißt"
+            await ctx.send(msg)
+            return
+
+        elif not s1 or not s2:
+            player = player1 if not s1 else player2
+            msg = f"Auf der {ctx.world} gibt es einen Stamm oder Spieler " \
+                  f"namens `{player}` nicht!"
+            await ctx.send(msg)
+            return
+
+        keyword = self.translate[ctx.invoked_with.lower()]
+        attribute = self.values[keyword]['value']
+
+        values = {dsobj.id: 0 for dsobj in (s1, s2)}
+        tribe_ids = [ds.id for ds in (s1, s2) if isinstance(ds, utils.Tribe)]
+        if tribe_ids:
+            member_cache = {tribe_id: [] for tribe_id in tribe_ids}
+            members = await self.bot.fetch_tribe_member(ctx.server, tribe_ids)
+
+            for member in members:
+                member_cache[member.tribe_id].append(member)
+
+            for tribe_id in member_cache:
+                for member in member_cache[tribe_id]:
+                    values[tribe_id] += member.sup_bash
+
+        for dsobj in (s1, s2):
+            if isinstance(dsobj, utils.Player):
+                value = getattr(dsobj, attribute)
+                values[dsobj.id] = value
+
+        if values[s1.id] == values[s2.id]:
+            arrow = ":left_right_arrow:"
+        elif values[s1.id] > values[s2.id]:
+            arrow = ":arrow_left:"
         else:
+            arrow = ":arrow_right:"
 
-            s1 = await self.bot.fetch_both(ctx.server, player1)
-            s2 = await self.bot.fetch_both(ctx.server, player2)
-
-            if not s1 and not s2:
-                msg = f"Auf der {ctx.world} gibt es weder einen Stamm noch " \
-                      f"einen Spieler, der `{player1}` oder `{player2}` heißt"
-                return await ctx.send(msg)
-
-            if not s1 or not s2:
-                player = player1 if not s1 else player2
-                msg = f"Auf der {ctx.world} gibt es einen Stamm oder Spieler " \
-                      f"namens `{player}` nicht!"
-                return await ctx.send(msg)
-
-            keyword = self.translate[ctx.invoked_with.lower()]
-            attribute = self.values[keyword]['value']
-            data_one = getattr(s1, attribute)
-            data_two = getattr(s2, attribute)
-
-            if data_one == data_two:
-                arrow = ":left_right_arrow:"
-            elif data_one > data_two:
-                arrow = ":arrow_left:"
-            else:
-                arrow = ":arrow_right:"
-
-            msg = f"{seperator(data_one)} {arrow} {seperator(data_two)}"
-            await ctx.send(embed=discord.Embed(description=msg))
+        msg = f"`{seperator(values[s1.id])}` {arrow} `{seperator(values[s2.id])}`"
+        await ctx.send(embed=discord.Embed(description=msg))
 
     @commands.command(name="recap")
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -163,7 +180,8 @@ class Bash(commands.Cog):
 
         if key is None:
             msg = f"`{ctx.prefix}top <{'|'.join(self.attribute.keys())}>`"
-            return await ctx.send(embed=error_embed(msg, ctx))
+            await ctx.send(embed=error_embed(msg, ctx))
+            return
 
         res_link = self.base.format(ctx.world.url, key)
         async with self.bot.session.get(res_link) as r:
@@ -204,28 +222,62 @@ class Bash(commands.Cog):
 
         if award_data is None:
             msg = f"`{ctx.prefix}daily <{'|'.join(self.values.keys())}>`"
-            return await ctx.send(embed=error_embed(msg, ctx))
+            await ctx.send(embed=error_embed(msg, ctx))
+            return
 
-        dstype = utils.DSType(int(ctx.invoked_with.lower() == "aktueller"))
+        tribe = ctx.invoked_with.lower() == "aktueller"
+        dstype = utils.DSType(int(tribe))
         negative = award in ["verlierer"]
 
-        base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
-               'WHERE {0}.world = $1 AND {1}.world = $1 ' \
-               'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
-
-        switch = "ASC" if negative else "DESC"
-        query = base.format(dstype.table, f"{dstype.table}1", award_data['value'], switch)
-
         async with self.bot.pool.acquire() as conn:
-            data = await conn.fetch(query, ctx.server)
+            if tribe and award == "unterstützer":
+                query = '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player WHERE ' \
+                        'world = $1 GROUP BY tribe_id ORDER BY sup DESC) ' \
+                        'UNION ALL ' \
+                        '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player1 WHERE ' \
+                        'world = $1 GROUP BY tribe_id ORDER BY sup DESC)'
+
+                cache = await conn.fetch(query, ctx.server)
+                all_values = {rec['tribe_id']: [] for rec in cache}
+                all_values.pop(0)
+
+                for record in cache:
+                    arguments = list(record.values())
+                    tribe_id = arguments.pop(0)
+                    points = int(arguments[0])
+                    if tribe_id != 0:
+                        all_values[tribe_id].append(points)
+
+                value_list = [(k, v) for k, v in all_values.items() if len(v) == 2]
+                value_list.sort(key=lambda tup: tup[1][0] - tup[1][1], reverse=True)
+
+                tribe_ids = [tup[0] for tup in value_list[:5]]
+                tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids,
+                                                   table='tribe', dic=True)
+                data = [tribes[idc] for idc in tribe_ids]
+
+            else:
+                base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
+                       'WHERE {0}.world = $1 AND {1}.world = $1 ' \
+                       'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
+
+                switch = "ASC" if negative else "DESC"
+                query = base.format(dstype.table, f"{dstype.table}1", award_data['value'], switch)
+                data = await conn.fetch(query, ctx.server)
 
         ranking = []
         for record in data:
-            records = utils.unpack_join(record)
-            cur_dsobj = dstype.Class(records[0])
-            old_dsobj = dstype.Class(records[1])
-            cur_value = getattr(cur_dsobj, award_data['value'], 0)
-            old_value = getattr(old_dsobj, award_data['value'], 0)
+            if isinstance(record, utils.Tribe):
+                values = all_values[record.id]
+                cur_value, old_value = values
+                dsobj = record
+
+            else:
+                records = utils.unpack_join(record)
+                dsobj = dstype.Class(records[0])
+                old_dsobj = dstype.Class(records[1])
+                cur_value = getattr(dsobj, award_data['value'], 0)
+                old_value = getattr(old_dsobj, award_data['value'], 0)
 
             if negative:
                 value = old_value - cur_value
@@ -239,7 +291,7 @@ class Bash(commands.Cog):
             if value == 1 and item == "Dörfer":
                 item = "Dorf"
 
-            line = f"`{utils.seperator(value)} {item}` | {cur_dsobj.guest_mention}"
+            line = f"`{utils.seperator(value)} {item}` | {dsobj.guest_mention}"
             ranking.append(line)
 
         if ranking:
