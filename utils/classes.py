@@ -328,7 +328,12 @@ class DSType:
 
     async def fetch(self, ctx, *args, **kwargs):
         method = getattr(ctx.bot, f"fetch_{self.table}")
-        return await method(ctx.server, *args, **kwargs)
+        response = await method(ctx.server, *args, **kwargs)
+
+        if response is None:
+            raise utils.DSUserNotFound(args[0])
+        else:
+            return response
 
 
 class TribalGames(commands.Cog):

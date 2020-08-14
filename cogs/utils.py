@@ -134,7 +134,9 @@ class Rm(commands.Cog):
             axes.tick_params(axis=coord, colors='white')
 
         def x_format(num, _):
-            return f"-{int((28 - num) / 7)} Woche"
+            weeknum = int((28 - num) / 7)
+            if weeknum not in (0, 4):
+                return f"-{weeknum} Woche"
 
         def y_format(num, _):
             magnitude = 0
@@ -234,21 +236,14 @@ class Rm(commands.Cog):
     async def ingame_(self, ctx, *, username):
         ds_type = utils.DSType(ctx.invoked_with.lower())
         dsobj = await ds_type.fetch(ctx, username, name=True)
-        if dsobj is None:
-            raise utils.DSUserNotFound(username)
 
-        async with self.bot.pool.acquire() as conn:
-            latest = await self.fetch_oldest_tableday(conn)
-            if latest > 28:
-                latest = 28
+        queries = []
+        for num in range(29):
+            table = f"{ds_type.table}{num or ''}"
+            base = f'SELECT * FROM {table} WHERE ' \
+                   f'{table}.world = $1 AND {table}.id = $2'
 
-            queries = []
-            for num in range(0, latest + 1):
-                table = f"{ds_type.table}{num or ''}"
-                base = f'SELECT * FROM {table} WHERE ' \
-                       f'{table}.world = $1 AND {table}.id = $2'
-
-                queries.append(base)
+            queries.append(base)
 
         query = " UNION ALL ".join(queries)
         async with self.bot.pool.acquire() as conn:
@@ -312,8 +307,8 @@ class Rm(commands.Cog):
             if images and images[0]['src'].endswith(("large", "jpg")):
                 profile.set_thumbnail(url=images[0]['src'])
 
-        filled = [0] * (28 - len(data)) + [d.points for d in data[::-1]]
-        plot_data = pd.DataFrame({'x_coord': range(1, 29), 'y_coord': filled})
+        filled = [0] * (29 - len(data)) + [d.points for d in data[::-1]]
+        plot_data = pd.DataFrame({'x_coord': range(29), 'y_coord': filled})
 
         config = {'color': '#3498db',
                   'linewidth': 5,

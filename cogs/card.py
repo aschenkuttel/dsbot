@@ -85,7 +85,7 @@ class Card(utils.TribalGames):
             return winner if cache else None
 
     # Module One
-    async def top_entity(self, ctx, cur):
+    async def top_entity(self, ctx, rounds):
         switch = random.choice([True, False])
         gravity = random.choice([True, False])
         top = 15 if switch else 100
@@ -110,7 +110,7 @@ class Card(utils.TribalGames):
         sweet = f"{stat[key]} {value}" if lowest else f"{utils.seperator(value)} {stat[key]}"
         answer_str = f"{obj.name} | {sweet}"
 
-        await ctx.send(embed=self.quiz_embed(question, cur))
+        await ctx.send(embed=self.quiz_embed(question, rounds))
         result = await self.wait_for_answers(ctx, index)
         return result, answer_str
 
@@ -206,7 +206,7 @@ class Card(utils.TribalGames):
         for index, player in enumerate(hand):
 
             if beginner and index == 0:
-                card = f"Oberster Karte:\n"
+                card = f"Oberste Karte:\n"
                 values = []
                 for key, value in prop.items():
                     pval = getattr(player, key)
@@ -256,8 +256,9 @@ class Card(utils.TribalGames):
         game_count = 0
         while game_count < rounds:
             game = random.choice(self.game_pool)
-            cur = f"{game_count + 1} / {rounds}"
-            response = await game(ctx, cur)
+            current_rounds: str = f"{game_count + 1} / {rounds}"
+            # noinspection PyArgumentList
+            response = await game(ctx, current_rounds)
 
             # not enough data
             if response is None:
@@ -374,19 +375,20 @@ class Card(utils.TribalGames):
             await asyncio.sleep(20)
             data['active'] = True
 
-            player_num = len(data['players'])
-            if player_num == 1:
+            player_amount = len(data['players'])
+            if player_amount == 1:
                 content = "Es wollte leider niemand mitspielen :/\n**Spiel beendet**"
                 await begin.edit(content=content)
                 self.tribalcards.pop(ctx.guild.id)
                 return
 
-            amount = (3 - player_num) * player_num
+            # 7 base cards + diff per player
+            amount = player_amount * (12 - player_amount)
             cards = await self.bot.fetch_random(ctx.server, amount=amount, top=100)
             for player, userdata in data['players'].items():
                 hand = userdata['cards'] = []
                 userdata['points'] = 0
-                while len(hand) < amount / player_num:
+                while len(hand) < amount / player_amount:
                     card = cards.pop(0)
                     hand.append(card)
 
