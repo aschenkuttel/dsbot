@@ -17,7 +17,12 @@ class Admin(commands.Cog):
             return True
         raise commands.MissingPermissions(['administrator'])
 
-    @commands.command(name="refresh", aliases=["f5"])
+    @commands.group(name="reset", invoke_without_command=True)
+    async def reset(self, ctx):
+        msg = f"`{ctx.prefix} <games|config>`"
+        await ctx.send(embed=utils.error_embed(msg))
+
+    @reset.command(name="games")
     @commands.cooldown(1, 60, commands.BucketType.guild)
     async def refresh_(self, ctx):
         for game, caches in self.games.items():
@@ -30,8 +35,14 @@ class Admin(commands.Cog):
                     pass
 
         msg = "Die Spiele wurden zurückgesetzt"
-        embed = utils.complete_embed(msg)
-        await ctx.send(embed=embed)
+        await ctx.send(embed=utils.complete_embed(msg))
+
+    @commands.command(name="config")
+    @commands.cooldown(1, 60, commands.BucketType.guild)
+    async def config(self, ctx):
+        self.bot.config.remove_config(ctx.guild.id)
+        msg = "Die Serverdaten wurden zurückgesetzt"
+        await ctx.send(embed=utils.complete_embed(msg))
 
     @commands.command(name="world")
     async def world_(self, ctx):

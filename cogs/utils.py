@@ -180,12 +180,14 @@ class Rm(commands.Cog):
 
         if not sorted_members:
             msg = "Der angegebene Stamm hat keine Mitglieder"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         elif url_type not in ["ingame", "guest", "twstats"]:
             msg = "Der angegebene URL-Typ ist nicht vorhanden:\n" \
                   "`(ingame[default], guest, twstats)`"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         tribe_url = getattr(tribe, f"{url_type}_url")
 
@@ -219,13 +221,13 @@ class Rm(commands.Cog):
     async def rm_(self, ctx, *tribes: str):
         if len(tribes) > 10:
             msg = "Nur bis zu `10 Stämme` aufgrund der maximalen Zeichenlänge"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         data = await self.bot.fetch_tribe_member(ctx.server, tribes, name=True)
-        if isinstance(data, str):
-            await ctx.send(f"Der Stamm `{data}` existiert so nicht")
-        elif not data:
+        if not data:
             await ctx.send("Die angegebenen Stämme haben keine Mitglieder")
+
         else:
             result = [obj.name for obj in data]
             await ctx.author.send(';'.join(result))

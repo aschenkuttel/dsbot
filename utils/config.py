@@ -44,7 +44,7 @@ class Config:
 
         return job
 
-    def update_switch(self, guild_id, key):
+    def update_switch(self, guild_id, key, bulk=False):
         config = self.get_config(guild_id, setup=True)
         switches = config.get('switches')
         if switches is None:
@@ -52,7 +52,9 @@ class Config:
 
         old = switches.get(key, True)
         switches[key] = not old
-        self.save()
+
+        if not bulk:
+            self.save()
 
         return not old
 
@@ -119,7 +121,7 @@ class Config:
     def save(self):
         json.dump(self._config, open(self.path, 'w'))
 
-    def remove_guild(self, guild_id):
+    def remove_config(self, guild_id):
         if guild_id in self._config:
             self._config.pop(guild_id)
             self.save()

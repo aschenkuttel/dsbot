@@ -236,13 +236,11 @@ class Card(utils.TribalGames):
     @utils.game_channel_only()
     async def quiz(self, ctx, rounds: int = 5):
         if ctx.guild.id in self.quiz:
-            msg = "Auf diesem Server läuft bereits eine Runde"
-            await ctx.send(embed=utils.error_embed(msg))
+            await ctx.send("Auf diesem Server läuft bereits eine Runde")
             return
 
         if not 5 <= rounds <= 20:
-            msg = "Es müssen zwischen 5-20 Runden sein"
-            await ctx.send(embed=utils.error_embed(msg))
+            await ctx.send("Es müssen zwischen 5-20 Runden sein")
             return
 
         title = "**Das Spiel startet in Kürze** (15s)"

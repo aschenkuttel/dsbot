@@ -76,11 +76,11 @@ class Villages(commands.Cog):
     async def villages_(self, ctx, amount: str, *args):
         if not amount.isdigit() and amount.lower() != "all":
             msg = "Die Anzahl der gewünschten Dörfer muss entweder eine Zahl oder `all` sein."
-            return await ctx.send(embed=utils.error_embed(msg))
+            await ctx.send(msg)
+            return
 
         if not args:
-            msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte K55**"
-            return await ctx.send(embed=utils.error_embed(msg))
+            raise commands.MissingRequiredArgument
 
         con = None
         if len(args) == 1:
@@ -90,6 +90,7 @@ class Villages(commands.Cog):
             name = ' '.join(args[:-1])
         else:
             name = ' '.join(args)
+
         dsobj = await self.bot.fetch_both(ctx.server, name)
         if not dsobj:
             if con:
@@ -129,7 +130,9 @@ class Villages(commands.Cog):
                     msg = raw.format(ds_type, dsobj.name, len(result), con)
                 else:
                     msg = raw.format(ds_type, dsobj.name, len(result))
-                return await ctx.send(embed=utils.error_embed(msg))
+                await ctx.send(msg)
+                return
+
             else:
                 result = result[:int(amount)]
 
