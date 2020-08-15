@@ -359,7 +359,7 @@ class Listen(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
-        self.bot.config.remove_guild(guild.id)
+        self.bot.config.remove_config(guild.id)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
