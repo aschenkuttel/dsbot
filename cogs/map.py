@@ -1,4 +1,4 @@
-from utils import WorldConverter, DSColor, MapVillage, error_embed, silencer
+from utils import WorldConverter, DSColor, MapVillage, silencer
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 import numpy as np
@@ -519,7 +519,7 @@ class Map(commands.Cog):
     async def custom_(self, ctx, world: WorldConverter = None):
         if ctx.author.id in self.cache:
             msg = "Du hast noch eine offene Karte"
-            return await ctx.send(embed=error_embed(msg))
+            return await ctx.send(msg)
         else:
             cache = self.cache[ctx.author.id] = {}
 

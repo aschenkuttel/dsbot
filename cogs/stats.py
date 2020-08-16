@@ -1,4 +1,5 @@
-from utils import DSConverter, DSUserNotFound, error_embed, seperator
+from utils import DSConverter, DSUserNotFound, MissingRequiredKey
+from utils import seperator as sep
 from discord.ext import commands
 from bs4 import BeautifulSoup
 import asyncpg
@@ -12,31 +13,23 @@ class Bash(commands.Cog):
         self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         self.base = "https://{}/guest.php?village" \
                     "=null&screen=ranking&mode=in_a_day&type={}"
-        self.attribute = {'bash': "kill_att", 'def': "kill_def", 'sup': "kill_sup",
-                          'farm': "loot_res", 'villages': "loot_vil",
-                          'scavenge': "scavenge", 'conquer': "conquer"}
-        self.values = {
-            'angreifer': {'value': "att_bash", 'item': "Bashpoints"},
-            'verteidiger': {'value': "def_bash", 'item': "Bashpoints"},
-            'unterstützer': {'value': "sup_bash", 'item': "Bashpoints"},
-            'kämpfer': {'value': "all_bash", 'item': "Bashpoints"},
-            'verlierer': {'value': "villages", 'item': "Dörfer"},
-            'eroberer': {'value': "villages", 'item': "Dörfer"}}
-        self.translate = {'defbash': "verteidiger",
-                          'offbash': "angreifer",
-                          'supbash': "unterstützer",
-                          'allbash': "kämpfer"}
+        self.in_a_day_value = self.bot.msg['dayValue']
+        self.bash_value = self.bot.msg['bashValue']
+
+        self.translate = {}
+        for key, pkg in self.bash_value.items():
+            self.translate[pkg['value']] = key
 
     @commands.command(name="bash")
     async def bash(self, ctx, *, user: DSConverter):
         title = f"Besiegte Gegner von {user.name}"
-        result = [f"`OFF` | **{seperator(user.att_bash)} Bashpoints**",
-                  f"`DEF` | **{seperator(user.def_bash)} Bashpoints**"]
+        result = [f"`OFF` | **{sep(user.att_bash)} Bashpoints**",
+                  f"`DEF` | **{sep(user.def_bash)} Bashpoints**"]
 
         if isinstance(user, utils.Player):
-            result.append(f"`SUP` | **{seperator(user.sup_bash)} Bashpoints**")
+            result.append(f"`SUP` | **{sep(user.sup_bash)} Bashpoints**")
 
-        result.append(f"`INS` | **{seperator(user.all_bash)} Bashpoints**")
+        result.append(f"`INS` | **{sep(user.all_bash)} Bashpoints**")
         embed = discord.Embed(title=title, description='\n'.join(result))
         await ctx.send(embed=embed)
 
@@ -44,7 +37,8 @@ class Bash(commands.Cog):
     async def allbash(self, ctx, *, args):
         if not args.__contains__("/"):
             msg = "Du musst die beiden Spielernamen mit `/` trennen"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         player1 = args.partition("/")[0].strip()
         player2 = args.partition("/")[2].strip()
@@ -59,8 +53,7 @@ class Bash(commands.Cog):
         if not s1 and not s2:
             msg = f"Auf der {ctx.world} gibt es weder einen Stamm noch " \
                   f"einen Spieler, der `{player1}` oder `{player2}` heißt"
-            await ctx.send(msg)
-            return
+            return await ctx.send(msg)
 
         elif not s1 or not s2:
             player = player1 if not s1 else player2
@@ -70,7 +63,7 @@ class Bash(commands.Cog):
             return
 
         keyword = self.translate[ctx.invoked_with.lower()]
-        attribute = self.values[keyword]['value']
+        attribute = self.bash_value[keyword]['value']
 
         values = {dsobj.id: 0 for dsobj in (s1, s2)}
         tribe_ids = [ds.id for ds in (s1, s2) if isinstance(ds, utils.Tribe)]
@@ -97,7 +90,7 @@ class Bash(commands.Cog):
         else:
             arrow = ":arrow_right:"
 
-        msg = f"`{seperator(values[s1.id])}` {arrow} `{seperator(values[s2.id])}`"
+        msg = f"`{sep(values[s1.id])}` {arrow} `{sep(values[s2.id])}`"
         await ctx.send(embed=discord.Embed(description=msg))
 
     @commands.command(name="recap")
@@ -117,9 +110,10 @@ class Bash(commands.Cog):
         if not dsobj:
             raise DSUserNotFound(' '.join(args))
 
-        if not 30 > time > 0:
-            msg = "Das Maximum für den Recap Command sind 29 Tage"
-            return await ctx.send(embed=error_embed(msg))
+        if not 31 > time > 0:
+            msg = "Das Maximum für den Recap Command sind 30 Tage"
+            return await ctx.send(msg)
+
         try:
             dsobj8 = await self.bot.fetch_both(ctx.server, dsobj.id, name=False, archive=time)
 
@@ -133,6 +127,7 @@ class Bash(commands.Cog):
 
         # upon database reset we use twstats as temporary workaround
         except asyncpg.UndefinedTableError:
+            time = 29
             page_link = f"{dsobj.twstats_url}&mode=history"
             async with self.bot.session.get(page_link) as r:
                 soup = BeautifulSoup(await r.read(), "html.parser")
@@ -147,7 +142,7 @@ class Bash(commands.Cog):
                 msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
                 return await ctx.send(msg)
 
-        p_done = seperator(int(point1) - int(point8))
+        p_done = sep(int(point1) - int(point8))
         if p_done.startswith("-"):
             points_done = f"`{p_done[1:]}` Punkte verloren,"
         else:
@@ -160,7 +155,7 @@ class Bash(commands.Cog):
         else:
             villages_done = f"`{v_done}` {vil} geholt"
 
-        b_done = seperator(int(bash1) - int(bash8))
+        b_done = sep(int(bash1) - int(bash8))
         if b_done.startswith("-"):
             bashpoints_done = f"`{b_done[1:]}` Bashpoints verloren"
         else:
@@ -176,12 +171,10 @@ class Bash(commands.Cog):
 
     @commands.group(name="top")
     async def top_(self, ctx, state):
-        key = self.attribute.get(state.lower())
+        key = self.in_a_day_value.get(state.lower())
 
         if key is None:
-            msg = f"`{ctx.prefix}top <{'|'.join(self.attribute.keys())}>`"
-            await ctx.send(embed=error_embed(msg, ctx))
-            return
+            raise MissingRequiredKey(self.in_a_day_value)
 
         res_link = self.base.format(ctx.world.url, key)
         async with self.bot.session.get(res_link) as r:
@@ -218,12 +211,10 @@ class Bash(commands.Cog):
     @commands.command(name="daily", aliases=["aktueller"])
     async def daily_(self, ctx, award_type):
         award = award_type.lower()
-        award_data = self.values.get(award)
+        award_data = self.bash_value.get(award)
 
         if award_data is None:
-            msg = f"`{ctx.prefix}daily <{'|'.join(self.values.keys())}>`"
-            await ctx.send(embed=error_embed(msg, ctx))
-            return
+            raise MissingRequiredKey(self.bash_value)
 
         tribe = ctx.invoked_with.lower() == "aktueller"
         dstype = utils.DSType(int(tribe))
@@ -291,7 +282,7 @@ class Bash(commands.Cog):
             if value == 1 and item == "Dörfer":
                 item = "Dorf"
 
-            line = f"`{utils.seperator(value)} {item}` | {dsobj.guest_mention}"
+            line = f"`{sep(value)} {item}` | {dsobj.guest_mention}"
             ranking.append(line)
 
         if ranking:

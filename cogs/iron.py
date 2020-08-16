@@ -1,4 +1,4 @@
-from utils import MemberConverter, seperator, error_embed
+from utils import MemberConverter, MissingRequiredKey, seperator
 from discord.ext import commands
 import discord
 
@@ -11,8 +11,7 @@ class Money(commands.Cog):
     async def iron(self, ctx):
         cmd_list = ("top", "global", "send")
         if ctx.subcommand_passed and ctx.subcommand_passed not in cmd_list:
-            msg = f"Falsche Eingabe | `{ctx.prefix}iron <top/global/send>"
-            return await ctx.send(embed=error_embed(msg))
+            raise MissingRequiredKey(("top", "global", "send"))
 
         if ctx.invoked_subcommand:
             return
@@ -64,7 +63,7 @@ class Money(commands.Cog):
 
         else:
             msg = "Aktuell gibt es keine gespeicherten Scores"
-            await ctx.send(embed=error_embed(msg))
+            await ctx.send(msg)
 
 
 def setup(bot):

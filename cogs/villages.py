@@ -75,9 +75,8 @@ class Villages(commands.Cog):
     @commands.command(name="villages")
     async def villages_(self, ctx, amount: str, *args):
         if not amount.isdigit() and amount.lower() != "all":
-            msg = "Die Anzahl der gewünschten Dörfer muss entweder eine Zahl oder `all` sein."
-            await ctx.send(msg)
-            return
+            msg = "Die Anzahl muss entweder eine Zahl oder `all` sein."
+            return await ctx.send(msg)
 
         if not args:
             raise commands.MissingRequiredArgument

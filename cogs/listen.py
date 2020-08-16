@@ -70,7 +70,7 @@ class UTParser:
         embed = discord.Embed(colour=discord.Color.blue())
         embed.title = f"{self.target_player.name} wird angegriffen!"
         cache = [f"**Dorf:** {self.target.mention}"]
-        unit_icon_dict = self.bot.msg['unit_icons']
+        unit_icon_dict = self.bot.msg['unitIcon']
 
         field_cache = []
         for line in self.package[1:]:
@@ -112,7 +112,7 @@ class UTParser:
 
                 name = renamed[0].strip()
                 if name:
-                    renames = self.bot.msg['unit_renames']
+                    renames = self.bot.msg['unitRename']
                     lz_unit = renames.get(name)
                     icon = unit_icon_dict.get(lz_unit)
                     if icon:
@@ -121,7 +121,7 @@ class UTParser:
                 raw_time = re.findall(r'-->.*?:(.*)\[player]', line)
                 time = raw_time[0].strip()
 
-                inc_icon = self.bot.msg['inc_icons'].get(possible_info[0])
+                inc_icon = self.bot.msg['attackIcon'].get(possible_info[0])
                 attack = f"{inc_icon} {lz_icon} `{time}` [{village.mention}] **{attacker.name}**"
 
                 if len("\n".join(cache + [attack])) > 2048:
@@ -381,6 +381,10 @@ class Listen(commands.Cog):
 
         elif isinstance(error, commands.MissingRequiredArgument):
             msg = "Dem Command fehlt ein benötigtes Argument"
+            tip = ctx
+
+        elif isinstance(error, utils.MissingRequiredKey):
+            msg = f"`{ctx.prefix}{cmd.lower()} <{'|'.join(error.keys)}>`"
             tip = ctx
 
         elif isinstance(error, commands.NoPrivateMessage):

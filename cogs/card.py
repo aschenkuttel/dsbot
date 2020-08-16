@@ -328,7 +328,7 @@ class Card(utils.TribalGames):
 
         if ctx.author.id in self.cache and response is None:
             msg = f"Du bist bereits Spieler einer aktiven Tribalcard-Runde"
-            return await ctx.send(embed=utils.error_embed(msg))
+            return await ctx.send(msg)
 
         if response and response.lower() == "join":
             if not data:

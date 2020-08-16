@@ -70,8 +70,8 @@ class Graphic(commands.Cog):
 
         img = Image.open(BytesIO(avatar_bytes))
         if img.size[0] <= 270 and img.size[1] <= 180:
-            msg = "Das angegebene Bild ist bereits klein genug"
-            return await ctx.send(embed=error_embed(msg))
+            await ctx.send("Das angegebene Bild ist bereits klein genug")
+            return
 
         output_buffer = BytesIO()
         if img.format == "GIF":
@@ -122,8 +122,7 @@ class Graphic(commands.Cog):
             else:
                 msg = "Die maximale Anzahl von Versuchen wurden erreicht"
 
-            await ctx.send(embed=error_embed(msg))
-            return
+            return await ctx.send(msg)
 
         async with self.bot.session.get(result['src']) as res2:
             file = BytesIO(await res2.read())

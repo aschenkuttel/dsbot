@@ -40,7 +40,7 @@ class DSBot(commands.Bot):
         self.path = os.path.dirname(__file__)
         self.data_path = f"{self.path}/data"
         self.logger = utils.create_logger('dsbot', self.path)
-        self.msg = json.load(open(f"{self.data_path}/msg.json"))
+        self.msg = json.load(open(f"{self.data_path}/msg.json", encoding="utf-8"))
         self.activity = discord.Activity(type=0, name=self.msg['status'])
         self.loop.create_task(self.loop_per_hour())
         self.add_check(self.global_world)

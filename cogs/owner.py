@@ -1,6 +1,5 @@
 from discord.ext import commands
 import discord
-import utils
 
 
 class Admin(commands.Cog):
@@ -53,8 +52,9 @@ class Admin(commands.Cog):
     @commands.command(name="change")
     async def change_(self, ctx, guild_id: int, item, value):
         if item.lower() not in ["prefix", "world", "game", "conquer"]:
-            await ctx.send(embed=utils.error_embed("Fehlerhafte Eingabe"))
+            await ctx.send("Fehlerhafte Eingabe")
             return
+
         value = value if item == "prefix" else int(value)
         self.bot.config.change_item(guild_id, item, value)
         await ctx.send(f"`{item}` registriert")

@@ -395,7 +395,7 @@ class Rm(commands.Cog):
     async def rz3_(self, ctx, *args: int):
         if len(args) > 7:
             msg = "Das Maximum von 7 verschiedenen Truppentypen wurde überschritten"
-            return await ctx.send(embed=utils.error_embed(msg))
+            return await ctx.send(msg)
 
         three = ctx.invoked_with.lower() == "rz3"
 
@@ -506,7 +506,7 @@ class Rm(commands.Cog):
     async def poll_(self, ctx, question, *options):
         if len(options) > 9:
             msg = "Die maximale Anzahl der Auswahlmöglichkeiten beträgt 9"
-            return await ctx.send(utils.error_embed(msg))
+            return await ctx.send(msg)
 
         parsed_options = ""
         for index, opt in enumerate(options):

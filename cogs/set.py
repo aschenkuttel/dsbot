@@ -1,4 +1,5 @@
-from utils import WorldConverter, DSConverter, WrongChannel, complete_embed, error_embed
+from utils import complete_embed, error_embed, MissingRequiredKey
+from utils import WorldConverter, DSConverter, WrongChannel
 from discord.ext import commands
 import discord
 
@@ -7,13 +8,18 @@ class Set(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = bot.config
+        self.converter_title = self.bot.msg['converterTitle']
+        self.config_title = self.bot.msg['configTitle']
 
     async def cog_check(self, ctx):
         if ctx.guild is None:
             raise commands.NoPrivateMessage
+
         if ctx.author.guild_permissions.administrator:
             return True
-        raise commands.MissingPermissions(['administrator'])
+
+        else:
+            raise commands.MissingPermissions(['administrator'])
 
     def get_conquer_data(self, ctx):
         conquer = self.config.get_item(ctx.guild.id, 'conquer', {})
@@ -26,10 +32,9 @@ class Set(commands.Cog):
             return channel_data
 
     @commands.group(invoke_without_command=True)
-    async def set(self, ctx):
-        pre = self.config.get_prefix(ctx.guild.id)
-        msg = f"`{pre}set [world|game|conquer|channel|prefix]`"
-        await ctx.send(embed=error_embed(msg))
+    async def set(self, _):
+        keys = ("world", "game", "conquer", "channel", "prefix")
+        raise MissingRequiredKey(keys)
 
     @set.command(name="world")
     async def set_world(self, ctx, world: WorldConverter):
@@ -105,23 +110,22 @@ class Set(commands.Cog):
     @commands.group(name="switch", invoke_without_command=True)
     async def switch(self, ctx, key):
         key = key.lower()
-        names = self.bot.msg['converterNames']
+        name = self.converter_title.get(key)
 
-        if key not in names:
-            msg = f"`{ctx.prefix}set switch <report|request|coord|mention>`"
-            await ctx.send(embed=error_embed(msg))
-            return
+        if name is None:
+            keys = ("report", "request", "coord", "mention")
+            raise MissingRequiredKey(keys)
 
         new_value = self.bot.config.update_switch(ctx.guild.id, key)
-        represent = "aktiv" if new_value else "inaktiv"
-        msg = f"Die Konvertierung der `{names[key]}` ist nun **{represent}**"
+        state = "aktiv" if new_value else "inaktiv"
+        msg = f"Die Konvertierung der `{name}` ist nun **{state}**"
         await ctx.send(embed=complete_embed(msg))
 
     @switch.command(name="list")
     async def switch_list(self, ctx):
-        names = self.bot.msg['converterNames']
         listed = []
-        for key, value in names.items():
+
+        for key, value in self.converter_title.items():
             state = self.bot.config.get_switch(ctx.guild.id, key)
             represent = "aktiv" if state else "inaktiv"
             listed.append(f"**{value} ({key}):** `{represent}`")
@@ -130,21 +134,19 @@ class Set(commands.Cog):
 
     @commands.group(invoke_without_command=True)
     async def remove(self, ctx, entry):
-        entries = {'game': "Game Channel",
-                   'prefix': "Prefix"}
+        entry = entry.lower()
+        config_entry = self.config_title.get(entry)
 
-        if entry.lower() not in entries:
-            base = "**Fehlerhafte Eingabe:** {}remove <{}>"
-            msg = base.format(ctx.prefix, "/".join(entries))
-            return await ctx.send(embed=error_embed(msg))
+        if config_entry is None:
+            raise MissingRequiredKey(self.config_title)
 
         done = self.config.remove_item(ctx.guild.id, entry.lower())
         if not done:
-            msg = f"Der Server hat keinen zugewiesenen **{entries[entry]}**"
+            msg = f"Der Server hat keinen zugewiesenen **{config_entry}**"
             await ctx.send(embed=error_embed(msg))
 
         else:
-            msg = f"**{entries[entry]}** erfolgreich gelöscht"
+            msg = f"**{config_entry}** erfolgreich gelöscht"
             await ctx.send(embed=complete_embed(msg))
 
     @remove.command(name="conquer")
