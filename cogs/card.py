@@ -41,7 +41,7 @@ class Card(utils.TribalGames):
         self.bot = bot
         self.cache = []
         self.quiz = {}
-        self.tribalcards = {}
+        self.tribalcard = {}
         self.game_pool = [
             self.top_entity,
             self.general_ask,
@@ -202,7 +202,7 @@ class Card(utils.TribalGames):
         return result, obj.name
 
     def show_hand(self, hand, instruction, beginner=False):
-        description = f"**Tribalcards | Deine Hand:**\n\n"
+        description = f"**Tribalcard | Deine Hand:**\n\n"
         for index, player in enumerate(hand):
 
             if beginner and index == 0:
@@ -322,8 +322,8 @@ class Card(utils.TribalGames):
             await ctx.send(embed=embed)
 
     @utils.game_channel_only()
-    @commands.command(name="tribalcards", aliases=["tc"])
-    async def tribalcards_(self, ctx, response=None):
+    @commands.command(name="tribalcard", aliases=["tc"])
+    async def tribalcard_(self, ctx, response=None):
         data = self.get_game_data(ctx)
 
         if ctx.author.id in self.cache and response is None:
@@ -333,7 +333,7 @@ class Card(utils.TribalGames):
         if response and response.lower() == "join":
             if not data:
                 base = "Aktuell ist keine Spielanfrage offen, starte mit `{}`"
-                msg = f"{base.format(ctx.prefix)}tribalcards"
+                msg = f"{base.format(ctx.prefix)}tribalcard"
 
             elif len(data['players']) == 4:
                 msg = "Es sind bereits 4 Spieler registriert"
@@ -363,9 +363,9 @@ class Card(utils.TribalGames):
 
             data = {'players': {ctx.author: {}}, 'id': ctx.message.id,
                     'played': {}, 'beginner': ctx.author, 'ctx': ctx}
-            self.tribalcards[ctx.guild.id] = data
+            self.tribalcard[ctx.guild.id] = data
 
-            base = "**{}** möchte eine Runde **Tribalcards** spielen,\ntritt der Runde mit " \
+            base = "**{}** möchte eine Runde **Tribalcard** spielen,\ntritt der Runde mit " \
                    "`{}tc join` bei:\n(2-4 Spieler, Spiel beginnt in 60s)"
             msg = base.format(ctx.author.display_name, ctx.prefix)
             begin = await ctx.send(msg)
@@ -377,7 +377,7 @@ class Card(utils.TribalGames):
             if player_amount == 1:
                 content = "Es wollte leider niemand mitspielen :/\n**Spiel beendet**"
                 await begin.edit(content=content)
-                self.tribalcards.pop(ctx.guild.id)
+                self.tribalcard.pop(ctx.guild.id)
                 return
 
             # 7 base cards + diff per player
@@ -399,25 +399,25 @@ class Card(utils.TribalGames):
                        "**Spiel beendet**"
                 msg = base.format(ctx.author.display_name)
                 await begin.edit(content=msg)
-                self.tribalcards.pop(ctx.guild.id)
+                self.tribalcard.pop(ctx.guild.id)
 
             else:
                 data['players'][ctx.author]['msg'] = resp
                 await asyncio.sleep(3600)
-                current = self.tribalcards.get(ctx.guild.id)
+                current = self.tribalcard.get(ctx.guild.id)
                 if current and current['id'] == data['id']:
-                    self.tribalcards.pop(ctx.guild.id)
+                    self.tribalcard.pop(ctx.guild.id)
 
     @commands.dm_only()
     @commands.command(name="play")
     async def play_(self, ctx, card_or_property):
-        for guild_id, data in self.tribalcards.items():
+        for guild_id, data in self.tribalcard.items():
             if data is False:
                 continue
             if ctx.author in data['players']:
                 break
         else:
-            msg = "Du befindest dich in keiner Tribalcards-Runde"
+            msg = "Du befindest dich in keiner Tribalcard-Runde"
             await ctx.send(msg)
             return
 
@@ -559,7 +559,7 @@ class Card(utils.TribalGames):
 
                     player = "**, **".join(winners)
                     plural = "hat" if len(winners) == 1 else "haben"
-                    base = "**{}** {} das Tribalcards Spiel gewonnen!\n{}"
+                    base = "**{}** {} das Tribalcard Spiel gewonnen!\n{}"
                     description = base.format(player, plural, represent)
                     embed = discord.Embed(description=description)
 

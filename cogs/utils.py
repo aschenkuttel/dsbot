@@ -219,6 +219,9 @@ class Rm(commands.Cog):
 
     @commands.command(name="rm")
     async def rm_(self, ctx, *tribes: str):
+        if not tribes:
+            raise commands.MissingRequiredArgument
+
         if len(tribes) > 10:
             msg = "Nur bis zu `10 Stämme` aufgrund der maximalen Zeichenlänge"
             await ctx.send(msg)

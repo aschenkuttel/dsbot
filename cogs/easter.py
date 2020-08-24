@@ -95,11 +95,11 @@ class Enjoy(commands.Cog):
         counter = []
 
         def check(msg):
-            if ctx.channel != msg.channel:
+            if ctx.channel != msg.channel or ctx.author.id in counter:
                 return
 
             if any(word in msg.content.lower() for word in ["ja", "nein"]):
-                counter.append(msg)
+                counter.append(ctx.author.id)
 
         try:
             await self.bot.wait_for('message', check=check, timeout=60)

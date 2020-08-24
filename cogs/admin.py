@@ -7,24 +7,25 @@ class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.games = {'Word': ["hangman", "anagram"],
-                      'Card': ["quiz", "tc"],
-                      'Poker': ["bj", "vp"]}
+                      'Card': ["quiz", "tribalcard"],
+                      'Poker': ["blackjack", "videopoker"]}
 
     async def cog_check(self, ctx):
         if ctx.guild is None:
             raise commands.NoPrivateMessage
+
         if ctx.author.guild_permissions.administrator:
             return True
+
         raise commands.MissingPermissions(['administrator'])
 
     @commands.group(name="reset", invoke_without_command=True)
     async def reset(self, ctx):
-        msg = f"`{ctx.prefix} <games|config>`"
+        msg = f"`{ctx.prefix} <game|conquer|config>`"
         await ctx.send(embed=utils.error_embed(msg))
 
-    @reset.command(name="games")
-    @commands.cooldown(1, 60, commands.BucketType.guild)
-    async def refresh_(self, ctx):
+    @reset.command(name="game")
+    async def games_(self, ctx):
         for game, caches in self.games.items():
             cog = self.bot.get_cog(game)
             for cache_name in caches:
@@ -34,14 +35,19 @@ class Admin(commands.Cog):
                 except KeyError:
                     pass
 
-        msg = "Die Spiele wurden zurückgesetzt"
+        msg = "Alle Minigames wurden zurückgesetzt"
         await ctx.send(embed=utils.complete_embed(msg))
 
-    @commands.command(name="config")
-    @commands.cooldown(1, 60, commands.BucketType.guild)
-    async def config(self, ctx):
+    @reset.command(name="conquer")
+    async def conquer_(self, ctx):
+        self.bot.config.change_item(ctx.guild.id, 'conquer', {})
+        msg = "Die Conquereinstellungen wurden zurückgesetzt"
+        await ctx.send(embed=utils.complete_embed(msg))
+
+    @reset.command(name="config")
+    async def config_(self, ctx):
         self.bot.config.remove_config(ctx.guild.id)
-        msg = "Die Serverdaten wurden zurückgesetzt"
+        msg = "Die Servereinstellungen wurden zurückgesetzt"
         await ctx.send(embed=utils.complete_embed(msg))
 
     @commands.command(name="world")
