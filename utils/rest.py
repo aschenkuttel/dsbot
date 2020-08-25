@@ -42,11 +42,15 @@ def converter(name, php=False):
         return unquote_plus(name)
 
 
-def keyword(options, **kwargs):
-    troops = re.findall(r'[A-z]*[<=>]\S*', options or "")
+def keyword(options, strip=False, **kwargs, ):
+    raw_input = options or ''
+    troops = re.findall(r'[A-z]*[<=>]\S*', raw_input)
     cache = {}
 
     for troop in troops:
+        if strip:
+            raw_input = raw_input.replace(troop, '')
+
         sign = re.findall(r'[<=>]', troop.lower())[0]
         if troop.count(sign) != 1:
             continue
@@ -71,7 +75,7 @@ def keyword(options, **kwargs):
         if input_pkg is None:
             if isinstance(default_value, list):
                 num = 1 if len(default_value) == 3 else 0
-                default_value = num
+                default_value = default_value[num]
 
             kwargs[argument] = Keyword(default_value)
             continue
@@ -98,7 +102,11 @@ def keyword(options, **kwargs):
 
         kwargs[argument] = Keyword(new_value, sign)
 
-    return list(kwargs.values())
+    keywords = list(kwargs.values())
+    if strip:
+        keywords.insert(0, raw_input.strip())
+
+    return keywords
 
 
 def parse_integer(user_input, default, boundaries=None):

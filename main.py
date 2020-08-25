@@ -124,9 +124,9 @@ class DSBot(commands.Bot):
         self.loop.create_task(self.report_to_owner(msg))
 
     # defaul executor somehow leaks RAM
-    async def execute(self, func, *args):
+    async def execute(self, func, *args, **kwargs):
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            package = functools.partial(func, *args)
+            package = functools.partial(func, *args, **kwargs)
             result = await self.loop.run_in_executor(pool, package)
 
         pool.shutdown()
@@ -389,7 +389,7 @@ class DSBot(commands.Bot):
     async def fetch_top(self, world, table=None, till=10, balanced=False):
         dsobj = utils.DSType(table or 0)
         till = 100 if balanced else till
-        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2'
+        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2 ORDER BY rank'
 
         async with self.pool.acquire() as conn:
             top10 = await conn.fetch(query, world, till)

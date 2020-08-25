@@ -4,7 +4,7 @@ from discord.ext import commands
 import discord
 
 
-class Set(commands.Cog):
+class Config(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = bot.config
@@ -262,4 +262,4 @@ class Set(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Set(bot))
+    bot.add_cog(Config(bot))

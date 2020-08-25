@@ -1,4 +1,4 @@
-from utils import WorldConverter, DSColor, MapVillage, silencer
+from utils import WorldConverter, DSColor, MapVillage, silencer, keyword
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 import numpy as np
@@ -14,8 +14,7 @@ class Map(commands.Cog):
         self.low = 0
         self.high = 3001
         self.space = 20
-        self.cache = {}
-        self.map_cache = {}
+        self.custom_cache = {}
         self.colors = DSColor()
         self.max_font_size = 300
         self.img = Image.open(f"{self.bot.data_path}/map.png")
@@ -32,20 +31,17 @@ class Map(commands.Cog):
         user = commands.BucketType.user
         self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
 
-    async def cog_check(self, ctx):
-        bucket = self._cd.get_bucket(ctx.message)
-        retry_after = bucket.update_rate_limit()
-
-        if retry_after:
-            raise commands.CommandOnCooldown(self._cd, retry_after)
-        else:
-            return True
-
-    async def called_by_hour(self):
-        self.map_cache.clear()
+    # async def cog_check(self, ctx):
+    #     bucket = self._cd.get_bucket(ctx.message)
+    #     retry_after = bucket.update_rate_limit()
+    #
+    #     if retry_after:
+    #         raise commands.CommandOnCooldown(self._cd, retry_after)
+    #     else:
+    #         return True
 
     async def timeout(self, cache, user_id, time):
-        current = self.cache.get(user_id)
+        current = self.custom_cache.get(user_id)
         if current is False:
             return
 
@@ -56,7 +52,7 @@ class Map(commands.Cog):
         embed.title = f"**Timeout:** Zeitüberschreitung({time}s)"
         await silencer(cache['msg'].edit(embed=embed))
         await silencer(cache['msg'].clear_reactions())
-        self.cache.pop(user_id)
+        self.custom_cache.pop(user_id)
 
     def convert_to_255(self, iterable):
         result = []
@@ -98,8 +94,10 @@ class Map(commands.Cog):
             return False
         return True
 
-    def create_base(self, villages, zoom=0, center=(500, 500)):
+    def create_base(self, villages, **kwargs):
         bounds = self.get_bounds(villages)
+        zoom = kwargs.get('zoom', 0)
+        center = kwargs.get('center', (500, 500))
 
         if zoom:
             # 1, 2, 3, 4, 5 | 80% ,65%, 50%, 35% / 20%
@@ -127,20 +125,22 @@ class Map(commands.Cog):
         image.paste(watermark, mask=watermark)
         watermark.close()
 
-    def label_map(self, result, village_cache, zoom=0):
+    def label_map(self, result, village_cache, zoom=0, player=False):
         reservation = []
         font_size = int(self.max_font_size * ((result.size[0] - 50) / self.high))
+
+        if player:
+            font_size *= 0.42
+
         most_villages = len(sorted(village_cache.items(), key=lambda l: len(l[1]))[-1][1])
 
         bound_size = tuple([int(c * 1.5) for c in result.size])
         legacy = Image.new('RGBA', bound_size, (255, 255, 255, 0))
         image = ImageDraw.Draw(legacy)
 
-        for tribe, villages in village_cache.items():
+        for dsobj, villages in village_cache.items():
             if not villages:
                 continue
-
-            title = tribe.name if tribe.alone else tribe.tag
 
             vil_x = [int(v[0] * 1.5) for v in villages]
             vil_y = [int(v[1] * 1.5) for v in villages]
@@ -150,7 +150,7 @@ class Map(commands.Cog):
             size = int(font_size - (font_size / 4) + factor + (zoom * 3.5))
 
             font = ImageFont.truetype(f'{self.bot.data_path}/bebas.ttf', size)
-            font_width, font_height = image.textsize(title, font=font)
+            font_width, font_height = image.textsize(str(dsobj), font=font)
             position = [int(centroid[0] - font_width / 2), int(centroid[1] - font_height / 2)]
 
             while True:
@@ -164,25 +164,27 @@ class Map(commands.Cog):
 
             # draw title and shadow / index tribe color
             dist = int((result.size[0] / self.high) * 10 + 1)
-            image.text([position[0] + dist, position[1] + dist], title, (0, 0, 0, 255), font)
-            image.text(position, title, tuple(tribe.color + [255]), font)
+            image.text([position[0] + dist, position[1] + dist], str(dsobj), (0, 0, 0, 255), font)
+            image.text(position, str(dsobj), tuple(dsobj.color + [255]), font)
 
         legacy = legacy.resize(result.size, Image.LANCZOS)
         result.paste(legacy, mask=legacy)
         legacy.close()
 
-    def create_basic_map(self, world_villages, tribes, players):
-        base, diff = self.create_base(world_villages)
-        village_cache = {t: [] for t in tribes.values()}
+    def draw_map(self, all_villages, tribes, players, **options):
+        base, difference = self.create_base(all_villages, **options)
+
+        cache_key = tribes if tribes else players
+        village_cache = {dsobj: [] for dsobj in cache_key.values()}
 
         # create overlay image for highlighting
         overlay = np.zeros((base.shape[0], base.shape[1], 4), dtype='uint8')
 
-        full_size = diff == [0, 0]
-        for vil in world_villages:
+        full_size = difference == [0, 0]
+        for vil in all_villages:
 
             # repositions coords based on base crop
-            x, y = vil.reposition(diff)
+            x, y = vil.reposition(difference)
 
             if full_size and not self.outta_bounds(vil):
                 continue
@@ -195,8 +197,14 @@ class Map(commands.Cog):
                 color = self.colors.vil_brown
 
             else:
-                tribe = tribes[player.tribe_id]
-                color = tribe.color
+
+                tribe = tribes.get(player.tribe_id)
+                if tribe is None:
+                    color = player.color
+                    tribe = player
+                else:
+                    color = tribe.color
+
                 overlay[y - 6:y + 10, x - 6:x + 10] = color + [75]
                 village_cache[tribe].append([y, x])
 
@@ -208,89 +216,133 @@ class Map(commands.Cog):
             result.paste(foreground, mask=foreground)
 
         # create legacy which is double in size for improved text quality
-        if tribes:
-            self.label_map(result, village_cache)
+        if options.get('label') is True:
+            self.label_map(result, village_cache, player=not tribes)
 
         self.watermark(result)
         return result
 
-    def create_custom_map(self, world_villages, tribes, players, cache):
-        zoom = cache['values'][0]
-        coord = cache['values'][1].split('|')
-        center = [int(c) for c in coord]
-
-        base, difference = self.create_base(world_villages, zoom=zoom, center=center)
-
-        overlay = np.zeros((base.shape[0], base.shape[1], 4), dtype='uint8')
-        mark, bb = cache['values'][4:6]
-        highlight = mark in [1, 2]
-        label = mark in [2, 3]
-
-        village_cache = {}
-
-        for vil in world_villages:
-
-            # repositions coords based on base crop
-            x, y = vil.reposition(difference)
-
-            if not self.outta_bounds(vil):
-                continue
-
-            elif vil.player_id == 0:
-                if bb:
-                    color = self.colors.bb_grey
-                else:
-                    continue
-
-            elif vil.player_id not in players:
-                color = self.colors.vil_brown
-
-            else:
-                player = players[vil.player_id]
-                tribe = tribes.get(player.tribe_id)
-                if tribe is None:
-                    color = player.color
-                    tribe = player
-                else:
-                    color = tribe.color
-
-                if highlight:
-                    overlay[y - 6:y + 10, x - 6:x + 10] = color + [75]
-                if label:
-                    if tribe in village_cache:
-                        village_cache[tribe].append([y, x])
-                    else:
-                        village_cache[tribe] = [[y, x]]
-
-            base[y: y + 4, x: x + 4] = color
-
-        # append highligh overlay to base image
-        result = Image.fromarray(base)
-        with Image.fromarray(overlay) as foreground:
-            result.paste(foreground, mask=foreground)
-
-        # create legacy which is double in size for improved text quality
-        if label and village_cache:
-            self.label_map(result, village_cache, zoom)
-
-        self.watermark(result)
-        return result
+    # def create_basic_map(self, world_villages, tribes, players):
+    #     base, diff = self.create_base(world_villages)
+    #     village_cache = {t: [] for t in tribes.values()}
+    #
+    #     # create overlay image for highlighting
+    #     overlay = np.zeros((base.shape[0], base.shape[1], 4), dtype='uint8')
+    #
+    #     full_size = diff == [0, 0]
+    #     for vil in world_villages:
+    #
+    #         # repositions coords based on base crop
+    #         x, y = vil.reposition(diff)
+    #
+    #         if full_size and not self.outta_bounds(vil):
+    #             continue
+    #
+    #         player = players.get(vil.player_id)
+    #         if vil.player_id == 0:
+    #             color = self.colors.bb_grey
+    #
+    #         elif not player:
+    #             color = self.colors.vil_brown
+    #
+    #         else:
+    #             tribe = tribes[player.tribe_id]
+    #             color = tribe.color
+    #             overlay[y - 6:y + 10, x - 6:x + 10] = color + [75]
+    #             village_cache[tribe].append([y, x])
+    #
+    #         base[y: y + 4, x: x + 4] = color
+    #
+    #     # append highligh overlay to base image
+    #     result = Image.fromarray(base)
+    #     with Image.fromarray(overlay) as foreground:
+    #         result.paste(foreground, mask=foreground)
+    #
+    #     # create legacy which is double in size for improved text quality
+    #     if tribes:
+    #         self.label_map(result, village_cache)
+    #
+    #     self.watermark(result)
+    #     return result
+    #
+    # def create_custom_map(self, world_villages, tribes, players, cache):
+    #     zoom = cache['values'][0]
+    #     coord = cache['values'][1].split('|')
+    #     center = [int(c) for c in coord]
+    #
+    #     base, difference = self.create_base(world_villages, zoom=zoom, center=center)
+    #
+    #     overlay = np.zeros((base.shape[0], base.shape[1], 4), dtype='uint8')
+    #     mark, bb = cache['values'][4:6]
+    #     highlight = mark in [1, 2]
+    #     label = mark in [2, 3]
+    #
+    #     village_cache = {}
+    #
+    #     for vil in world_villages:
+    #
+    #         # repositions coords based on base crop
+    #         x, y = vil.reposition(difference)
+    #
+    #         if not self.outta_bounds(vil):
+    #             continue
+    #
+    #         elif vil.player_id == 0:
+    #             if bb:
+    #                 color = self.colors.bb_grey
+    #             else:
+    #                 continue
+    #
+    #         elif vil.player_id not in players:
+    #             color = self.colors.vil_brown
+    #
+    #         else:
+    #             player = players[vil.player_id]
+    #             tribe = tribes.get(player.tribe_id)
+    #             if tribe is None:
+    #                 color = player.color
+    #                 tribe = player
+    #             else:
+    #                 color = tribe.color
+    #
+    #             if highlight:
+    #                 overlay[y - 6:y + 10, x - 6:x + 10] = color + [75]
+    #             if label:
+    #                 if tribe in village_cache:
+    #                     village_cache[tribe].append([y, x])
+    #                 else:
+    #                     village_cache[tribe] = [[y, x]]
+    #
+    #         base[y: y + 4, x: x + 4] = color
+    #
+    #     # append highligh overlay to base image
+    #     result = Image.fromarray(base)
+    #     with Image.fromarray(overlay) as foreground:
+    #         result.paste(foreground, mask=foreground)
+    #
+    #     # create legacy which is double in size for improved text quality
+    #     if label and village_cache:
+    #         self.label_map(result, village_cache, zoom)
+    #
+    #     self.watermark(result)
+    #     return result
 
     @commands.command(name="map")
-    async def map_(self, ctx, *, tribe_names=None):
+    async def map_(self, ctx, *, arguments=None):
+        options = {'zoom': [0, 5], 'top': [5, 10, 20], 'player': False, 'label': True}
+        tribe_names, zoom, top, player, label = keyword(arguments, strip=True, **options)
+
         await ctx.trigger_typing()
 
         color_map = []
         if not tribe_names:
 
-            file = self.map_cache.get(ctx.server)
-            if file is None:
-                tribes = await self.bot.fetch_top(ctx.server, "tribe", till=10)
+            if arguments is None:
+                print("top10")
 
-            else:
-                file.seek(0)
-                await ctx.send(file=discord.File(file, 'map.png'))
-                return
+            ds_type = "player" if player else "tribe"
+            ds_objects = await self.bot.fetch_top(ctx.server, ds_type, till=top.value)
+            print(ds_objects[0].name)
 
         else:
             all_tribes = []
@@ -316,13 +368,16 @@ class Map(commands.Cog):
                 else:
                     color_map.append(names)
 
-            tribes = await self.bot.fetch_bulk(ctx.server, all_tribes, "tribe", name=True)
+            ds_objects = await self.bot.fetch_bulk(ctx.server, all_tribes, 1, name=True)
 
         if len(color_map) > 20:
             return await ctx.send("Du kannst nur bis zu 20 Stämme/Gruppierungen angeben")
 
         colors = self.colors.top()
-        for tribe in tribes.copy():
+        for tribe in ds_objects.copy():
+            if not tribe_names:
+                tribe.color = colors.pop(0)
+                continue
 
             for index, group in enumerate(color_map):
                 names = [t.lower() for t in group]
@@ -331,31 +386,31 @@ class Map(commands.Cog):
                     break
 
             else:
-                if tribe_names:
-                    tribes.remove(tribe)
-                else:
-                    tribe.color = colors.pop(0)
+                print("triggered")
+                ds_objects.remove(tribe)
 
-        tribes = {tribe.id: tribe for tribe in tribes}
-        result = await self.bot.fetch_tribe_member(ctx.server, tribes.keys())
         all_villages = await self.bot.fetch_all(ctx.server, "map")
-        players = {pl.id: pl for pl in result}
-
         if not all_villages:
             msg = "Auf der Welt gibt es noch keine Dörfer :/"
             return await ctx.send(msg)
 
-        args = (all_villages, tribes, players)
-        image = await self.bot.execute(self.create_basic_map, *args)
+        ds_dict = {dsobj.id: dsobj for dsobj in ds_objects}
+        if player:
+            args = (all_villages, {}, ds_dict)
+
+        else:
+            result = await self.bot.fetch_tribe_member(ctx.server, list(ds_dict))
+            players = {pl.id: pl for pl in result}
+            args = (all_villages, ds_dict, players)
+
+        kwargs = {'zoom': zoom.value, 'label': label.value}
+        image = await self.bot.execute(self.draw_map, *args, **kwargs)
 
         file = io.BytesIO()
         image.save(file, "png", quality=100)
         image.close()
         file.seek(0)
         await ctx.send(file=discord.File(file, "map.png"))
-
-        if not tribe_names:
-            self.map_cache[ctx.server] = file
 
     async def update_menue(self, cache, index):
         embed = cache['msg'].embeds[0]
@@ -394,7 +449,7 @@ class Map(commands.Cog):
         if user == self.bot.user:
             return
 
-        cache = self.cache.get(user.id)
+        cache = self.custom_cache.get(user.id)
         if not cache:
             return
 
@@ -502,8 +557,13 @@ class Map(commands.Cog):
                     dsobj.color = colors.pop(0)
 
             village = await self.bot.fetch_all(ctx.server, 'map')
-            args = (village, tribes, players, cache)
-            image = await self.bot.execute(self.create_custom_map, *args)
+            args = (village, tribes, players)
+
+            coord = cache['values'][1].split('|')
+            center = [int(c) for c in coord]
+            kwargs = {'zoom': cache['values'][0], 'center': center}
+
+            image = await self.bot.execute(self.draw_map, *args, **kwargs)
 
             with io.BytesIO() as file:
                 image.save(file, "png", quality=100)
@@ -511,17 +571,17 @@ class Map(commands.Cog):
                 file.seek(0)
                 await ctx.send(file=discord.File(file, "map.png"))
 
-            return self.cache.pop(user.id)
+            return self.custom_cache.pop(user.id)
 
         await self.update_menue(cache, index)
 
     @commands.command(name="custom")
     async def custom_(self, ctx, world: WorldConverter = None):
-        if ctx.author.id in self.cache:
+        if ctx.author.id in self.custom_cache:
             msg = "Du hast noch eine offene Karte"
             return await ctx.send(msg)
         else:
-            cache = self.cache[ctx.author.id] = {}
+            cache = self.custom_cache[ctx.author.id] = {}
 
         if world:
             ctx.world = world
@@ -549,7 +609,7 @@ class Map(commands.Cog):
 
         await asyncio.sleep(600)
 
-        current = self.cache.get(ctx.author.id)
+        current = self.custom_cache.get(ctx.author.id)
         if current is None:
             return
 

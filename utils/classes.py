@@ -406,4 +406,4 @@ class Keyword:
             return other_value == self.value
 
     def __bool__(self):
-        return self.value is not None
+        return bool(self.value)

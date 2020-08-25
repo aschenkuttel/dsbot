@@ -48,7 +48,8 @@ class Villages(commands.Cog):
             file.write(f'{os.linesep}'.join(represent))
             file.seek(0)
             await ctx.author.send(file=discord.File(file, 'villages.txt'))
-            await ctx.private_hint()
+
+        await ctx.private_hint()
 
     async def fetch_in_radius(self, world, village, **kwargs):
         radius = kwargs.get('radius', 20)
