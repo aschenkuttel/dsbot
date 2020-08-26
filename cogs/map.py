@@ -9,11 +9,94 @@ import re
 
 
 class MapMenue:
-    def __init__(self):
-        self._values = [0, "500|500", [], [], 0, True]
+    icons = [
+        '<:center:672875546773946369>',
+        '<:dsmap:672912316240756767>',
+        '<:friend:672875516117778503>',
+        '<:tribe:672862439074693123>',
+        '<:report:672862439242465290>',
+        '<:old:672862439112441879>',
+        '<:button:672910606700904451>',
+    ]
 
-    def change(self):
-        pass
+    def __init__(self, ctx, message):
+        self.ctx = ctx
+        self.message = message
+        self.zoom = 0
+        self.center = "500|500"
+        self.tribes = []
+        self.player = []
+        self.highlight = 0
+        self.bb = True
+
+    def change(self, emoji):
+        try:
+            index = self.icons.index(emoji)
+        except ValueError:
+            return
+
+        # zoom switch
+        if index == 0:
+            if values[index] > 4:
+                values[index] = 0
+            else:
+                values[index] += 1
+
+        # player, tribe or center
+        elif index in (1, 2, 3):
+            if values[index] is False:
+                return
+
+            values[index] = False
+
+            listen = self.bot.get_cog('Listen')
+            listen.blacklist.append(ctx.author.id)
+
+            if index == 1:
+                msg = "**Gebe bitte die gewünschte Koordinate an:**"
+
+            else:
+                obj = "Spieler" if index == 2 else "Stämme"
+                msg = f"**Gebe jetzt bis zu 10 {obj} an:**\n" \
+                      f"(Mit neuer Zeile getrennt | Shift Enter)"
+
+            guide_msg = await ctx.send(msg)
+
+            def check(message):
+                return ctx.author == message.author and ctx.channel == message.channel
+
+            try:
+                result = await self.bot.wait_for('message', check=check, timeout=300)
+
+                if index == 1:
+                    coords = re.findall(r'\d\d\d\|\d\d\d', result.content)
+                    if coords:
+                        values[index] = coords[0]
+
+                else:
+                    iterable = result.content.split("\n")
+                    data = await self.bot.fetch_bulk(ctx.server, iterable, index - 2, name=True)
+                    values[index] = data[:10]
+
+                if values[index] is False:
+                    values[index] = self.default[index]
+
+                listen.blacklist.remove(ctx.author.id)
+                await silencer(result.delete())
+
+            except asyncio.TimeoutError:
+                await self.timeout(cache, user.id, 300)
+                return
+
+            finally:
+                await silencer(guide_msg.delete())
+
+        # none, mark, label + mark, label
+        elif index == 4:
+            if values[index] > 2:
+                values[index] = 0
+            else:
+                values[index] += 1
 
 
 class Map(commands.Cog):
@@ -469,7 +552,7 @@ class Map(commands.Cog):
             return
 
         cache = self.custom_cache.get(user.id)
-        if not cache:
+        if cache is None:
             return
 
         elif reaction.message.id != cache['msg'].id:
