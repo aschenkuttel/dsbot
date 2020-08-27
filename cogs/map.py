@@ -1,4 +1,4 @@
-from utils import WorldConverter, DSColor, MapVillage, silencer, keyword
+from utils import WorldConverter, DSColor, MapVillage, silencer, keyword, Player
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 import numpy as np
@@ -33,8 +33,8 @@ class MapMenue:
         self.color = DSColor()
 
     def get_value(self, index):
-        values = [self.zoom, self.center, self.tribes,
-                  self.player, self.highlight, self.bb]
+        values = [self.zoom, self.center, self.player,
+                  self.tribes, self.highlight, self.bb]
         return values[index]
 
     async def setup(self):
@@ -70,25 +70,28 @@ class MapMenue:
             else:
                 self.zoom += 1
 
-        # index 1,2,3: center, tribe, player
+        # index 1,2,3: center, player, tribe
         elif index in (1, 2, 3):
-            values = [self.center, self.tribes, self.player]
-
-            if values[index] is False:
+            values = [self.center, self.player, self.tribes]
+            if values[index - 1] is False:
                 return
-            else:
-                values[index] = False
 
             listen = self.bot.get_cog('Listen')
             listen.blacklist.append(self.ctx.author.id)
 
             if index == 1:
                 msg = "**Gebe bitte die gewünschte Koordinate an:**"
+                self.center = False
 
             else:
                 obj = "Spieler" if index == 2 else "Stämme"
                 msg = f"**Gebe jetzt bis zu 10 {obj} an:**\n" \
                       f"(Mit neuer Zeile getrennt | Shift Enter)"
+
+                if index == 2:
+                    self.player = False
+                else:
+                    self.tribes = False
 
             guide_msg = await self.ctx.send(msg)
 
@@ -101,16 +104,19 @@ class MapMenue:
                 if index == 1:
                     coords = re.findall(r'\d\d\d\|\d\d\d', result.content)
                     if coords:
-                        values[index] = coords[0]
+                        self.center = coords[0]
+                    else:
+                        self.center = self.default_values[index]
 
                 else:
                     iterable = result.content.split("\n")
                     args = (self.ctx.server, iterable, index - 2)
                     data = await self.bot.fetch_bulk(*args, name=True)
-                    values[index] = data[:10]
 
-                if values[index] is False:
-                    values[index] = self.default_values[index]
+                    if index == 2:
+                        self.player = data[:10]
+                    else:
+                        self.tribes = data[:10]
 
                 listen.blacklist.remove(self.ctx.author.id)
                 await silencer(result.delete())
@@ -140,6 +146,8 @@ class MapMenue:
                 self.tribes = []
             if self.player is False:
                 self.player = []
+            if self.center is False:
+                self.center = "500|500"
 
             idc = [tribe.id for tribe in self.tribes]
             members = await self.bot.fetch_tribe_member(self.ctx.server, idc)
@@ -162,7 +170,6 @@ class MapMenue:
             center = [int(c) for c in self.center.split('|')]
             label = self.highlight in [2, 3]
             kwargs = {'zoom': self.zoom, 'center': center, 'label': label}
-            print("returning :)")
             return args, kwargs
 
         await self.update(index)
@@ -320,13 +327,9 @@ class Map(commands.Cog):
         image.paste(watermark, mask=watermark)
         watermark.close()
 
-    def label_map(self, result, village_cache, zoom=0, player=False):
+    def label_map(self, result, village_cache, zoom=0):
         reservation = []
         font_size = int(self.max_font_size * ((result.size[0] - 50) / self.high))
-
-        if player:
-            font_size *= 0.42
-
         most_villages = len(sorted(village_cache.items(), key=lambda l: len(l[1]))[-1][1])
 
         bound_size = tuple([int(c * 1.5) for c in result.size])
@@ -336,6 +339,9 @@ class Map(commands.Cog):
         for dsobj, villages in village_cache.items():
             if not villages:
                 continue
+
+            if isinstance(dsobj, Player):
+                font_size *= 0.4
 
             vil_x = [int(v[0] * 1.5) for v in villages]
             vil_y = [int(v[1] * 1.5) for v in villages]
@@ -393,7 +399,6 @@ class Map(commands.Cog):
                 color = self.colors.vil_brown
 
             else:
-
                 tribe = tribes.get(player.tribe_id)
                 if tribe is None or hasattr(player, 'color'):
                     color = player.color
@@ -413,7 +418,7 @@ class Map(commands.Cog):
 
         # create legacy which is double in size for improved text quality
         if label is True and tribes or label is True and players:
-            self.label_map(result, village_cache, options['zoom'], player=not tribes)
+            self.label_map(result, village_cache, options['zoom'])
 
         self.watermark(result)
         return result
@@ -479,7 +484,6 @@ class Map(commands.Cog):
                     break
 
             else:
-                print("triggered")
                 ds_objects.remove(tribe)
 
         all_villages = await self.bot.fetch_all(ctx.server, "map")
@@ -536,10 +540,10 @@ class Map(commands.Cog):
     @commands.command(name="custom")
     async def custom_(self, ctx, world: WorldConverter = None):
         if ctx.author.id in self.custom_cache:
-            msg = "Du hast noch eine offene Karte"
+            msg = "Du hast bereits eine offene Karte"
             return await ctx.send(msg)
 
-        if world:
+        if world is not None:
             ctx.world = world
 
         menue = MapMenue(ctx)
