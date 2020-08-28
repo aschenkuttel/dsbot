@@ -1,6 +1,7 @@
 from utils import WorldConverter, DSColor, MapVillage, silencer, keyword, Player
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
+from datetime import datetime
 import numpy as np
 import discord
 import asyncio
@@ -24,6 +25,7 @@ class MapMenue:
         self.ctx = ctx
         self.bot = ctx.bot
         self.message = None
+        self.embed = None
         self.zoom = 0
         self.center = "500|500"
         self.tribes = []
@@ -31,13 +33,17 @@ class MapMenue:
         self.highlight = 0
         self.bb = True
         self.color = DSColor()
+        self.dead = False
+
+    def is_dead(self):
+        return self.dead
 
     def get_value(self, index):
         values = [self.zoom, self.center, self.player,
                   self.tribes, self.highlight, self.bb]
         return values[index]
 
-    async def setup(self):
+    async def setup(self, restart=False):
         options = []
         for icon, value in self.bot.msg['mapOptions'].items():
             title = value['title']
@@ -48,14 +54,23 @@ class MapMenue:
                 message = f"\n{icon} {title}"
             options.append(message)
 
-        embed = discord.Embed(title="Custom Map Tool", description="\n".join(options))
+        self.embed = discord.Embed(title="Custom Map Tool", description="\n".join(options))
         example = f"Für eine genaue Erklärung und Beispiele: {self.ctx.prefix}help custom"
-        embed.set_footer(text=example)
+        self.embed.set_footer(text=example)
 
-        self.message = await self.ctx.send(embed=embed)
+        if restart is True:
+            for index in range(5):
+                self.update_embed(index)
+
+        self.message = await self.ctx.send(embed=self.embed)
 
         for icon in self.icons:
             await self.message.add_reaction(icon)
+
+    async def reinstall(self, ctx):
+        self.dead = False
+        self.ctx = ctx
+        await self.setup(restart=True)
 
     async def change(self, emoji):
         try:
@@ -172,13 +187,13 @@ class MapMenue:
             kwargs = {'zoom': self.zoom, 'center': center, 'label': label}
             return args, kwargs
 
-        await self.update(index)
+        self.update_embed(index)
+        await self.message.edit(embed=self.embed)
         return True
 
-    async def update(self, index):
-        embed = self.message.embeds[0]
+    def update_embed(self, index):
         value = self.get_value(index)
-        options = embed.description
+        options = self.embed.description
         field = options.split("\n")[index]
         old_value = re.findall(r'\[.*]', field)[0]
 
@@ -196,8 +211,7 @@ class MapMenue:
             current_value = str(value)
 
         new_field = field.replace(old_value, f"[{current_value}]")
-        embed.description = options.replace(field, new_field)
-        await self.message.edit(embed=embed)
+        self.embed.description = options.replace(field, new_field)
 
 
 class Map(commands.Cog):
@@ -206,8 +220,8 @@ class Map(commands.Cog):
         self.low = 0
         self.high = 3001
         self.space = 20
-        self.map_cache = {}
-        self.custom_cache = {}
+        self.top10_cache = {}
+        self.menue_cache = {}
         self.colors = DSColor()
         self.max_font_size = 300
         self.img = Image.open(f"{self.bot.data_path}/map.png")
@@ -233,6 +247,19 @@ class Map(commands.Cog):
         else:
             return True
 
+    def reset_cooldown(self, ctx):
+        bucket = self._cd.get_bucket(ctx.message)
+        bucket.reset()
+
+    async def called_by_hour(self):
+        for key in self.menue_cache.copy():
+            menue = self.menue_cache[key]
+            now = datetime.utcnow()
+            creation = menue.message.created_at
+
+            if menue.dead is True and (now - creation).total_seconds() > 600:
+                self.menue_cache.pop(key)
+
     async def send_map(self, ctx, *args, **kwargs):
         image = await self.bot.execute(self.draw_map, *args, **kwargs)
 
@@ -245,15 +272,15 @@ class Map(commands.Cog):
         return file
 
     async def timeout(self, user_id, time):
-        current = self.custom_cache.get(user_id)
+        current = self.menue_cache.get(user_id)
         if current is None:
             return
 
+        current.dead = True
         embed = current.message.embeds[0]
         embed.title = f"**Timeout:** Zeitüberschreitung({time}s)"
         await silencer(current.message.edit(embed=embed))
         await silencer(current.message.clear_reactions())
-        self.custom_cache.pop(user_id)
 
     def convert_to_255(self, iterable):
         result = []
@@ -433,7 +460,7 @@ class Map(commands.Cog):
         color_map = []
         if not tribe_names:
 
-            file = self.map_cache.get(ctx.server)
+            file = self.top10_cache.get(ctx.server)
             if arguments is None and file is not None:
                 file.seek(0)
                 await ctx.send(file=discord.File(file, 'map.png'))
@@ -505,7 +532,7 @@ class Map(commands.Cog):
         file = await self.send_map(ctx, *args, **kwargs)
 
         if arguments is None:
-            self.map_cache[ctx.server] = file
+            self.top10_cache[ctx.server] = file
         else:
             file.close()
 
@@ -521,7 +548,7 @@ class Map(commands.Cog):
         if user == self.bot.user:
             return
 
-        menue = self.custom_cache.get(user.id)
+        menue = self.menue_cache.get(user.id)
         if menue is None:
             return
 
@@ -535,24 +562,37 @@ class Map(commands.Cog):
 
             elif isinstance(resp, tuple):
                 await self.send_map(menue.ctx, *resp[0], **resp[1])
-                self.custom_cache.pop(user.id)
+                menue.dead = True
 
-    @commands.command(name="custom")
+    @commands.command(name="custom", aliases=["last"])
     async def custom_(self, ctx, world: WorldConverter = None):
-        if ctx.author.id in self.custom_cache:
+        menue = self.menue_cache.get(ctx.author.id)
+
+        if menue is not None and not menue.is_dead():
             msg = "Du hast bereits eine offene Karte"
+            self.reset_cooldown(ctx)
             return await ctx.send(msg)
 
-        if world is not None:
-            ctx.world = world
+        elif ctx.invoked_with.lower() == "last":
+            if menue is None:
+                msg = "Du hast keine alte Karte mehr im Cache"
+                self.reset_cooldown(ctx)
+                return await ctx.send(msg)
 
-        menue = MapMenue(ctx)
-        self.custom_cache[ctx.author.id] = menue
-        await menue.setup()
+            elif menue.is_dead():
+                await menue.reinstall(ctx)
+
+        else:
+            if world is not None:
+                ctx.world = world
+
+            menue = MapMenue(ctx)
+            self.menue_cache[ctx.author.id] = menue
+            await menue.setup()
 
         await asyncio.sleep(600)
 
-        menue = self.custom_cache.get(ctx.author.id)
+        menue = self.menue_cache.get(ctx.author.id)
         if menue is None:
             return
 
