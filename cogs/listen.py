@@ -355,7 +355,12 @@ class Listen(commands.Cog):
         logger.debug(f"command completed [{cid}]")
 
         if ctx.author.id != self.bot.owner_id:
-            self.cmd_counter[str(ctx.command)] += 1
+            if ctx.command.parent is not None:
+                cmd = str(ctx.command.parent)
+            else:
+                cmd = str(ctx.command)
+
+            self.cmd_counter[cmd] += 1
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):

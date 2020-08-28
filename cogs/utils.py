@@ -555,6 +555,20 @@ class Rm(commands.Cog):
         wimbed.set_footer(text="Abstimmung beendet")
         await poll.edit(embed=wimbed)
 
+    @commands.command(name="statistic")
+    async def statistic(self, ctx):
+        data = await self.bot.fetch_usage()
+        result = [f"`{usage}` [{cmd}]" for cmd, usage in data[:10]]
+
+        if result:
+            msg = '\n'.join(result)
+        else:
+            msg = "Es sind noch keine Daten zur Verfügung"
+
+        embed = discord.Embed(description=msg)
+        embed.set_footer(text='Statistiken werden einmal die Stunde gespeichert')
+        await ctx.send(embed=embed)
+
 
 def setup(bot):
     bot.add_cog(Rm(bot))
