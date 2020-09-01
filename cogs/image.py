@@ -11,6 +11,7 @@ import os
 class Graphic(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 2
         self.emojis = {}
         self.setup_emojis()
 
@@ -90,44 +91,6 @@ class Graphic(commands.Cog):
         file = discord.File(fp=output_buffer, filename=filename)
         await ctx.author.send(file=file)
         await ctx.private_hint()
-
-    @commands.command(name="nude")
-    @commands.cooldown(1, 10.0, commands.BucketType.user)
-    async def nude_(self, ctx, *, dsobj: DSConverter = None):
-        await ctx.trigger_typing()
-
-        if dsobj is None:
-            players = await self.bot.fetch_random(ctx.server, amount=30, max=True)
-        else:
-            players = [dsobj]
-
-        for player in players:
-
-            async with self.bot.session.get(player.guest_url) as res:
-                data = await res.read()
-
-            soup = BeautifulSoup(data, "html.parser")
-            tbody = soup.find(id='content_value')
-            tables = tbody.findAll('table')
-            tds = tables[1].findAll('td', attrs={'valign': 'top'})
-            images = tds[1].findAll('img')
-
-            if images and images[0]['src'].endswith("large"):
-                result = images[0]
-                break
-
-        else:
-            if dsobj:
-                msg = f"Glaub mir, die Nudes von `{dsobj.name}` willst du nicht!"
-            else:
-                msg = "Die maximale Anzahl von Versuchen wurden erreicht"
-
-            return await ctx.send(msg)
-
-        async with self.bot.session.get(result['src']) as res2:
-            file = BytesIO(await res2.read())
-
-        await ctx.send(file=discord.File(file, "userpic.gif"))
 
     @commands.command(name="emoji")
     @commands.bot_has_permissions(manage_emojis=True)

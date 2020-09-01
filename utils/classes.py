@@ -337,8 +337,7 @@ class DSType:
             return response
 
 
-class TribalGames(commands.Cog):
-
+class DSGames(commands.Cog):
     async def cog_check(self, ctx):
         container = self.get_container(ctx)
         if isinstance(container, list):
@@ -366,6 +365,7 @@ class TribalGames(commands.Cog):
 
     def get_container(self, ctx):
         command = str(ctx.command)
+
         if command == "guess":
             command = "hangman"
         elif command == "draw":

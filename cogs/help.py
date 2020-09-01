@@ -1,12 +1,15 @@
 from discord.ext import commands
 import discord
 import asyncio
+import utils
 
 
 class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cache = {}
+        self.categories = ["Administratives", "Stämme Features",
+                           "Utilities and Fun", "Minigames"]
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -47,22 +50,45 @@ class Help(commands.Cog):
         emb_help = discord.Embed(description=desc, color=discord.Color.blue())
         emb_help.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
 
-        for name, cmd_list in self.bot.msg['helpGroups'].items():
-            cmd_list.sort(key=lambda c: len(c))
+        groups = {name: [] for name in self.categories}
+        for name, cog in self.bot.cogs.items():
+            cog_type = getattr(cog, 'type', None)
 
+            if cog_type is None:
+                continue
+
+            category = self.categories[cog_type]
+            for cmd in cog.get_commands():
+
+                for alias in cmd.aliases:
+                    if len(alias) < 3:
+                        cmd_name = f"{alias} [{cmd}]"
+                        break
+                else:
+                    cmd_name = str(cmd)
+
+                groups[category].append(cmd_name)
+
+        for name, cmd_list in groups.items():
             cache = []
             datapack = []
-            for cmd in cmd_list:
+            sorted_list = utils.sort_list(cmd_list)
+
+            for cmd in sorted_list:
 
                 if len("".join(cache) + cmd) > 30 and len(cache) > 1:
                     self.packing(datapack, cache)
 
                 cache.append(cmd)
 
-                if len(cache) == 5 or len(cache) > 1 and "[" in cache[-2]:
+                num = 4 if len(cmd) > 4 else 5
+                if len(cache) >= num or len(cache) > 1 and "[" in cache[-2]:
                     self.packing(datapack, cache)
 
-                elif cmd == cmd_list[-1] and cache or "[" in cmd and len(cache) == 2:
+                if cmd == sorted_list[-1] and cache:
+                    self.packing(datapack, cache)
+
+                elif "[" in cmd and len(cache) == 2:
                     self.packing(datapack, cache)
 
             emb_help.add_field(name=f"{name}:", value="\n".join(datapack), inline=False)
@@ -135,6 +161,32 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
+    @help.command(name="reset")
+    async def reset_(self, ctx):
+        title = "`~reset`"
+        desc = "Setzt einen gewünschten Teil oder die gesamten Serverconfigs zurück."
+        cmd_type = "Admin Command"
+        cmd_inp = ["`~reset <game|conquer|config>`"]
+        example = ["`~reset game`",
+                   "`~reset conquer`",
+                   "`~reset config`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+    @help.command(name="world")
+    async def world_(self, ctx):
+        title = "`~world`"
+        desc = "Erhalte die Welt des Textchannels oder des Servers"
+        cmd_type = "Admin Command"
+        cmd_inp = ["`~world`"]
+        example = ["`~world`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
     @help.command(name="remove")
     async def remove_(self, ctx):
         title = "`~remove`"
@@ -148,6 +200,36 @@ class Help(commands.Cog):
                    "`~remove game`",
                    "`~remove conquer`",
                    "`~remove prefix`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+    @help.command(name="switch")
+    async def switch_(self, ctx):
+        title = "`~switch`"
+        desc = "Aktiviert oder Deaktiviert einen der 4 Konverter:\n" \
+               "Koordinaten, Berichte, BB-Codes oder Unterstützungsanfrage"
+        cmd_type = "Admin Command"
+        cmd_inp = ["`~switch <coord|request|mention|record>`",
+                   "`~switch list`"]
+        example = ["`~switch coord`",
+                   "`~switch request`",
+                   "`~switch mention`",
+                   "`~switch record`",
+                   "`~switch list`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+    @help.command(name="worlds")
+    async def worlds_(self, ctx):
+        title = "`~worlds`"
+        desc = "Erhalte alle momentan aktive Welten"
+        cmd_type = "Admin Command"
+        cmd_inp = ["`~worlds`"]
+        example = ["`~worlds`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -175,43 +257,38 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="worlds")
-    async def worlds_(self, ctx):
-        title = "`~worlds`"
-        desc = "Erhalte alle momentan aktive Welten"
-        cmd_type = "Admin Command"
-        cmd_inp = ["`~worlds`"]
-        example = ["`~worlds`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
-    @help.command(name="world")
-    async def world_(self, ctx):
-        title = "`~world`"
-        desc = "Erhalte die Welt des Textchannels oder des Servers"
-        cmd_type = "Admin Command"
-        cmd_inp = ["`~world`"]
-        example = ["`~world`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
-    @help.command(name="refresh", aliases=["f5"])
-    async def refresh_(self, ctx):
-        title = "`~refresh` - `~f5`"
-        desc = "Setzt alle Spiele des Servers zurück"
-        cmd_type = "Admin Command"
-        cmd_inp = ["`~refresh`"]
-        example = ["`~refresh`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
     # Stämme Features
+    @help.command(name="map")
+    async def map_(self, ctx):
+        title = "`~map`"
+        desc = "Erstellt eine Karte der Welt und markiert angegebene Stämme. " \
+               "Falls keine angegeben werden erhält man eine Darstellung der Top 10. " \
+               "Des weiteren kann man mit einem & Zeichen zwischen mehreren Stämmen diese " \
+               "gruppieren und einheitlich in einer Farbe anzeigen lassen."
+        cmd_type = "Server Command"
+        cmd_inp = ["`~map`",
+                   "`~map <tribe> <tribe> <tribe>`",
+                   "`~map <tribe> <tribe> & <tribe> <tribe>`"]
+        example = ["`~map`",
+                   "`~map <300> <W-Inc>`",
+                   "`~map 300 W-Inc & SPARTA`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+    @help.command(name="top")
+    async def top_(self, ctx):
+        title = "`~top`"
+        desc = "Erhalte die ewige Top 5 der jeweiligen \"An einem Tag\"-Rangliste."
+        cmd_type = "Server Command"
+        cmd_inp = ["`~top <bash/def/ut/farm/villages/scavenge/conquer>`"]
+        example = ["`~top bash`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
     @help.command(name="bash", aliases=["allbash", "attbash", "defbash", "supbash"])
     async def bash_(self, ctx):
         title = "`~bash` - `~allbash` - `~attbash` - `~defbash` - `~supbash`"
@@ -227,46 +304,22 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="player", aliases=["tribe"])
-    async def player_(self, ctx):
-        title = "`~player` - `~tribe`"
-        desc = "Erhalte eine kleine Übersicht eines Accounts/Stamm mit 30-Tage-Graph"
+    @help.command(name="nude")
+    async def nude_(self, ctx):
+        title = "`~nude`"
+        desc = "Erhalte das Profilbild eines Spielers, Stammes. Falls " \
+               "kein Name angegeben wird, wird ein Bild zufällig " \
+               "von allen Spielern der Server-Welt ausgesucht."
         cmd_type = "Server Command"
-        cmd_inp = ["`~player <playername>`",
-                   "`~tribe <tribename>`"]
-        example = ["`~player Philson Cardoso`",
-                   "`~tribe Milf!`"]
+        cmd_inp = ["`~nude`",
+                   "`~nude <playername/tribename>`"]
+        example = ["`~nude`",
+                   "`~nude Leedsi`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="visit")
-    async def visit_(self, ctx):
-        title = "`~visit`"
-        desc = "Erhalte den Gastlogin-Link einer Welt"
-        cmd_type = "Server Command"
-        cmd_inp = ["`~visit <world>`"]
-        example = ["`~visit de143`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
-    @help.command(name="members")
-    async def members_(self, ctx):
-        title = "`~members`"
-        desc = "Erhalte alle Member eines Stammes,\n" \
-               "mögliche Optionen: `ingame, guest, twstats`"
-        cmd_type = "Server Command"
-        cmd_inp = ["`~members <tribetag>`",
-                   "`~members <tribetag> <url_type=ingame>`"]
-        example = ["`~members W-Inc`",
-                   "`~members W-Inc twstats`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
 
     @help.command(name="daily", aliases=["aktueller"])
     async def daily_(self, ctx):
@@ -288,17 +341,7 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="top")
-    async def top_(self, ctx):
-        title = "`~top`"
-        desc = "Erhalte die ewige Top 5 der jeweiligen \"An einem Tag\"-Rangliste."
-        cmd_type = "Server Command"
-        cmd_inp = ["`~top <bash/def/ut/farm/villages/scavenge/conquer>`"]
-        example = ["`~top bash`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
+
 
     @help.command(name="recap")
     async def recap_(self, ctx):
@@ -314,6 +357,73 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
+
+    @help.command(name="visit")
+    async def visit_(self, ctx):
+        title = "`~visit`"
+        desc = "Erhalte den Gastlogin-Link einer Welt"
+        cmd_type = "Server Command"
+        cmd_inp = ["`~visit <world>`"]
+        example = ["`~visit de143`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+    @help.command(name="custom")
+    async def custom_(self, ctx):
+        title = "`~custom`"
+        desc = "Erstellt eine Karte der channelverbundenen oder angegebenen Welt. " \
+               "Die Emotes sind hierbei als \"Knöpfe\" zu betrachten, Optionen wie " \
+               "Zoom und Markierung haben mehrere Stufen (5 Minuten Zeitlimit)"
+        cmd_type = "Server Command"
+        cmd_inp = ["`~custom <world>`"]
+        example = ["`~custom de172`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+    @help.command(name="player", aliases=["tribe"])
+    async def player_(self, ctx):
+        title = "`~player` - `~tribe`"
+        desc = "Erhalte eine kleine Übersicht eines Accounts/Stamm mit 30-Tage-Graph"
+        cmd_type = "Server Command"
+        cmd_inp = ["`~player <playername>`",
+                   "`~tribe <tribename>`"]
+        example = ["`~player Philson Cardoso`",
+                   "`~tribe Milf!`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+
+
+
+
+
+
+
+
+
+
+    @help.command(name="members")
+    async def members_(self, ctx):
+        title = "`~members`"
+        desc = "Erhalte alle Member eines Stammes,\n" \
+               "mögliche Optionen: `ingame, guest, twstats`"
+        cmd_type = "Server Command"
+        cmd_inp = ["`~members <tribetag>`",
+                   "`~members <tribetag> <url_type=ingame>`"]
+        example = ["`~members W-Inc`",
+                   "`~members W-Inc twstats`"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
+
+
 
     @help.command(name="villages")
     async def villages_(self, ctx):
@@ -345,55 +455,6 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="nude")
-    async def nude_(self, ctx):
-        title = "`~nude`"
-        desc = "Erhalte das Profilbild eines Spielers, Stammes. Falls " \
-               "kein Name angegeben wird, wird ein Bild zufällig " \
-               "von allen Spielern der Server-Welt ausgesucht."
-        cmd_type = "Server Command"
-        cmd_inp = ["`~nude`",
-                   "`~nude <playername/tribename>`"]
-        example = ["`~nude`",
-                   "`~nude Leedsi`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
-    @help.command(name="map")
-    async def map_(self, ctx):
-        title = "`~map`"
-        desc = "Erstellt eine Karte der Welt und markiert angegebene Stämme. " \
-               "Falls keine angegeben werden erhält man eine Darstellung der Top 10. " \
-               "Des weiteren kann man mit einem & Zeichen zwischen mehreren Stämmen diese " \
-               "gruppieren und einheitlich in einer Farbe anzeigen lassen."
-        cmd_type = "Server Command"
-        cmd_inp = ["`~map`",
-                   "`~map <tribe> <tribe> <tribe>`",
-                   "`~map <tribe> <tribe> & <tribe> <tribe>`"]
-        example = ["`~map`",
-                   "`~map <300> <W-Inc>`",
-                   "`~map 300 W-Inc & SPARTA`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
-    @help.command(name="custom")
-    async def custom_(self, ctx):
-        title = "`~custom`"
-        desc = "Erstellt eine Karte der channelverbundenen oder angegebenen Welt. " \
-               "Die Emotes sind hierbei als \"Knöpfe\" zu betrachten, Optionen wie " \
-               "Zoom und Markierung haben mehrere Stufen (5 Minuten Zeitlimit)"
-        cmd_type = "Server Command"
-        cmd_inp = ["`~custom <world>`"]
-        example = ["`~custom de172`"]
-        data = title, desc, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await ctx.author.send(embed=embed)
-        await self.mailbox(ctx, embed)
-
     @help.command(name="rm")
     async def rm_(self, ctx):
         title = "`~rm`"
@@ -408,7 +469,7 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-    @help.command(name="rz", aliases=["rz3", "rz4"])
+    @help.command(name="raubzug", aliases=["rz3", "rz4"])
     async def rz_(self, ctx):
         title = "`~rz3` - `~rz4`"
         desc = "Erhalte die beste Aufteilung für den Raubzug. " \
@@ -555,7 +616,7 @@ class Help(commands.Cog):
 
     # Minigames
     @help.command(name="anagram", aliases=["ag"])
-    async def ag_(self, ctx):
+    async def anagram_(self, ctx):
         title = "`~ag` - `~anagram`"
         desc = "Spiele eine Runde Anagram mit Worten aus DS."
         cmd_type = "Server Command"

@@ -6,6 +6,7 @@ import utils
 class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 0
         self.games = {'Word': ["hangman", "anagram"],
                       'Card': ["quiz", "tribalcard"],
                       'Poker': ["blackjack", "videopoker"]}
@@ -25,7 +26,7 @@ class Admin(commands.Cog):
         await ctx.send(embed=utils.error_embed(msg))
 
     @reset.command(name="game")
-    async def games_(self, ctx):
+    async def game_(self, ctx):
         for game, caches in self.games.items():
             cog = self.bot.get_cog(game)
             for cache_name in caches:

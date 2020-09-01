@@ -2,7 +2,7 @@ from discord.ext import commands
 import discord
 
 
-class Admin(commands.Cog):
+class Owner(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = bot.config
@@ -66,4 +66,4 @@ class Admin(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Admin(bot))
+    bot.add_cog(Owner(bot))

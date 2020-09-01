@@ -1,20 +1,16 @@
+from matplotlib import patheffects, ticker
 from utils import seperator as sep
-from matplotlib import patheffects
 from discord.ext import commands
 import matplotlib.pyplot as plt
-from matplotlib import ticker
 from bs4 import BeautifulSoup
 from datetime import datetime
 import parsedatetime
 import pandas as pd
 import discord
-import asyncio
 import utils
 import math
 import re
 import io
-
-number_emote = "{}\N{COMBINING ENCLOSING KEYCAP}"
 
 
 class MemberMenue:
@@ -31,7 +27,8 @@ class MemberMenue:
     async def add_buttons(self):
         numbers = []
         for num in range(1, len(self.pages) + 1):
-            numbers.append(number_emote.format(num))
+            button = f"{num}\N{COMBINING ENCLOSING KEYCAP}"
+            numbers.append(button)
 
         self.emojis = ["⏪", *numbers, "⏩"]
 
@@ -79,11 +76,11 @@ class MemberMenue:
         await self.msg.edit(embed=embed)
 
 
-class Rm(commands.Cog):
+class Utils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 1
         self.maximum = 0
-        self.duration = 300
         self.cap_dict = {}
         self.active_pager = {}
         self.troops = self.bot.msg['troops']
@@ -217,8 +214,8 @@ class Rm(commands.Cog):
         self.active_pager[msg.id] = pager
         await pager.add_buttons()
 
-    @commands.command(name="rm")
-    async def rm_(self, ctx, *tribes: str):
+    @commands.command(name="rundmail", aliases=["rm"])
+    async def rundmail_(self, ctx, *tribes: str):
         if not tribes:
             raise commands.MissingRequiredArgument
 
@@ -338,6 +335,44 @@ class Rm(commands.Cog):
 
         await ctx.send(embed=profile, file=file)
 
+    @commands.command(name="nude")
+    @commands.cooldown(1, 10.0, commands.BucketType.user)
+    async def nude_(self, ctx, *, dsobj: utils.DSConverter = None):
+        await ctx.trigger_typing()
+
+        if dsobj is None:
+            players = await self.bot.fetch_random(ctx.server, amount=30, max=True)
+        else:
+            players = [dsobj]
+
+        for player in players:
+
+            async with self.bot.session.get(player.guest_url) as res:
+                data = await res.read()
+
+            soup = BeautifulSoup(data, "html.parser")
+            tbody = soup.find(id='content_value')
+            tables = tbody.findAll('table')
+            tds = tables[1].findAll('td', attrs={'valign': 'top'})
+            images = tds[1].findAll('img')
+
+            if images and images[0]['src'].endswith("large"):
+                result = images[0]
+                break
+
+        else:
+            if dsobj:
+                msg = f"Glaub mir, die Nudes von `{dsobj.name}` willst du nicht!"
+            else:
+                msg = "Die maximale Anzahl von Versuchen wurden erreicht"
+
+            return await ctx.send(msg)
+
+        async with self.bot.session.get(result['src']) as res2:
+            file = io.BytesIO(await res2.read())
+
+        await ctx.send(file=discord.File(file, "userpic.gif"))
+
     @commands.command(name="visit")
     async def visit_(self, ctx, world: utils.WorldConverter = None):
         if world is None:
@@ -346,8 +381,8 @@ class Rm(commands.Cog):
         description = f"[{world.show(True)}]({world.guest_url})"
         await ctx.send(embed=discord.Embed(description=description))
 
-    @commands.command(name="sl")
-    async def sl_(self, ctx, *, args):
+    @commands.command(name="quickbar", aliases=["sl"])
+    async def quickbar_(self, ctx, *, args):
         troops = re.findall(r'[A-z]*=\d*', args)
         coordinates = re.findall(r'\d\d\d\|\d\d\d', args)
 
@@ -394,8 +429,8 @@ class Rm(commands.Cog):
         if ctx.guild:
             await ctx.private_hint()
 
-    @commands.command(name="rz", aliases=["rz3", "rz4"])
-    async def rz3_(self, ctx, *args: int):
+    @commands.command(name="scavenge", aliases=["rz"])
+    async def scavenge_(self, ctx, *args: int):
         if len(args) > 7:
             msg = "Das Maximum von 7 verschiedenen Truppentypen wurde überschritten"
             return await ctx.send(msg)
@@ -505,70 +540,6 @@ class Rm(commands.Cog):
         embed.description = "\n".join(cache)
         await ctx.send(embed=embed)
 
-    @commands.command(name="poll")
-    async def poll_(self, ctx, question, *options):
-        if len(options) > 9:
-            msg = "Die maximale Anzahl der Auswahlmöglichkeiten beträgt 9"
-            return await ctx.send(msg)
-
-        parsed_options = ""
-        for index, opt in enumerate(options):
-            choice = f"\n`{index + 1}.` {opt}"
-            parsed_options += choice
-
-        title = f"**Abstimmung von {ctx.author.display_name}:**"
-        description = f"{title}\n{question}{parsed_options}"
-        embed = discord.Embed(description=description, color=discord.Color.purple())
-        embed.set_footer(text="Abstimmung endet in 15 Minuten")
-        poll = await ctx.send(embed=embed)
-
-        for num in range(len(options)):
-            emoji = number_emote.format(num + 1)
-            await poll.add_reaction(emoji)
-
-        await ctx.safe_delete()
-        await asyncio.sleep(self.duration)
-
-        for time in [2, 1]:
-            cur = int(self.duration / 60) * time
-            embed.set_footer(text=f"Abstimmung endet in {cur} Minuten")
-            await poll.edit(embed=embed)
-            await asyncio.sleep(self.duration)
-
-        refetched = await ctx.channel.fetch_message(poll.id)
-        votes = sorted(refetched.reactions, key=lambda r: r.count, reverse=True)
-        color = discord.Color.red()
-
-        if [r.count for r in votes].count(1) == len(votes):
-            msg = "`Niemand hat an der Abstimmung teilgenommen`"
-
-        elif votes[0].count > votes[1].count:
-            color = discord.Color.green()
-            winner = refetched.reactions.index(votes[0])
-            msg = f"`{options[winner]} hat gewonnen`"
-
-        else:
-            msg = "`Es konnte kein klares Ergebnis erzielt werden`"
-
-        result = f"{title}\n{question}\n{msg}"
-        wimbed = discord.Embed(description=result, color=color)
-        wimbed.set_footer(text="Abstimmung beendet")
-        await poll.edit(embed=wimbed)
-
-    @commands.command(name="statistic")
-    async def statistic(self, ctx):
-        data = await self.bot.fetch_usage()
-        result = [f"`{usage}` [{cmd}]" for cmd, usage in data[:10]]
-
-        if result:
-            msg = '\n'.join(result)
-        else:
-            msg = "Es sind noch keine Daten zur Verfügung"
-
-        embed = discord.Embed(description=msg)
-        embed.set_footer(text='Statistiken werden einmal die Stunde gespeichert')
-        await ctx.send(embed=embed)
-
 
 def setup(bot):
-    bot.add_cog(Rm(bot))
+    bot.add_cog(Utils(bot))

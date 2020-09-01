@@ -7,9 +7,10 @@ import random
 import utils
 
 
-class Casino(utils.TribalGames):
+class Casino(utils.DSGames):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 3
         self.dice = {}
         self.slots = []
         self.cache = bot.cache

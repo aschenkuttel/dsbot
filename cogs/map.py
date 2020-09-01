@@ -218,6 +218,7 @@ class Map(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.low = 0
+        self.type = 1
         self.high = 3001
         self.space = 20
         self.top10_cache = {}

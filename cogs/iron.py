@@ -6,6 +6,7 @@ import discord
 class Money(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 3
 
     @commands.group(name="iron")
     async def iron(self, ctx):

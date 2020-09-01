@@ -10,6 +10,7 @@ import utils
 class Bash(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 1
         self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         self.base = "https://{}/guest.php?village" \
                     "=null&screen=ranking&mode=in_a_day&type={}"
@@ -21,77 +22,84 @@ class Bash(commands.Cog):
             self.translate[pkg['value']] = key
 
     @commands.command(name="bash")
-    async def bash(self, ctx, *, user: DSConverter):
-        title = f"Besiegte Gegner von {user.name}"
-        result = [f"`OFF` | **{sep(user.att_bash)} Bashpoints**",
-                  f"`DEF` | **{sep(user.def_bash)} Bashpoints**"]
+    async def bash(self, ctx, *, arguments):
+        if "/" not in arguments:
+            dsobj = await self.bot.fetch_both(ctx.server, arguments)
+            if dsobj is None:
+                raise utils.DSUserNotFound(arguments)
+            else:
+                user = dsobj
 
-        if isinstance(user, utils.Player):
-            result.append(f"`SUP` | **{sep(user.sup_bash)} Bashpoints**")
-
-        result.append(f"`INS` | **{sep(user.all_bash)} Bashpoints**")
-        embed = discord.Embed(title=title, description='\n'.join(result))
-        await ctx.send(embed=embed)
-
-    @commands.command(name="allbash", aliases=["offbash", "defbash", "supbash"])
-    async def allbash(self, ctx, *, args):
-        if not args.__contains__("/"):
-            msg = "Du musst die beiden Spielernamen mit `/` trennen"
-            await ctx.send(msg)
-            return
-
-        player1 = args.partition("/")[0].strip()
-        player2 = args.partition("/")[2].strip()
-
-        if player1.lower() == player2.lower():
-            await ctx.send("Dein Witz :arrow_right: Unlustig")
-            return
-
-        s1 = await self.bot.fetch_both(ctx.server, player1)
-        s2 = await self.bot.fetch_both(ctx.server, player2)
-
-        if not s1 and not s2:
-            msg = f"Auf der {ctx.world} gibt es weder einen Stamm noch " \
-                  f"einen Spieler, der `{player1}` oder `{player2}` heißt"
-            return await ctx.send(msg)
-
-        elif not s1 or not s2:
-            player = player1 if not s1 else player2
-            msg = f"Auf der {ctx.world} gibt es einen Stamm oder Spieler " \
-                  f"namens `{player}` nicht!"
-            await ctx.send(msg)
-            return
-
-        keyword = self.translate[ctx.invoked_with.lower()]
-        attribute = self.bash_value[keyword]['value']
-
-        values = {dsobj.id: 0 for dsobj in (s1, s2)}
-        tribe_ids = [ds.id for ds in (s1, s2) if isinstance(ds, utils.Tribe)]
-        if tribe_ids:
-            member_cache = {tribe_id: [] for tribe_id in tribe_ids}
-            members = await self.bot.fetch_tribe_member(ctx.server, tribe_ids)
-
-            for member in members:
-                member_cache[member.tribe_id].append(member)
-
-            for tribe_id in member_cache:
-                for member in member_cache[tribe_id]:
-                    values[tribe_id] += member.sup_bash
-
-        for dsobj in (s1, s2):
-            if isinstance(dsobj, utils.Player):
-                value = getattr(dsobj, attribute)
-                values[dsobj.id] = value
-
-        if values[s1.id] == values[s2.id]:
-            arrow = ":left_right_arrow:"
-        elif values[s1.id] > values[s2.id]:
-            arrow = ":arrow_left:"
         else:
-            arrow = ":arrow_right:"
+            player1 = arguments.partition("/")[0].strip()
+            player2 = arguments.partition("/")[2].strip()
 
-        msg = f"`{sep(values[s1.id])}` {arrow} `{sep(values[s2.id])}`"
-        await ctx.send(embed=discord.Embed(description=msg))
+            if player1.lower() == player2.lower():
+                await ctx.send("Dein Witz :arrow_right: Unlustig")
+                return
+
+            s1 = await self.bot.fetch_both(ctx.server, player1)
+            s2 = await self.bot.fetch_both(ctx.server, player2)
+            user = (s1, s2)
+
+            if None in user:
+                wrong_name = player1 if s1 is None else player2
+                raise utils.DSUserNotFound(wrong_name)
+
+        for dsobj in user:
+            title = f"Besiegte Gegner von {dsobj}"
+            result = [f"`OFF` | **{sep(dsobj.att_bash)} Bashpoints**",
+                      f"`DEF` | **{sep(dsobj.def_bash)} Bashpoints**"]
+
+            if isinstance(dsobj, utils.Player):
+                result.append(f"`SUP` | **{sep(dsobj.sup_bash)} Bashpoints**")
+
+            else:
+                sup_bash = 0
+                members = await self.bot.fetch_tribe_member(ctx.server, dsobj)
+
+                for member in members:
+                    sup_bash += member.sup_bash
+
+                result.append(f"`SUP` | **{sep(sup_bash)} Bashpoints**")
+
+            result.append(f"`INS` | **{sep(dsobj.all_bash)} Bashpoints**")
+            embed = discord.Embed(title=title, description='\n'.join(result))
+            await ctx.send(embed=embed)
+
+
+
+
+            keyword = self.translate[ctx.invoked_with.lower()]
+            attribute = self.bash_value[keyword]['value']
+
+            values = {dsobj.id: 0 for dsobj in (s1, s2)}
+            tribe_ids = [ds.id for ds in (s1, s2) if isinstance(ds, utils.Tribe)]
+            if tribe_ids:
+                member_cache = {tribe_id: [] for tribe_id in tribe_ids}
+                members = await self.bot.fetch_tribe_member(ctx.server, tribe_ids)
+
+                for member in members:
+                    member_cache[member.tribe_id].append(member)
+
+                for tribe_id in member_cache:
+                    for member in member_cache[tribe_id]:
+                        values[tribe_id] += member.sup_bash
+
+            for dsobj in (s1, s2):
+                if isinstance(dsobj, utils.Player):
+                    value = getattr(dsobj, attribute)
+                    values[dsobj.id] = value
+
+            if values[s1.id] == values[s2.id]:
+                arrow = ":left_right_arrow:"
+            elif values[s1.id] > values[s2.id]:
+                arrow = ":arrow_left:"
+            else:
+                arrow = ":arrow_right:"
+
+            msg = f"`{sep(values[s1.id])}` {arrow} `{sep(values[s2.id])}`"
+            await ctx.send(embed=discord.Embed(description=msg))
 
     @commands.command(name="recap")
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -234,8 +242,8 @@ class Bash(commands.Cog):
 
                 for record in cache:
                     arguments = list(record.values())
-                    tribe_id = arguments.pop(0)
-                    points = int(arguments[0])
+                    tribe_id = arguments[0]
+                    points = arguments[1]
                     if tribe_id != 0:
                         all_values[tribe_id].append(points)
 
@@ -243,8 +251,7 @@ class Bash(commands.Cog):
                 value_list.sort(key=lambda tup: tup[1][0] - tup[1][1], reverse=True)
 
                 tribe_ids = [tup[0] for tup in value_list[:5]]
-                tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids,
-                                                   table='tribe', dic=True)
+                tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids, table='tribe', dic=True)
                 data = [tribes[idc] for idc in tribe_ids]
 
             else:

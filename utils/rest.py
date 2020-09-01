@@ -191,3 +191,29 @@ def create_logger(name, halfway):
     handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
     logger.addHandler(handler)
     return logger
+
+
+def sort_list(iterable):
+    cache = []
+    result = []
+    sorted_by_length = sorted(iterable, key=lambda v: len(v))
+    for value in sorted_by_length + [""]:
+
+        if cache:
+            if len(value) == len(cache[0]):
+                cache.append(value)
+
+            elif (value + cache[0]).count("[") > 1:
+                cache.append(value)
+
+            else:
+                abc = sorted(cache.copy())
+                result.extend(abc)
+                cache = []
+                if value:
+                    cache.append(value)
+
+        else:
+            cache.append(value)
+
+    return result

@@ -53,6 +53,7 @@ class Timer:
 class Reminder(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 2
         self.char_limit = 200
         self.preset = "%d/%m/%Y | %H:%M:%S Uhr"
         self.set = {'PREFER_DATES_FROM': 'future'}

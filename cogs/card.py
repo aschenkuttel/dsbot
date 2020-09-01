@@ -36,9 +36,10 @@ prop = {"name": "Spieler", "id": "ID", "rank": "Rang", "points": "Punkte",
         "sup_bash": "SUP", "all_bash": "Insgesamt"}
 
 
-class Card(utils.TribalGames):
+class Card(utils.DSGames):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 3
         self.cache = []
         self.quiz = {}
         self.tribalcard = {}

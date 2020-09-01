@@ -7,6 +7,7 @@ import discord
 class Config(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 0
         self.config = bot.config
         self.converter_title = self.bot.msg['converterTitle']
         self.config_title = self.bot.msg['configTitle']

@@ -7,9 +7,10 @@ import os
 import re
 
 
-class Word(utils.TribalGames):
+class Word(utils.DSGames):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 3
         self.anagram = {}
         self.hangman = {}
 

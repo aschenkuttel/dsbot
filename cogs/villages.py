@@ -12,6 +12,7 @@ import os
 class Villages(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 1
         self.base_options = {'radius': [1, 10, 25], 'points': None}
 
     async def send_result(self, ctx, result, object_name):
@@ -138,8 +139,8 @@ class Villages(commands.Cog):
 
         await self.send_result(ctx, result, "Dörfer")
 
-    @commands.command(name="bb")
-    async def bb_(self, ctx, village: CoordinateConverter, *, options=None):
+    @commands.command(name="barbarian", aliases=["bb"])
+    async def barbarian_(self, ctx, village: CoordinateConverter, *, options=None):
         radius, points = utils.keyword(options, **self.base_options)
         kwargs = {'radius': radius, 'points': points,
                   'extra': ' AND village.player = 0'}

@@ -6,9 +6,10 @@ import utils
 import os
 
 
-class Poker(utils.TribalGames):
+class Poker(utils.DSGames):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 3
         self.blackjack = {}
         self.videopoker = {}
         self.signs = ["h", "d", "c", "s"]
@@ -168,7 +169,7 @@ class Poker(utils.TribalGames):
 
     @utils.game_channel_only()
     @commands.command(name="videopoker", aliases=["vp"])
-    async def vp_(self, ctx, bet: int = 2000):
+    async def videopoker_(self, ctx, bet: int = 2000):
         if not 100 <= bet <= 2000:
             raise utils.InvalidBet(100, 2000)
 
@@ -250,7 +251,7 @@ class Poker(utils.TribalGames):
 
     @utils.game_channel_only()
     @commands.command(name="blackjack", aliases=["bj"])
-    async def bj_(self, ctx, bet: int = 50000):
+    async def blackjack_(self, ctx, bet: int = 50000):
         if not 100 <= bet <= 50000:
             raise utils.InvalidBet(100, 50000)
 
