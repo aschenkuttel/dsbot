@@ -1,4 +1,4 @@
-from utils import DSConverter, DSUserNotFound, MissingRequiredKey
+from utils import DSUserNotFound, MissingRequiredKey
 from utils import seperator as sep
 from discord.ext import commands
 from bs4 import BeautifulSoup
@@ -28,7 +28,7 @@ class Bash(commands.Cog):
             if dsobj is None:
                 raise utils.DSUserNotFound(arguments)
             else:
-                user = dsobj
+                user = [dsobj]
 
         else:
             player1 = arguments.partition("/")[0].strip()
@@ -40,66 +40,47 @@ class Bash(commands.Cog):
 
             s1 = await self.bot.fetch_both(ctx.server, player1)
             s2 = await self.bot.fetch_both(ctx.server, player2)
-            user = (s1, s2)
+            user = [s1, s2]
 
             if None in user:
                 wrong_name = player1 if s1 is None else player2
                 raise utils.DSUserNotFound(wrong_name)
 
+        embed = discord.Embed()
+
         for dsobj in user:
-            title = f"Besiegte Gegner von {dsobj}"
-            result = [f"`OFF` | **{sep(dsobj.att_bash)} Bashpoints**",
-                      f"`DEF` | **{sep(dsobj.def_bash)} Bashpoints**"]
-
-            if isinstance(dsobj, utils.Player):
-                result.append(f"`SUP` | **{sep(dsobj.sup_bash)} Bashpoints**")
-
-            else:
-                sup_bash = 0
-                members = await self.bot.fetch_tribe_member(ctx.server, dsobj)
+            if isinstance(dsobj, utils.Tribe):
+                value = 0
+                members = await self.bot.fetch_tribe_member(ctx.server, dsobj.id)
 
                 for member in members:
-                    sup_bash += member.sup_bash
+                    value += member.sup_bash
 
-                result.append(f"`SUP` | **{sep(sup_bash)} Bashpoints**")
+                dsobj.sup_bash = value
 
-            result.append(f"`INS` | **{sep(dsobj.all_bash)} Bashpoints**")
-            embed = discord.Embed(title=title, description='\n'.join(result))
-            await ctx.send(embed=embed)
+        for index, dsobj in enumerate(user):
+            attributes = {"att_bash": "`OFF` | {}",
+                          "def_bash": "`DEF` | {}",
+                          "sup_bash": "`SUP` | {}",
+                          "all_bash": "`ALL` | {}"}
 
+            result = []
+            for key, represent in attributes.items():
+                value = getattr(dsobj, key, None)
 
+                user_copy = user.copy()
+                user_copy.remove(dsobj)
 
+                if len(user) == 2 and getattr(user_copy[0], key) > value:
+                    string_value = f"{value}"
+                else:
+                    string_value = f"**{value}**"
 
-            keyword = self.translate[ctx.invoked_with.lower()]
-            attribute = self.bash_value[keyword]['value']
+                result.append(attributes[key].format(string_value))
 
-            values = {dsobj.id: 0 for dsobj in (s1, s2)}
-            tribe_ids = [ds.id for ds in (s1, s2) if isinstance(ds, utils.Tribe)]
-            if tribe_ids:
-                member_cache = {tribe_id: [] for tribe_id in tribe_ids}
-                members = await self.bot.fetch_tribe_member(ctx.server, tribe_ids)
+            embed.add_field(name=f"{dsobj}", value="\n".join(result))
 
-                for member in members:
-                    member_cache[member.tribe_id].append(member)
-
-                for tribe_id in member_cache:
-                    for member in member_cache[tribe_id]:
-                        values[tribe_id] += member.sup_bash
-
-            for dsobj in (s1, s2):
-                if isinstance(dsobj, utils.Player):
-                    value = getattr(dsobj, attribute)
-                    values[dsobj.id] = value
-
-            if values[s1.id] == values[s2.id]:
-                arrow = ":left_right_arrow:"
-            elif values[s1.id] > values[s2.id]:
-                arrow = ":arrow_left:"
-            else:
-                arrow = ":arrow_right:"
-
-            msg = f"`{sep(values[s1.id])}` {arrow} `{sep(values[s2.id])}`"
-            await ctx.send(embed=discord.Embed(description=msg))
+        await ctx.send(embed=embed)
 
     @commands.command(name="recap")
     @commands.cooldown(1, 10, commands.BucketType.user)
