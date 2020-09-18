@@ -39,7 +39,7 @@ class DSBot(commands.Bot):
         self.owner_id = 211836670666997762
         self.path = os.path.dirname(__file__)
         self.data_path = f"{self.path}/data"
-        self.logger = utils.create_logger('dsbot', self.path)
+        self.logger = utils.create_logger('dsbot', self.data_path)
         self.msg = json.load(open(f"{self.data_path}/msg.json", encoding="utf-8"))
         self.activity = discord.Activity(type=0, name=self.msg['status'])
         self.loop.create_task(self.loop_per_hour())
@@ -134,10 +134,10 @@ class DSBot(commands.Bot):
 
     async def loop_per_hour(self):
         await self._lock.wait()
-        seconds = self.get_seconds()
-        await asyncio.sleep(seconds)
 
         while not self.is_closed():
+            seconds = self.get_seconds()
+            await asyncio.sleep(seconds)
 
             self.logger.debug("loop per hour")
             try:
@@ -159,9 +159,6 @@ class DSBot(commands.Bot):
                         await loop()
                 except Exception as error:
                     self.logger.debug(f"{cog.qualified_name} Task Error: {error}")
-
-            seconds = self.get_seconds()
-            await asyncio.sleep(seconds)
 
     # current workaround since library update will support that with tasks in short future
     def get_seconds(self, reverse=False, only=0):
@@ -440,11 +437,11 @@ class DSBot(commands.Bot):
             else:
                 return [dsobj.Class(rec) for rec in res]
 
-    # imports all cogs at startup
+    # imports all extensions at startup
     def setup_cogs(self):
         for file in secret.default_cogs:
             try:
-                self.load_extension(f"cogs.{file}")
+                self.load_extension(f"extensions.{file}")
             except commands.ExtensionNotFound:
                 print(f"module {file} not found")
 

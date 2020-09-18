@@ -46,7 +46,7 @@ class UTParser:
                                              table="village", name=True)
         self.village_cache = {vil.coords: vil for vil in villages}
 
-        if len(villages) != set(coordinates):
+        if len(villages) != len(set(coordinates)):
             return False
 
         for coord, vil in self.village_cache.items():

@@ -183,11 +183,10 @@ def game_channel_only():
     return commands.check(predicate)
 
 
-def create_logger(name, halfway):
+def create_logger(name, datapath):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    path = f"{halfway}/data/{name}.log"
-    handler = logging.FileHandler(filename=path, encoding='utf-8', mode='w')
+    handler = logging.FileHandler(filename=f"{datapath}/{name}.log", encoding='utf-8', mode='w')
     handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
     logger.addHandler(handler)
     return logger

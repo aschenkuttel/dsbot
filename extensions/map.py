@@ -489,7 +489,7 @@ class Map(commands.Cog):
 
                 all_tribes.extend(names)
 
-                if len(fractions) == 1:
+                if len(fractions) == 1 and '&' not in tribe_names:
                     color_map.extend([obj] for obj in names)
                 else:
                     color_map.append(names)
