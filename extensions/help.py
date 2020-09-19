@@ -99,14 +99,14 @@ class Help(commands.Cog):
         title_base = "Command: {}".format(data[0])
         title = title_base.replace("~", ctx.prefix)
         desc, cmd_type = data[1:3]
-        cmd_inp = "\n".join(data[3])
-        example = "\n".join(data[4])
+        cmd_inp = "`\n`".join(data[3])
+        example = "`\n`".join(data[4])
 
         if len(data[3]) != 1:
-            cmd_inp = f"\n{cmd_inp}"
+            cmd_inp = f"\n`{cmd_inp}`"
 
         if len(data[4]) != 1:
-            example = f"\n{example}"
+            example = f"\n`{example}`"
 
         color = discord.Color.blue()
         parseable = f"**Beschreibung:**\n{desc}\n" \
@@ -144,18 +144,18 @@ class Help(commands.Cog):
                "einen Conquer Channel für stündliche Eroberungen oder einen neuen Prefix.\n" \
                "Mögliche Switches: `report, request, coord, mention`"
         cmd_type = "Admin Command"
-        cmd_inp = ["`~set world <world>`",
-                   "`~set channel <world>`",
-                   "`~set game`",
-                   "`~set conquer`",
-                   "`~set prefix <prefix>`",
-                   "`~set switch <converter>`"]
-        example = ["`~set world de172`",
-                   "`~set channel de164`",
-                   "`~set game`",
-                   "`~set conquer`",
-                   "`~set prefix -`",
-                   "`~set switch mention`"]
+        cmd_inp = ["~set world <world>",
+                   "~set channel <world>",
+                   "~set game",
+                   "~set conquer",
+                   "~set prefix <prefix>",
+                   "~set switch <converter>"]
+        example = ["~set world de172",
+                   "~set channel de164",
+                   "~set game",
+                   "~set conquer",
+                   "~set prefix -",
+                   "~set switch mention"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -164,12 +164,12 @@ class Help(commands.Cog):
     @help.command(name="reset")
     async def reset_(self, ctx):
         title = "`~reset`"
-        desc = "Setzt einen gewünschten Teil oder die gesamten Serverconfigs zurück."
+        desc = "Setzt einen gewünschten Teil oder die gesamten Serverconfigs zurück"
         cmd_type = "Admin Command"
-        cmd_inp = ["`~reset <game|conquer|config>`"]
-        example = ["`~reset game`",
-                   "`~reset conquer`",
-                   "`~reset config`"]
+        cmd_inp = ["~reset <game|conquer|config>`"]
+        example = ["~reset game",
+                   "~reset conquer",
+                   "~reset config"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -180,8 +180,8 @@ class Help(commands.Cog):
         title = "`~world`"
         desc = "Erhalte die Welt des Textchannels oder des Servers"
         cmd_type = "Admin Command"
-        cmd_inp = ["`~world`"]
-        example = ["`~world`"]
+        cmd_inp = ["~world"]
+        example = ["~world"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -192,14 +192,14 @@ class Help(commands.Cog):
         title = "`~remove`"
         desc = "Entfernt eingstellte Serverconfigs / Gegensatz zu ~set"
         cmd_type = "Admin Command"
-        cmd_inp = ["`~remove channel`",
-                   "`~remove game`",
-                   "`~remove conquer`",
-                   "`~remove prefix`"]
-        example = ["`~remove channel`",
-                   "`~remove game`",
-                   "`~remove conquer`",
-                   "`~remove prefix`"]
+        cmd_inp = ["~remove channel",
+                   "~remove game",
+                   "~remove conquer",
+                   "~remove prefix"]
+        example = ["~remove channel",
+                   "~remove game",
+                   "~remove conquer",
+                   "~remove prefix"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -211,13 +211,13 @@ class Help(commands.Cog):
         desc = "Aktiviert oder Deaktiviert einen der 4 Konverter:\n" \
                "Koordinaten, Berichte, BB-Codes oder Unterstützungsanfrage"
         cmd_type = "Admin Command"
-        cmd_inp = ["`~switch <coord|request|mention|record>`",
-                   "`~switch list`"]
-        example = ["`~switch coord`",
-                   "`~switch request`",
-                   "`~switch mention`",
-                   "`~switch record`",
-                   "`~switch list`"]
+        cmd_inp = ["~switch <coord|request|mention|record>`",
+                   "~switch list"]
+        example = ["~switch coord",
+                   "~switch request",
+                   "~switch mention",
+                   "~switch record",
+                   "~switch list"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -228,8 +228,8 @@ class Help(commands.Cog):
         title = "`~worlds`"
         desc = "Erhalte alle momentan aktive Welten"
         cmd_type = "Admin Command"
-        cmd_inp = ["`~worlds`"]
-        example = ["`~worlds`"]
+        cmd_inp = ["~worlds"]
+        example = ["~worlds"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -242,16 +242,16 @@ class Help(commands.Cog):
                "blendet zukünftig alle Barbarendörfer aus/ein, zeigt alle" \
                "Stämme im Filter an oder löscht diesen komplett"
         cmd_type = "Admin Command"
-        cmd_inp = ["`~conquer add <tribe>`",
-                   "`~conquer remove <tribe>`",
-                   "`~conquer grey`",
-                   "`~conquer list`",
-                   "`~conquer clear`"]
-        example = ["`~conquer add 300`",
-                   "`~conquer remove 300`",
-                   "`~conquer grey`",
-                   "`~conquer list`",
-                   "`~conquer clear`"]
+        cmd_inp = ["~conquer add <tribe>",
+                   "~conquer remove <tribe>",
+                   "~conquer grey",
+                   "~conquer list",
+                   "~conquer clear"]
+        example = ["~conquer add 300",
+                   "~conquer remove 300",
+                   "~conquer grey",
+                   "~conquer list",
+                   "~conquer clear"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -263,15 +263,15 @@ class Help(commands.Cog):
         title = "`~map`"
         desc = "Erstellt eine Karte der Welt und markiert angegebene Stämme. " \
                "Falls keine angegeben werden erhält man eine Darstellung der Top 10. " \
-               "Des weiteren kann man mit einem & Zeichen zwischen mehreren Stämmen diese " \
-               "gruppieren und einheitlich in einer Farbe anzeigen lassen."
+               "Des weiteren können mit einem & Zeichen zwischen mehreren Stämmen diese " \
+               "gruppiert und einheitlich angezeigt werden"
         cmd_type = "Server Command"
-        cmd_inp = ["`~map`",
-                   "`~map <tribe> <tribe> <tribe>`",
-                   "`~map <tribe> <tribe> & <tribe> <tribe>`"]
-        example = ["`~map`",
-                   "`~map <300> <W-Inc>`",
-                   "`~map 300 W-Inc & SPARTA`"]
+        cmd_inp = ["~map",
+                   "~map <tribe> <tribe> <tribe>",
+                   "~map <tribe> <tribe> & <tribe> <tribe>"]
+        example = ["~map",
+                   "~map <300> <W-Inc>",
+                   "~map 300 W-Inc & SPARTA"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -282,8 +282,8 @@ class Help(commands.Cog):
         title = "`~top`"
         desc = "Erhalte die ewige Top 5 der jeweiligen \"An einem Tag\"-Rangliste."
         cmd_type = "Server Command"
-        cmd_inp = ["`~top <bash/def/ut/farm/villages/scavenge/conquer>`"]
-        example = ["`~top bash`"]
+        cmd_inp = ["~top <bash/def/ut/farm/villages/scavenge/conquer>"]
+        example = ["~top bash"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -295,10 +295,10 @@ class Help(commands.Cog):
         desc = "Erhalte entweder eine Zusammenfassung eines Accounts, " \
                "Stammes oder vergleiche 2 Spieler/Stämme und deren Bashpoints"
         cmd_type = "Server Command"
-        cmd_inp = ["`~bash <playername/tribename>`",
-                   "`~allbash <playername> / <playername>`"]
-        example = ["`~bash lemme smash`",
-                   "`~allbash gods rage / Knueppel-Kutte`"]
+        cmd_inp = ["~bash <playername/tribename>",
+                   "~allbash <playername> / <playername>"]
+        example = ["~bash lemme smash",
+                   "~allbash gods rage / Knueppel-Kutte"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -311,10 +311,10 @@ class Help(commands.Cog):
                "kein Name angegeben wird, wird ein Bild zufällig " \
                "von allen Spielern der Server-Welt ausgesucht."
         cmd_type = "Server Command"
-        cmd_inp = ["`~nude`",
-                   "`~nude <playername/tribename>`"]
-        example = ["`~nude`",
-                   "`~nude Leedsi`"]
+        cmd_inp = ["~nude",
+                   "~nude <playername/tribename>"]
+        example = ["~nude",
+                   "~nude Leedsi"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -332,10 +332,10 @@ class Help(commands.Cog):
                "Punkte. Deshalb können letztendliche Ergebnisse auch abweichen und " \
                "sollen lediglich als Anhaltspunkt dienen."
         cmd_type = "Server Command"
-        cmd_inp = ["`~daily <angreifer/verteidiger/unterstützer>`",
-                   "`~aktueller <kämpfer/eroberer/verlierer/>`"]
-        example = ["`~daily eroberer`",
-                   "`~aktueller angreifer`"]
+        cmd_inp = ["~daily <angreifer/verteidiger/unterstützer>",
+                   "~aktueller <kämpfer/eroberer/verlierer/>"]
+        example = ["~daily eroberer",
+                   "~aktueller angreifer"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -350,9 +350,9 @@ class Help(commands.Cog):
                "vergangenen 7 oder gewünschten Tage zusammen. Falls keine " \
                "Tage angegeben werden, wählt der Bot automatisch eine Woche."
         cmd_type = "Server Command"
-        cmd_inp = ["`~recap <playername> <time>`"]
-        example = ["`~recap madberg`",
-                   "`~recap madberg 20`"]
+        cmd_inp = ["~recap <playername> <time>"]
+        example = ["~recap madberg",
+                   "~recap madberg 20"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -363,8 +363,8 @@ class Help(commands.Cog):
         title = "`~visit`"
         desc = "Erhalte den Gastlogin-Link einer Welt"
         cmd_type = "Server Command"
-        cmd_inp = ["`~visit <world>`"]
-        example = ["`~visit de143`"]
+        cmd_inp = ["~visit <world>"]
+        example = ["~visit de143"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -377,8 +377,8 @@ class Help(commands.Cog):
                "Die Emotes sind hierbei als \"Knöpfe\" zu betrachten, Optionen wie " \
                "Zoom und Markierung haben mehrere Stufen (5 Minuten Zeitlimit)"
         cmd_type = "Server Command"
-        cmd_inp = ["`~custom <world>`"]
-        example = ["`~custom de172`"]
+        cmd_inp = ["~custom <world>"]
+        example = ["~custom de172"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -389,10 +389,10 @@ class Help(commands.Cog):
         title = "`~player` - `~tribe`"
         desc = "Erhalte eine kleine Übersicht eines Accounts/Stamm mit 30-Tage-Graph"
         cmd_type = "Server Command"
-        cmd_inp = ["`~player <playername>`",
-                   "`~tribe <tribename>`"]
-        example = ["`~player Philson Cardoso`",
-                   "`~tribe Milf!`"]
+        cmd_inp = ["~player <playername>",
+                   "~tribe <tribename>"]
+        example = ["~player Philson Cardoso",
+                   "~tribe Milf!"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -414,10 +414,10 @@ class Help(commands.Cog):
         desc = "Erhalte alle Member eines Stammes,\n" \
                "mögliche Optionen: `ingame, guest, twstats`"
         cmd_type = "Server Command"
-        cmd_inp = ["`~members <tribetag>`",
-                   "`~members <tribetag> <url_type=ingame>`"]
-        example = ["`~members W-Inc`",
-                   "`~members W-Inc twstats`"]
+        cmd_inp = ["~members <tribetag>",
+                   "~members <tribetag> <url_type=ingame>"]
+        example = ["~members W-Inc",
+                   "~members W-Inc twstats"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -432,9 +432,9 @@ class Help(commands.Cog):
                "Wenn gewünscht kann man auch einen Kontinent mit angegeben werden. " \
                "Ideal für das Faken mit Workbench."
         cmd_type = "Server Command"
-        cmd_inp = ["`~villages <amount> <playername/tribename> <continent>`"]
-        example = ["`~villages 20 madberg`",
-                   "`~villages all madberg k55`"]
+        cmd_inp = ["~villages <amount> <playername/tribename> <continent>"]
+        example = ["~villages 20 madberg",
+                   "~villages all madberg k55"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -447,9 +447,9 @@ class Help(commands.Cog):
                "sind Radius(Default = 20, Maximum 100 in jede Richtung) " \
                "und Points(Punktezahl der Dörfer bis zur gewünschten Grenze)"
         cmd_type = "Server Command"
-        cmd_inp = ["`~bb <coord> <options>`"]
-        example = ["`~bb 555|555`",
-                   "`~bb 555|555 radius=50 points=100`"]
+        cmd_inp = ["~bb <coord> <options>"]
+        example = ["~bb 555|555",
+                   "~bb 555|555 radius=50 points=100"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -462,8 +462,8 @@ class Help(commands.Cog):
                "angegebenen Stämme damit man diese kopieren und einfügen " \
                "kann. Namen mit Leerzeichen müssen mit \"\" umrandet sein."
         cmd_type = "Server Command"
-        cmd_inp = ["`~rm <tribename> <tribename>`"]
-        example = ["`~rm Skype! down \"Mum, I like to farm!\"`"]
+        cmd_inp = ["~rm <tribename> <tribename>"]
+        example = ["~rm Skype! down \"Mum, I like to farm!\""]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -475,8 +475,8 @@ class Help(commands.Cog):
         desc = "Erhalte die beste Aufteilung für den Raubzug. " \
                "Verschiedene Truppentypen per Leerzeichen trennen."
         cmd_type = "Server Command [Creator: Madberg]"
-        cmd_inp = ["`~rz4 <unit-amount>`"]
-        example = ["`~rz4 200 100`"]
+        cmd_inp = ["~rz4 <unit-amount>"]
+        example = ["~rz4 200 100"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -490,9 +490,9 @@ class Help(commands.Cog):
                "`Speer, Schwert, Axt, Bogen, Späher, Lkav, Berittene`\n" \
                "`Skav, Ramme, Katapult, Paladin, Ag`"
         cmd_type = "Server/PM Command"
-        cmd_inp = ["`~sl <troop>=<amount> <*coords>`"]
-        example = ["`~sl speer=20 lkav=5 späher=2 550|490 489|361`",
-                   "`~sl axt=80ramme=20ag=1 [coord]452|454[/coord]`"]
+        cmd_inp = ["~sl <troop>=<amount> <*coords>"]
+        example = ["~sl speer=20 lkav=5 späher=2 550|490 489|361",
+                   "~sl axt=80ramme=20ag=1 [coord]452|454[/coord]"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -505,8 +505,8 @@ class Help(commands.Cog):
         desc = "Gebe eine Image-Url an und erhalte das Bild auf DS Maße " \
                "(280x170) geschnitten. Bewegte Bilder werden unterstützt."
         cmd_type = "PM Command"
-        cmd_inp = ["`~avatar <url with (png, jpg, gif ending)>`"]
-        example = ["`~avatar https://homepage/beispielbild.png`"]
+        cmd_inp = ["~avatar <url with (png, jpg, gif ending)>"]
+        example = ["~avatar https://homepage/beispielbild.png"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -517,8 +517,8 @@ class Help(commands.Cog):
         title = "`~emoji`"
         desc = "Füge deinem Server eine Reihe von DS-Emojis hinzu."
         cmd_type = "Admin Command"
-        cmd_inp = ["`~emoji`"]
-        example = ["`~emoji`"]
+        cmd_inp = ["~emoji"]
+        example = ["~emoji"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -529,8 +529,8 @@ class Help(commands.Cog):
         title = "`~poll`"
         desc = "Erstelle eine Abstimmung mit bis zu 9 Auswahlmöglichkeiten"
         cmd_type = "Server Command"
-        cmd_inp = ["`~poll \"<question>\" <option> <option> ...`"]
-        example = ["`~poll \"Sollen wir das BND beenden?\" Ja Nein Vielleicht`"]
+        cmd_inp = ["~poll \"<question>\" <option> <option> ..."]
+        example = ["~poll \"Sollen wir das BND beenden?\" Ja Nein Vielleicht"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -541,8 +541,8 @@ class Help(commands.Cog):
         title = "`~pin`"
         desc = "Erhalte den Help Command im Server zum Anpinnen"
         cmd_type = "Admin Command"
-        cmd_inp = ["`~pin`"]
-        example = ["`~pin`"]
+        cmd_inp = ["~pin"]
+        example = ["~pin"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -557,17 +557,17 @@ class Help(commands.Cog):
                "falls ihr im Ausland seid. Lass dir all deine aktiven Reminder anzeigen, " \
                "lösche einen einzelnen oder alle."
         cmd_type = "PM Command"
-        cmd_inp = ["`~remind <time> <neuer Absatz> <reason>`",
-                   "`~remind list`",
-                   "`~remind remove <reminder id>`",
-                   "`~remind clear`",
-                   "`~now`"]
-        example = ["`~remind 50s`",
-                   "`~remind 18:22\nPizza aus dem Ofen holen`",
-                   "`~remind list`",
-                   "`~remind remove 120`",
-                   "`~remind clear`",
-                   "`~now`"]
+        cmd_inp = ["~remind <time> <neuer Absatz> <reason>",
+                   "~remind list",
+                   "~remind remove <reminder id>",
+                   "~remind clear",
+                   "~now"]
+        example = ["~remind 50s",
+                   "~remind 18:22\nPizza aus dem Ofen holen",
+                   "~remind list",
+                   "~remind remove 120",
+                   "~remind clear",
+                   "~now`"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -579,8 +579,8 @@ class Help(commands.Cog):
         desc = "Der Bot sieht vorraus wie gut du und der angegebene " \
                "User in einem Account zusammenspielen würdet."
         cmd_type = "Server Command"
-        cmd_inp = ["`~duali <discord username>`"]
-        example = ["`~duali Neel x Kutte`"]
+        cmd_inp = ["~duali <discord username>"]
+        example = ["~duali Neel x Kutte"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -592,10 +592,10 @@ class Help(commands.Cog):
         desc = "Der Bot zeigt dir den aktuellen Discord Avatar eines Users." \
                "Falls keiner angegeben ist, wird dir dein Eigener gezeigt"
         cmd_type = "Server Command"
-        cmd_inp = ["`~mirror`",
-                   "`~mirror <discord username>`"]
-        example = ["`~mirror`",
-                   "`~mirror mettberg`"]
+        cmd_inp = ["~mirror",
+                   "~mirror <discord username>"]
+        example = ["~mirror",
+                   "~mirror mettberg"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -607,8 +607,8 @@ class Help(commands.Cog):
         desc = "Frag den Bot eine Ja/Nein Frage und er beantwortet sie dir. " \
                "Schrei ihn aber bitte nicht an."
         cmd_type = "Server Command"
-        cmd_inp = ["`~orakel <question>`"]
-        example = ["`~orakel Werde ich bald geadelt?`"]
+        cmd_inp = ["~orakel <question>"]
+        example = ["~orakel Werde ich bald geadelt?"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -620,10 +620,10 @@ class Help(commands.Cog):
         title = "`~ag` - `~anagram`"
         desc = "Spiele eine Runde Anagram mit Worten aus DS."
         cmd_type = "Server Command"
-        cmd_inp = ["`~ag`",
-                   "`<your guess>`"]
-        example = ["`~ag`",
-                   "`Späher`"]
+        cmd_inp = ["~ag",
+                   "<your guess>"]
+        example = ["~ag",
+                   "Späher"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -638,11 +638,11 @@ class Help(commands.Cog):
                "Spieler vergleichen müssen. Der Gewinner beginnt von da an. " \
                "Das Spiel geht solange bis keine Karten mehr übrig sind."
         cmd_type = "Server Command / PM Command"
-        cmd_inp = ["`~quartet`",
-                   "`~play <card or stat>`"]
-        example = ["`~quartet`",
-                   "`~play 5`",
-                   "`~play off`"]
+        cmd_inp = ["~quartet",
+                   "~play <card or stat>"]
+        example = ["~quartet",
+                   "~play 5",
+                   "~play off"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -654,11 +654,11 @@ class Help(commands.Cog):
         desc = "Spiele eine Runde Galgenmännchen. Alle Worte " \
                "kommen bis auf ein paar Ausnahmen in DS vor."
         cmd_type = "Server Command"
-        cmd_inp = ["`~hangman`",
-                   "`~guess <character or solution>`"]
-        example = ["`~hangman`",
-                   "`~guess a`",
-                   "`~guess Späher`"]
+        cmd_inp = ["~hangman",
+                   "~guess <character or solution>"]
+        example = ["~hangman",
+                   "~guess a",
+                   "~guess Späher"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -670,8 +670,8 @@ class Help(commands.Cog):
         desc = "Ziehe eine zufällige Zahl zwischen 10000-99999, bei gleicher Gewinnzahl " \
                "erhältst du den globalen Pot, Einsatz automatisch 1000 Eisen"
         cmd_type = "Server Command"
-        cmd_inp = ["`~slots`"]
-        example = ["`~slots`"]
+        cmd_inp = ["~slots"]
+        example = ["~slots"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -682,8 +682,8 @@ class Help(commands.Cog):
         title = "`~quiz`"
         desc = "Ein ds-bezogenes Quiz mit 4 unterschiedlichen Modulen."
         cmd_type = "Server Command"
-        cmd_inp = ["`~quiz <game_rounds>`"]
-        example = ["`~quiz 10`"]
+        cmd_inp = ["~quiz <game_rounds>"]
+        example = ["~quiz 10"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -697,8 +697,8 @@ class Help(commands.Cog):
                "d[double = noch eine Karte, verdoppelter Einsatz und der Dealer ist am Zug]\n" \
                "Diese kannst du ohne Command in den Chat schreiben"
         cmd_type = "Server Command"
-        cmd_inp = ["`~bj <optional=amount(100-50000)>`"]
-        example = ["`~bj 50000`"]
+        cmd_inp = ["~bj <optional=amount(100-50000)>"]
+        example = ["~bj 50000"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -712,10 +712,10 @@ class Help(commands.Cog):
                "Man spielt um einen gewünschten Einsatz, " \
                "je nach Hand erhält man immer größeren Gewinn."
         cmd_type = "Server Command"
-        cmd_inp = ["`~vp <optional=amount(100-2000)>`",
-                   "`~draw <cardnumbers>`"]
-        example = ["`~vp 2000`",
-                   "`~draw 13`"]
+        cmd_inp = ["~vp <optional=amount(100-2000)>",
+                   "~draw <cardnumbers>"]
+        example = ["~vp 2000",
+                   "~draw 13"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -726,9 +726,9 @@ class Help(commands.Cog):
         title = "`~dice` - `~würfelspiel`"
         desc = "Starte ein 1vs1 Würfelspiel, das größere Auge gewinnt beide Einsätze"
         cmd_type = "Server Command"
-        cmd_inp = ["`~dice <amount (1000-500000) or accept>`"]
-        example = ["`~dice 50000`",
-                   "`~dice accept`"]
+        cmd_inp = ["~dice <amount (1000-500000) or accept>"]
+        example = ["~dice 50000",
+                   "~dice accept"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -743,14 +743,14 @@ class Help(commands.Cog):
                "User auf allen Servern auf dem der Bot ist. " \
                "Man kann auch anderen Spielern Eisen übertragen."
         cmd_type = "Server Command"
-        cmd_inp = ["`~iron`",
-                   "`~iron top`",
-                   "`~iron global`",
-                   "`~iron send <amount> <discord username>`"]
-        example = ["`~iron`",
-                   "`~iron top`",
-                   "`~iron global`",
-                   "`~iron send 8000 Sheldon`"]
+        cmd_inp = ["~iron",
+                   "~iron top",
+                   "~iron global",
+                   "~iron send <amount> <discord username>"]
+        example = ["~iron",
+                   "~iron top",
+                   "~iron global",
+                   "~iron send 8000 Sheldon"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
