@@ -21,7 +21,7 @@ class Owner(commands.Cog):
     @commands.command(name="reload")
     async def reload_(self, ctx, cog):
         try:
-            self.bot.reload_extension(f"cogs.{cog}")
+            self.bot.reload_extension(f"extensions.{cog}")
             await ctx.send("Extension erfolgreich neu geladen")
             print("-- Extension reloaded --")
         except Exception as error:

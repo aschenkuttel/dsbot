@@ -320,7 +320,6 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-
     @help.command(name="daily", aliases=["aktueller"])
     async def daily_(self, ctx):
         title = "`~daily` - `~aktueller`"
@@ -340,8 +339,6 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
-
-
 
     @help.command(name="recap")
     async def recap_(self, ctx):
@@ -398,16 +395,10 @@ class Help(commands.Cog):
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-
-
-
-
-
-
-
-
-
-
+    @help.command(name="retime")
+    async def retime_(self, ctx):
+        pass
+    
     @help.command(name="members")
     async def members_(self, ctx):
         title = "`~members`"

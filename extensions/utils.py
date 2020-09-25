@@ -481,10 +481,7 @@ class Utils(commands.Cog):
 
         if unit is None:
             value = args[-1].lower()
-            unit = self.troops.get(value, value)
-
-            if unit not in self.movement:
-                unit = 'ram'
+            unit = self.troops.get(value, 'ram')
 
         unit_speed = self.movement.get(unit)
 
@@ -493,12 +490,13 @@ class Utils(commands.Cog):
         x, y = abs(target[0] - target[2]), abs(target[1] - target[3])
 
         diff = (x * x + y * y) ** 0.5
-        raw_seconds = diff * unit_speed * ctx.world.speed
+        raw_seconds = diff * unit_speed
         seconds = round(raw_seconds * 60)
 
         target_date = datetime.fromtimestamp(date.timestamp() + seconds)
         time = target_date.strftime('%H:%M:%S')
-        msg = f"**Rückkehr:** {time}:000 `[{value.upper()}]`"
+        name = value.upper() if value in self.troops else "RAMME"
+        msg = f"**Rückkehr:** {time}:000 `[{name}]`"
         await ctx.send(msg)
 
     @commands.command(name="settings")
