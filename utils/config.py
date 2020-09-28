@@ -66,6 +66,10 @@ class Config:
         switches = config.get('switches', {})
         return switches.get(key, True)
 
+    def get_conquer(self, ctx):
+        conquer = self.get_item(ctx.guild.id, 'conquer', {})
+        return conquer.get(str(ctx.channel.id))
+
     def get_world(self, channel):
         con = self._config.get(channel.guild.id)
         if con is None:

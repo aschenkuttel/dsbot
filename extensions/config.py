@@ -1,5 +1,5 @@
+from utils import WorldConverter, DSConverter, WrongChannel, Player
 from utils import complete_embed, error_embed, MissingRequiredKey
-from utils import WorldConverter, DSConverter, WrongChannel
 from discord.ext import commands
 import discord
 
@@ -23,14 +23,11 @@ class Config(commands.Cog):
             raise commands.MissingPermissions(['administrator'])
 
     def get_conquer_data(self, ctx):
-        conquer = self.config.get_item(ctx.guild.id, 'conquer', {})
-        channel_data = conquer.get(str(ctx.channel.id))
-
-        if channel_data is None:
+        conquer = self.config.get_conquer(ctx)
+        if conquer is None:
             raise WrongChannel('conquer')
-
         else:
-            return channel_data
+            return conquer
 
     @commands.group(invoke_without_command=True)
     async def set(self, _):
@@ -188,41 +185,33 @@ class Config(commands.Cog):
         await ctx.invoke(cmd)
 
     @conquer.command(name="add")
-    async def conquer_add(self, ctx, tribe: DSConverter):
+    async def conquer_add(self, ctx, dsobj: DSConverter):
         conquer = self.get_conquer_data(ctx)
 
-        if tribe.alone:
-            msg = "Der Filter unterstützt nur Stämme"
-            await ctx.send(embed=error_embed(msg))
-
-        elif tribe.id in conquer['filter']:
+        if dsobj.id in conquer[dsobj.type]:
             msg = "Der Stamm ist bereits eingespeichert"
             await ctx.send(embed=error_embed(msg))
 
         else:
-            conquer['filter'].append(tribe.id)
+            conquer[dsobj.type].append(dsobj.id)
             self.config.save()
 
-            msg = f"`{tribe.name}` wurde hinzugefügt"
+            msg = f"`{dsobj}` wurde hinzugefügt"
             await ctx.send(embed=complete_embed(msg))
 
     @conquer.command(name="remove")
-    async def conquer_remove(self, ctx, tribe: DSConverter):
+    async def conquer_remove(self, ctx, dsobj: DSConverter):
         conquer = self.get_conquer_data(ctx)
 
-        if tribe.alone:
-            msg = "Der Filter unterstützt nur Stämme"
-            await ctx.send(embed=error_embed(msg))
-
-        elif tribe.id not in conquer['filter']:
+        if dsobj.id not in conquer[dsobj.type]:
             msg = "Der Stamm ist nicht eingespeichert"
             await ctx.send(embed=error_embed(msg))
 
         else:
-            conquer['filter'].remove(tribe.id)
+            conquer[dsobj.type].remove(dsobj.id)
             self.config.save()
 
-            msg = f"`{tribe.name}` wurde entfernt"
+            msg = f"`{dsobj}` wurde entfernt"
             await ctx.send(embed=complete_embed(msg))
 
     @conquer.command(name="grey")
@@ -239,23 +228,32 @@ class Config(commands.Cog):
     async def conquer_list(self, ctx):
         conquer = self.get_conquer_data(ctx)
 
-        if not conquer['filter']:
-            msg = "Es befindet sich kein Stamm im Filter"
-            return await ctx.send(embed=error_embed(msg))
+        if not conquer['tribe'] and not conquer['player']:
+            msg = "Es befindet sich kein Spieler oder Stamm im Filter"
+            await ctx.send(embed=error_embed(msg))
 
-        world = self.config.get_world(ctx.channel)
-        cache = await self.bot.fetch_bulk(world, conquer['filter'], 'tribe')
-        data = [obj.name for obj in cache]
+        else:
+            world = self.config.get_world(ctx.channel)
 
-        name = "Stamm" if len(data) == 1 else "Stämme"
-        title = f"{len(data)} {name} insgesamt:"
-        embed = discord.Embed(title=title, description="\n".join(data[:20]))
-        await ctx.send(embed=embed)
+            counter = 0
+            embed = discord.Embed()
+            for dstype in ('tribe', 'player'):
+                cache = await self.bot.fetch_bulk(world, conquer[dstype], dstype)
+                data = [str(obj) for obj in cache]
+                name = "Stämme:" if dstype == "tribe" else "Spieler:"
+                embed.add_field(name=name, value="\n".join(data))
+                counter += len(data)
+
+            name = "Element" if len(data) == 1 else "Elemente"
+            embed.title = f"{len(data)} {name} insgesamt:"
+
+            await ctx.send(embed=embed)
 
     @conquer.command(name="clear")
     async def conquer_clear(self, ctx):
         conquer = self.get_conquer_data(ctx)
-        conquer['filter'].clear()
+        conquer['tribe'].clear()
+        conquer['player'].clear()
         self.config.save()
 
         msg = "Der Filter wurde zurückgesetzt"
