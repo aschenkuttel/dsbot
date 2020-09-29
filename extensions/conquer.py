@@ -207,17 +207,20 @@ class ConquerLoop(commands.Cog):
         if not data:
             return
 
-        only_tribes = config['filter']
+        filter_ids = {}
+        if config['tribe']:
+            members = await self.bot.fetch_tribe_member(world, config['tribe'])
+            filter_ids.update({obj.id: obj for obj in members})
 
-        tribe_players = {}
-        if only_tribes:
-            members = await self.bot.fetch_tribe_member(world, only_tribes)
-            tribe_players = {obj.id: obj for obj in members}
+        if config['player']:
+            players = await self.bot.fetch_bulk(world, config['player'])
+            filter_ids.update({obj.id: obj for obj in players})
 
         date = None
         result = []
         for conquer in data:
-            if only_tribes and not any(idc in tribe_players for idc in conquer.player_ids):
+
+            if not any(idc in filter_ids for idc in conquer.player_ids):
                 continue
 
             if not config['bb'] and conquer.grey:

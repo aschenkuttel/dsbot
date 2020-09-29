@@ -203,7 +203,7 @@ class Villages(commands.Cog):
             else:
                 result.append(player)
 
-        await self.send_result(ctx, result, "inaktiver Spieler")
+        await self.send_result(ctx, result, "inaktiven Spieler")
 
 
 def setup(bot):

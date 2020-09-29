@@ -1,5 +1,5 @@
-from utils import WorldConverter, DSConverter, WrongChannel, Player
 from utils import complete_embed, error_embed, MissingRequiredKey
+from utils import WorldConverter, DSConverter, WrongChannel
 from discord.ext import commands
 import discord
 
@@ -8,6 +8,7 @@ class Config(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 0
+        self.limit = 20
         self.config = bot.config
         self.converter_title = self.bot.msg['converterTitle']
         self.config_title = self.bot.msg['configTitle']
@@ -69,7 +70,7 @@ class Config(commands.Cog):
             await ctx.send(embed=error_embed(msg))
 
         else:
-            channels[str(ctx.channel.id)] = {'bb': False, 'filter': []}
+            channels[str(ctx.channel.id)] = {'bb': False, 'tribe': [], 'player': []}
             self.config.change_item(ctx.guild.id, "conquer", channels)
             msg = f"{ctx.channel.mention} ist nun Eroberungschannel"
             await ctx.send(embed=complete_embed(msg))
@@ -185,7 +186,7 @@ class Config(commands.Cog):
         await ctx.invoke(cmd)
 
     @conquer.command(name="add")
-    async def conquer_add(self, ctx, dsobj: DSConverter):
+    async def conquer_add(self, ctx, *, dsobj: DSConverter):
         conquer = self.get_conquer_data(ctx)
 
         if dsobj.id in conquer[dsobj.type]:
@@ -200,7 +201,7 @@ class Config(commands.Cog):
             await ctx.send(embed=complete_embed(msg))
 
     @conquer.command(name="remove")
-    async def conquer_remove(self, ctx, dsobj: DSConverter):
+    async def conquer_remove(self, ctx, *, dsobj: DSConverter):
         conquer = self.get_conquer_data(ctx)
 
         if dsobj.id not in conquer[dsobj.type]:
@@ -229,7 +230,7 @@ class Config(commands.Cog):
         conquer = self.get_conquer_data(ctx)
 
         if not conquer['tribe'] and not conquer['player']:
-            msg = "Es befindet sich kein Spieler oder Stamm im Filter"
+            msg = "Du hast noch keinen Stamm oder Spieler in den Filter eingetragen"
             await ctx.send(embed=error_embed(msg))
 
         else:
@@ -239,13 +240,17 @@ class Config(commands.Cog):
             embed = discord.Embed()
             for dstype in ('tribe', 'player'):
                 cache = await self.bot.fetch_bulk(world, conquer[dstype], dstype)
-                data = [str(obj) for obj in cache]
+
+                if not cache:
+                    continue
+
+                data = [str(obj) for obj in cache[:self.limit]]
                 name = "Stämme:" if dstype == "tribe" else "Spieler:"
-                embed.add_field(name=name, value="\n".join(data))
+                embed.add_field(name=name, value="\n".join(data), inline=False)
                 counter += len(data)
 
-            name = "Element" if len(data) == 1 else "Elemente"
-            embed.title = f"{len(data)} {name} insgesamt:"
+            name = "Element" if counter == 1 else "Elemente"
+            embed.title = f"{counter} {name} insgesamt:"
 
             await ctx.send(embed=embed)
 

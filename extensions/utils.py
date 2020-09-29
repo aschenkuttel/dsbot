@@ -496,7 +496,7 @@ class Utils(commands.Cog):
         target_date = datetime.fromtimestamp(date.timestamp() + seconds)
         time = target_date.strftime('%H:%M:%S')
         name = value.upper() if value in self.troops else "RAMME"
-        msg = f"**Rückkehr:** {time}:000 `[{name}]`"
+        msg = f"**Rückkehr:** {time} `[{name}]`"
         await ctx.send(msg)
 
     @commands.command(name="settings")

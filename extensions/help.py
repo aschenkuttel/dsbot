@@ -96,23 +96,20 @@ class Help(commands.Cog):
         return emb_help
 
     def cmd_embed(self, data, ctx):
-        title_base = "Command: {}".format(data[0])
-        title = title_base.replace("~", ctx.prefix)
-        desc, cmd_type = data[1:3]
-        cmd_inp = "`\n`".join(data[3])
-        example = "`\n`".join(data[4])
+        titles = [f"`{ctx.prefix}{cmd}`" for cmd in data[0]]
+        title = f"Command: {' - '.join(titles)}"
 
-        if len(data[3]) != 1:
-            cmd_inp = f"\n`{cmd_inp}`"
+        raw_inp = [f"`{ctx.prefix}{cmd}`" for cmd in data[3]]
+        cmd_inp = "\n".join(raw_inp)
 
-        if len(data[4]) != 1:
-            example = f"\n`{example}`"
+        raw_example = [f"`{ctx.prefix}{cmd}`" for cmd in data[4]]
+        example = "\n".join(raw_example)
 
         color = discord.Color.blue()
-        parseable = f"**Beschreibung:**\n{desc}\n" \
-                    f"**Command Typ:** {cmd_type}\n" \
-                    f"**Command Input:** {cmd_inp}\n" \
-                    f"**Beispiel:** {example}"
+        parseable = f"**Beschreibung:**\n{data[1]}\n" \
+                    f"**Command Typ:** {data[2]}\n" \
+                    f"**Command Input:**\n {cmd_inp}\n" \
+                    f"**Beispiel:**\n {example}"
         description = parseable.replace("~", ctx.prefix)
         emb = discord.Embed(title=title, description=description, color=color)
         return emb
@@ -397,24 +394,54 @@ class Help(commands.Cog):
 
     @help.command(name="retime")
     async def retime_(self, ctx):
-        pass
+        title = "`~retime`"
+        desc = "Erhalte die Retime Zeit eines ankommenden Angriffs. " \
+               "Hierbei kopiert man einfach die Zeile des Angriffs " \
+               "und fügt sie dahinter ein. Die Laufzeit ist per default " \
+               "Ramme, nimmt sonst den umbenannten Befehl, kann aber auch " \
+               "manuell an erster Stelle eingetragen werden"
+        cmd_type = "Server Command"
+        cmd_inp = ["~retime <commandline>",
+                   "~retime <runtime> <commandline>"]
+        example = ["~retime <commandline>",
+                   "~retime Ramme <commandline>"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
     
     @help.command(name="members")
     async def members_(self, ctx):
-        title = "`~members`"
+        title = ["members"]
         desc = "Erhalte alle Member eines Stammes,\n" \
                "mögliche Optionen: `ingame, guest, twstats`"
         cmd_type = "Server Command"
-        cmd_inp = ["~members <tribetag>",
-                   "~members <tribetag> <url_type=ingame>"]
-        example = ["~members W-Inc",
-                   "~members W-Inc twstats"]
+        cmd_inp = ["members <tribetag>",
+                   "members <tribetag> <url_type=ingame>"]
+        example = ["members W-Inc",
+                   "members W-Inc twstats"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
         await self.mailbox(ctx, embed)
 
-
+    @help.command(name="inactive", aliases=["graveyard"])
+    async def inactive_(self, ctx):
+        title = ["inactive", "graveyard"]
+        desc = "Erhalte eine Coord-Liste aller inaktiven Accounts in einem gewissen Radius." \
+               "Arguments werden hierbei als \"keywords\" angegeben. Der Radius kann zwischen " \
+               "`1` und `25` Dörfern groß sein, die Punktegrenze kann über oder unter einem Wert " \
+               "sein, hierbei verwendet man statt `=` entweder `>` oder `<`. Falls nach " \
+               "inaktiven Spielern mit Stamm gesucht wird, kann man dies so angeben: tribe=true"
+        cmd_type = "Server Command"
+        cmd_inp = ["inactive <coord> <radius=10, points=none, since=3, tribe=none>"]
+        example = ["inactive 500|500 radius=20 since=7",
+                   "inactive 500|500 radius=5 points<500",
+                   "inactive 500|500 tribe=true"]
+        data = title, desc, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await ctx.author.send(embed=embed)
+        await self.mailbox(ctx, embed)
 
     @help.command(name="villages")
     async def villages_(self, ctx):
