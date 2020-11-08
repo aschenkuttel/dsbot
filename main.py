@@ -18,56 +18,70 @@ import os
 # gets called every message to gather the custom prefix
 def prefix(bot, message):
     if message.guild is None:
-        return bot.prefix
-    idc = message.guild.id
-    custom = bot.config.get_prefix(idc)
-    return custom
+        return secret.default_prefix
+    else:
+        idc = message.guild.id
+        custom = bot.config.get_prefix(idc)
+        return custom
 
 
 # implementation of own class / overwrites
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # internal world cache of active worlds with settings
         self.worlds = {}
+        self.active_guilds = set()
+        self.cache = utils.Cache(self)
+        self.config = utils.Config(self)
+
+        # tribal wars and iron database pools
         self.ress = None
         self.pool = None
-        self.conn = None
+
+        # active connection for discord callback if database fails
+        self._conn = None
         self.session = None
-        self.active_guilds = set()
-        self.prefix = secret.prefix
-        self.white = secret.pm_commands
-        self.owner_id = 211836670666997762
+
         self.path = os.path.dirname(__file__)
         self.data_path = f"{self.path}/data"
         self.logger = utils.create_logger('dsbot', self.data_path)
         self.msg = json.load(open(f"{self.data_path}/msg.json", encoding="utf-8"))
-        self.activity = discord.Activity(type=0, name=self.msg['status'])
-        self.loop.create_task(self.loop_per_hour())
-        self.add_check(self.global_world)
-        self.config = utils.Config(self)
-        self.cache = utils.Cache(self)
+
+        # update lock which waits for external database script and setup lock
         self._update = asyncio.Event()
         self._lock = asyncio.Event()
+
+        self.owner_id = 211836670666997762
+        self.activity = discord.Activity(type=0, name=self.msg['status'])
+        self.add_check(self.global_world)
         self.remove_command("help")
+
+        # initiate main loop and load modules
+        self.loop.create_task(self.loop_per_hour())
         self.setup_cogs()
 
     # setup functions
     async def on_ready(self):
         # db / aiohttp setup
-        if not self.session or not self.pool:
+        if not self._lock.is_set():
+
+            # initiates session object and db conns
             self.session = aiohttp.ClientSession(loop=self.loop)
             self.pool, self.ress = await self.db_connect()
             await self.setup_tables()
+
+            # initiate logging connection for discord callback
+            self._conn = await self.pool.acquire()
+            await self._conn.add_listener("log", self.callback)
 
             # adds needed option for vps
             if os.name != "nt":
                 utils.imgkit['xvfb'] = ''
 
+            # loads active worlds from database
             await self.update_worlds()
-
-        if not self.conn:
-            self.conn = await self.pool.acquire()
-            await self.conn.add_listener("log", self.callback)
 
         self._lock.set()
         print("Erfolgreich Verbunden!")
@@ -75,12 +89,12 @@ class DSBot(commands.Bot):
     async def wait_until_unlocked(self):
         return await self._lock.wait()
 
-    # global check and ctx.world implementation
+    # global check and ctx.world inject
     async def global_world(self, ctx):
         parent = ctx.command.parent
         cmd = str(ctx.command)
 
-        if bool({str(parent), cmd} & self.white):
+        if bool({str(parent), cmd} & secret.pm_commands):
             return True
         elif ctx.guild is None:
             raise commands.NoPrivateMessage()
@@ -157,6 +171,7 @@ class DSBot(commands.Bot):
                 try:
                     if loop is not None:
                         await loop()
+
                 except Exception as error:
                     self.logger.debug(f"{cog.qualified_name} Task Error: {error}")
 
@@ -167,8 +182,10 @@ class DSBot(commands.Bot):
         clean = now + datetime.timedelta(hours=hours + only)
         goal_time = clean.replace(minute=0, second=0, microsecond=0)
         start_time = now.replace(microsecond=0)
+
         if reverse:
             goal_time, start_time = start_time, goal_time
+
         goal = (goal_time - start_time).seconds
         return goal if not only else start_time.timestamp()
 

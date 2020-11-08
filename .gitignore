@@ -1,9 +1,9 @@
 .idea/
-cogs/dev_Test.py
 data/config.json
 data/cache.json
 data/naruto.py
 discord.log
+cogs/dev.py
 dsbot.log
 datadb.py
 msg.json
