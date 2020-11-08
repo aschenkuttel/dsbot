@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-from collections import UserDict, OrderedDict
 from discord.ext import commands
 from datetime import datetime
 import asyncio

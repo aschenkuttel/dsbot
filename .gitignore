@@ -1,5 +1,5 @@
 .idea/
-extensions/dev_Test.py
+cogs/dev_Test.py
 data/config.json
 data/cache.json
 data/naruto.py
@@ -8,3 +8,4 @@ dsbot.log
 datadb.py
 msg.json
 lab.py
+venv

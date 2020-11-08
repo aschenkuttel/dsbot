@@ -437,11 +437,11 @@ class DSBot(commands.Bot):
             else:
                 return [dsobj.Class(rec) for rec in res]
 
-    # imports all extensions at startup
+    # imports all cogs at startup
     def setup_cogs(self):
         for file in secret.default_cogs:
             try:
-                self.load_extension(f"extensions.{file}")
+                self.load_extension(f"cogs.{file}")
             except commands.ExtensionNotFound:
                 print(f"module {file} not found")
 
