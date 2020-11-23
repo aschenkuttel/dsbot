@@ -4,85 +4,70 @@ import json
 
 class Config:
     def __init__(self, bot):
-        self._config = {}
         self.bot = bot
-        self.path = f"{bot.data_path}/config.json"
-        self.load_config()
+        self._config = {}
+        self.path = f"{self.bot.data_path}/config.json"
+        self.setup()
 
-    def load_config(self):
+    def setup(self):
         cache = json.load(open(self.path))
-        data = {int(key): value for key, value in cache.items()}
-        self._config.update(data)
+        self._config = {int(k): v for k, v in cache.items()}
 
-    def get_config(self, guild_id, setup=False):
-        config = self._config.get(guild_id)
-        if config is None and setup:
-            config = self._config[guild_id] = {}
+    def save(self):
+        json.dump(self._config, open(self.path, 'w'))
 
-        return config
-
-    def get_item(self, guild_id, item, default=None):
+    def get(self, item, guild_id, default=None):
         config = self.get_config(guild_id)
         if config is None:
-            return default
+            return
         else:
             return config.get(item, default)
 
-    def change_item(self, guild_id, item, value):
+    def update(self, item, value, guild_id):
         config = self.get_config(guild_id, setup=True)
         config[item] = value
         self.save()
 
-    def remove_item(self, guild_id, item, bulk=False):
+    def remove(self, item, guild_id, bulk=False):
         config = self.get_config(guild_id)
         if config is None:
             return
 
         job = config.pop(item, None)
-        if job is not None and not bulk:
+        if job is not None and bulk is False:
             self.save()
 
         return job
 
-    def update_switch(self, guild_id, key, bulk=False):
-        config = self.get_config(guild_id, setup=True)
-        switches = config.get('switches')
-        if switches is None:
-            switches = config['switches'] = {}
-
-        old = switches.get(key, True)
-        switches[key] = not old
-
-        if not bulk:
-            self.save()
-
-        return not old
-
-    def get_switch(self, guild_id, key):
+    def get_config(self, guild_id, setup=False):
         config = self._config.get(guild_id)
-        if not config:
+
+        if config is None and setup is True:
+            config = self._config[guild_id] = {}
+
+        return config
+
+    def remove_config(self, guild_id):
+        response = self._config.pop(guild_id, None)
+        if response is not None:
+            self.save()
             return True
 
-        switches = config.get('switches', {})
-        return switches.get(key, True)
-
-    def get_conquer(self, ctx):
-        conquer = self.get_item(ctx.guild.id, 'conquer', {})
-        return conquer.get(str(ctx.channel.id))
-
     def get_world(self, channel):
-        con = self._config.get(channel.guild.id)
-        if con is None:
+        config = self._config.get(channel.guild.id)
+        if config is None:
             return
 
-        main = con.get('world')
-        if not main:
+        main_world = config.get('world')
+        if main_world is None:
             return
 
-        chan = con.get('channel')
-        idc = str(channel.id)
-        world = chan.get(idc, main) if chan else main
-        return world
+        channel_config = config.get('channel', {})
+        channel_world = channel_config.get(str(channel.id))
+        if channel_world is None:
+            return main_world
+        else:
+            return channel_world
 
     def get_related_world(self, obj):
         if isinstance(obj, discord.Guild):
@@ -102,8 +87,7 @@ class Config:
                 return chan.get(str(obj.id))
 
     def remove_world(self, world):
-        for guild in self._config:
-            config = self._config[guild]
+        for config in self._config.values():
             if config.get('world') == world:
                 config.pop('world')
 
@@ -114,22 +98,43 @@ class Config:
 
         self.save()
 
+    def get_switch(self, key, guild_id):
+        config = self._config.get(guild_id)
+        if not config:
+            return True
+
+        switches = config.get('switches', {})
+        return switches.get(key, True)
+
+    def update_switch(self, key, guild_id, bulk=False):
+        config = self.get_config(guild_id, setup=True)
+        switches = config.get('switches')
+        if switches is None:
+            switches = config['switches'] = {}
+
+        old = switches.get(key, True)
+        switches[key] = not old
+
+        if not bulk:
+            self.save()
+
+        return not old
+
     def get_prefix(self, guild_id):
         config = self._config.get(guild_id)
-        default = self.bot.prefix
+        default = self.bot.default_prefix
         if config is None:
             return default
         else:
             return config.get('prefix', default)
 
-    def save(self):
-        json.dump(self._config, open(self.path, 'w'))
+    def get_conquer(self, ctx):
+        conquer = self.get('conquer', ctx.guild.id)
 
-    def remove_config(self, guild_id):
-        if guild_id in self._config:
-            self._config.pop(guild_id)
-            self.save()
-            return True
+        if conquer is None:
+            return
+        else:
+            return conquer.get(str(ctx.channel.id))
 
 
 class Cache:

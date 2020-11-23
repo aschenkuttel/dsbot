@@ -1,7 +1,7 @@
 .idea/
 data/config.json
 data/cache.json
-data/naruto.py
+data/credentials.py
 discord.log
 cogs/dev.py
 dsbot.log

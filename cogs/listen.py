@@ -226,7 +226,7 @@ class Listen(commands.Cog):
 
         # report conversion
         report_urls = re.findall(r'https://.+/public_report/\S*', content)
-        if report_urls and self.bot.config.get_switch(guild_id, 'report'):
+        if report_urls and self.bot.config.get_switch('report', guild_id):
             file = await self.fetch_report(report_urls[0])
             if file is None:
                 await utils.silencer(message.add_reaction('❌'))
@@ -242,7 +242,7 @@ class Listen(commands.Cog):
 
         # ut request conversion
         ut_requests = re.findall(r'(\[b].*)|(\[command].*)', content)
-        if ut_requests and self.bot.config.get_switch(guild_id, 'request'):
+        if ut_requests and self.bot.config.get_switch('request', guild_id):
             request_packages = [[]]
             for title, command in ut_requests:
                 current = request_packages[-1]
@@ -270,7 +270,7 @@ class Listen(commands.Cog):
 
         # coord conversion
         coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
-        if coordinates and self.bot.config.get_switch(guild_id, 'coord'):
+        if coordinates and self.bot.config.get_switch('coord', guild_id):
             coords = set(coordinates)
             villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
             player_ids = [obj.player_id for obj in villages]
@@ -304,7 +304,7 @@ class Listen(commands.Cog):
 
         # ds mention converter
         names = re.findall(r'(?<!\|)\|([\S][^|]*?)\|(?!\|)', content)
-        if names and self.bot.config.get_switch(guild_id, 'mention'):
+        if names and self.bot.config.get_switch('mention', guild_id):
             parsed_msg = message.clean_content.replace("`", "")
             ds_objects = await self.bot.fetch_bulk(world, names[:10], name=True)
             cache = await self.bot.fetch_bulk(world, names[:10], 1, name=True)
@@ -417,7 +417,7 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.WrongChannel):
             if error.type == "game":
-                channel = self.bot.config.get_item(ctx.guild.id, "game")
+                channel = self.bot.config.get('game', ctx.guild.id)
                 return await ctx.send(f"<#{channel}>")
 
             else:

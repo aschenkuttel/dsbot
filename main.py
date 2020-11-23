@@ -1,6 +1,6 @@
 from async_timeout import timeout
+import data.credentials as secret
 from discord.ext import commands
-import data.naruto as secret
 import concurrent.futures
 import functools
 import operator
@@ -30,6 +30,9 @@ class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.path = os.path.dirname(__file__)
+        self.data_path = f"{self.path}/data"
+
         # internal world cache of active worlds with settings
         self.worlds = {}
         self.active_guilds = set()
@@ -44,8 +47,6 @@ class DSBot(commands.Bot):
         self._conn = None
         self.session = None
 
-        self.path = os.path.dirname(__file__)
-        self.data_path = f"{self.path}/data"
         self.logger = utils.create_logger('dsbot', self.data_path)
         self.msg = json.load(open(f"{self.data_path}/msg.json", encoding="utf-8"))
 
@@ -54,6 +55,7 @@ class DSBot(commands.Bot):
         self._lock = asyncio.Event()
 
         self.owner_id = 211836670666997762
+        self.default_prefix = secret.default_prefix
         self.activity = discord.Activity(type=0, name=self.msg['status'])
         self.add_check(self.global_world)
         self.remove_command("help")

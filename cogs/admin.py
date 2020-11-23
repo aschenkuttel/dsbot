@@ -41,7 +41,7 @@ class Admin(commands.Cog):
 
     @reset.command(name="conquer")
     async def conquer_(self, ctx):
-        self.bot.config.change_item(ctx.guild.id, 'conquer', {})
+        self.bot.config.update('conquer', {}, ctx.guild.id)
         msg = "Die Conquereinstellungen wurden zurückgesetzt"
         await ctx.send(embed=utils.complete_embed(msg))
 

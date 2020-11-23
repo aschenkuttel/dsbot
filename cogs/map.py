@@ -35,9 +35,6 @@ class MapMenue:
         self.color = DSColor()
         self.dead = False
 
-    def is_dead(self):
-        return self.dead
-
     def get_value(self, index):
         values = [self.zoom, self.center, self.player,
                   self.tribes, self.highlight, self.bb]

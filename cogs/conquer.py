@@ -24,7 +24,7 @@ class ConquerLoop(commands.Cog):
         counter = 0
         for guild in self.bot.guilds:
             if guild.id not in self.bot.active_guilds:
-                self.bot.config.remove_item(guild.id, 'conquer', bulk=True)
+                self.bot.config.remove('conquer', guild.id, bulk=True)
                 counter += 1
 
         self.bot.config.save()
@@ -50,7 +50,7 @@ class ConquerLoop(commands.Cog):
         logger.debug(f"conquer feed complete ({counter} guilds)")
 
     async def conquer_feed(self, guild):
-        conquer = self.bot.config.get_item(guild.id, 'conquer')
+        conquer = self.bot.config.get('conquer', guild.id)
         if not conquer:
             return
 

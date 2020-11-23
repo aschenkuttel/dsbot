@@ -173,7 +173,7 @@ def unpack_join(record):
 def game_channel_only():
     def predicate(ctx):
         config = ctx.bot.config
-        chan = config.get_item(ctx.guild.id, "game")
+        chan = config.get('game', ctx.guild.id)
         if not chan:
             raise GameChannelMissing()
         if chan == ctx.channel.id:

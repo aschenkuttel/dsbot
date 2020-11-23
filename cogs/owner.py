@@ -56,7 +56,7 @@ class Owner(commands.Cog):
             return
 
         value = value if item == "prefix" else int(value)
-        self.bot.config.change_item(guild_id, item, value)
+        self.bot.config.update(item, value, guild_id)
         await ctx.send(f"`{item}` registriert")
 
     @commands.command(name="update_iron")
