@@ -1,4 +1,4 @@
-from utils import WorldConverter, DSColor, MapVillage, silencer, keyword, Player
+from utils import WorldConverter, DSColor, MapVillage, Player, silencer, keyword
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 from datetime import datetime
@@ -85,6 +85,7 @@ class MapMenue:
         # index 1,2,3: center, player, tribe
         elif index in (1, 2, 3):
             values = [self.center, self.player, self.tribes]
+
             if values[index - 1] is False:
                 return
 
@@ -214,8 +215,8 @@ class MapMenue:
 class Map(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.low = 0
         self.type = 1
+        self.low = 0
         self.high = 3001
         self.space = 20
         self.top10_cache = {}
@@ -249,7 +250,7 @@ class Map(commands.Cog):
         bucket = self._cd.get_bucket(ctx.message)
         bucket.reset()
 
-    async def called_by_hour(self):
+    async def called_per_hour(self):
         for key in self.menue_cache.copy():
             menue = self.menue_cache[key]
             now = datetime.utcnow()
@@ -355,7 +356,8 @@ class Map(commands.Cog):
     def label_map(self, result, village_cache, zoom=0):
         reservation = []
         font_size = int(self.max_font_size * ((result.size[0] - 50) / self.high))
-        most_villages = len(sorted(village_cache.items(), key=lambda l: len(l[1]))[-1][1])
+        sorted_cache = sorted(village_cache.items(), key=lambda l: len(l[1]))
+        most_villages = len(sorted_cache[-1][1])
 
         bound_size = tuple([int(c * 1.5) for c in result.size])
         legacy = Image.new('RGBA', bound_size, (255, 255, 255, 0))
@@ -442,7 +444,7 @@ class Map(commands.Cog):
             result.paste(foreground, mask=foreground)
 
         # create legacy which is double in size for improved text quality
-        if label is True and tribes or label is True and players:
+        if label is True and (tribes or players):
             self.label_map(result, village_cache, options['zoom'])
 
         self.watermark(result)

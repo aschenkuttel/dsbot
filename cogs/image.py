@@ -28,6 +28,7 @@ class Graphic(commands.Cog):
     def img_resize(self, img):
         x = img.size[0]
         y = x / 1.5
+
         if img.size[0] / img.size[1] > 1.5:
             y = img.size[1]
             x = y * 1.5
@@ -42,6 +43,7 @@ class Graphic(commands.Cog):
         img = next(frames)
         x = img.size[0]
         y = x / 1.5
+
         if img.size[0] / img.size[1] > 1.5:
             y = img.size[1]
             x = y * 1.5
@@ -99,8 +101,10 @@ class Graphic(commands.Cog):
         for name, emoji in self.emojis.items():
             if name in [e.name for e in ctx.guild.emojis]:
                 continue
+
             await ctx.guild.create_custom_emoji(name=name, image=emoji)
             counter += 1
+
         await ctx.send(f"`{counter}/{len(self.emojis)}` Emojis wurden hinzugefügt")
 
     @avatar_.error

@@ -8,14 +8,10 @@ class Money(commands.Cog):
         self.bot = bot
         self.type = 3
 
-    @commands.group(name="iron")
+    @commands.group(name="iron", invoke_without_command=True)
     async def iron(self, ctx):
-        cmd_list = ("top", "global", "send")
-        if ctx.subcommand_passed and ctx.subcommand_passed not in cmd_list:
+        if not ctx.message.content.endswith("iron"):
             raise MissingRequiredKey(("top", "global", "send"))
-
-        if ctx.invoked_subcommand:
-            return
 
         money, rank = await self.bot.fetch_iron(ctx.author.id, True)
         base = "**Dein Speicher:** `{} Eisen`\n**Globaler Rang:** `{}`"
@@ -43,10 +39,7 @@ class Money(commands.Cog):
         data = []
         cache = await self.bot.fetch_iron_list(100, guild)
         for index, record in enumerate(cache):
-            if top:
-                player = guild.get_member(record['id'])
-            else:
-                player = self.bot.get_user(record['id'])
+            player = self.bot.get_user(record['id'])
 
             if player is None:
                 continue

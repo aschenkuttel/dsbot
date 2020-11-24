@@ -8,18 +8,13 @@ class Config(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 0
-        self.limit = 20
-        self.config = bot.config
+        self.config = self.bot.config
         self.converter_title = self.bot.msg['converterTitle']
         self.config_title = self.bot.msg['configTitle']
 
     async def cog_check(self, ctx):
-        if ctx.guild is None:
-            raise commands.NoPrivateMessage
-
         if ctx.author.guild_permissions.administrator:
             return True
-
         else:
             raise commands.MissingPermissions(['administrator'])
 
@@ -38,72 +33,79 @@ class Config(commands.Cog):
     @set.command(name="world")
     async def set_world(self, ctx, world: WorldConverter):
         old_world = self.config.get_related_world(ctx.guild)
-        res = "bereits" if world == old_world else "nun"
-        msg = f"Der Server ist {res} mit {world} verbunden"
 
         if world == old_world:
+            msg = f"Der Server ist bereits mit {world} verbunden"
             await ctx.send(embed=error_embed(msg))
         else:
             self.config.update('world', world.server, ctx.guild.id)
+            msg = f"Der Server ist nun mit {world} verbunden"
             await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="game")
     async def set_game(self, ctx):
         cur = self.config.get('game', ctx.guild.id)
+
         if cur == ctx.channel.id:
             msg = "Der aktuelle Channel ist bereits eingespeichert"
             await ctx.send(embed=error_embed(msg))
         else:
             self.config.update('game', ctx.channel.id, ctx.guild.id)
-            msg = f"<#{ctx.channel.id}> ist nun der aktive Game-Channel"
+            msg = f"{ctx.channel.mention} ist nun der aktive Game-Channel"
             await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="conquer")
     async def set_conquer(self, ctx):
         channels = self.config.get('conquer', ctx.guild.id, default={})
+
         if str(ctx.channel.id) in channels:
             msg = "Der aktuelle Channel ist bereits eingespeichert"
             await ctx.send(embed=error_embed(msg))
 
         elif len(channels) >= 2:
-            msg = "Du kannst nur 2 Eroberungschannel haben"
+            msg = "Momentan sind nur 2 Eroberungschannel möglich"
             await ctx.send(embed=error_embed(msg))
 
         else:
             channels[str(ctx.channel.id)] = {'bb': False, 'tribe': [], 'player': []}
             self.config.update('conquer', channels, ctx.guild.id)
-            msg = f"{ctx.channel.mention} ist nun Eroberungschannel"
+            msg = f"{ctx.channel.mention} ist nun ein Eroberungschannel"
             await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="prefix")
-    async def set_prefix(self, ctx, pre):
-        cur = self.config.get_prefix(ctx.guild.id)
-        if cur == pre:
-            msg = f"`{cur}` ist bereits der aktuelle Prefix dieses Servers"
-            await ctx.send(embed=error_embed(msg))
+    async def set_prefix(self, ctx, prefix):
+        current_prefix = self.config.get_prefix(ctx.guild.id)
+
+        if current_prefix == prefix:
+            msg = "`{}` ist bereits der aktuelle Prefix dieses Servers"
+            await ctx.send(embed=error_embed(msg.format(prefix)))
 
         else:
-            self.config.update('prefix', pre, ctx.guild.id)
-            msg = f"Der Prefix `{pre}` ist nun aktiv"
+            self.config.update('prefix', prefix, ctx.guild.id)
+            msg = f"Der Prefix `{prefix}` ist nun aktiv"
             await ctx.send(embed=complete_embed(msg))
 
-    @set.command(name="channel")
-    async def set_channel(self, ctx, world: WorldConverter):
+    @set.command(name="channel_world")
+    async def set_channel_world(self, ctx, world: WorldConverter):
         config = self.config.get('channel', ctx.guild.id)
+
         if config is None:
-            cache = {str(ctx.channel.id): world.server}
-            self.config.update('channel', cache, ctx.guild.id)
+            config = {str(ctx.channel.id): world.server}
+            self.config.update('channel', config, ctx.guild.id)
 
         else:
             old_world = config.get(str(ctx.channel.id))
+
             if old_world == world:
-                msg = f"Dieser Channel ist bereits zu **{world}** gelinked"
-                return await ctx.send(embed=error_embed(msg))
+                msg = f"Dieser Channel ist bereits mit {world} verbunden"
+                await ctx.send(embed=error_embed(msg))
+                return
+
             else:
                 config[str(ctx.channel.id)] = world.server
                 self.config.save()
 
-        msg = f"Der Channel wurde mit **{world}** gelinked"
+        msg = f"Der Channel ist nun mit {world} verbunden"
         await ctx.send(embed=complete_embed(msg))
 
     @commands.group(name="switch", invoke_without_command=True)
@@ -112,8 +114,7 @@ class Config(commands.Cog):
         name = self.converter_title.get(key)
 
         if name is None:
-            keys = ("report", "request", "coord", "mention")
-            raise MissingRequiredKey(keys)
+            raise MissingRequiredKey(self.converter_title)
 
         new_value = self.bot.config.update_switch(key, ctx.guild.id)
         state = "aktiv" if new_value else "inaktiv"
@@ -129,7 +130,8 @@ class Config(commands.Cog):
             represent = "aktiv" if state else "inaktiv"
             listed.append(f"**{value} ({key}):** `{represent}`")
 
-        await ctx.send("\n".join(listed))
+        embed = complete_embed("\n".join(listed))
+        await ctx.send(embed=embed)
 
     @commands.group(invoke_without_command=True)
     async def remove(self, ctx, entry):
@@ -151,6 +153,7 @@ class Config(commands.Cog):
     @remove.command(name="conquer")
     async def remove_conquer(self, ctx):
         channels = self.config.get('conquer', ctx.guild.id)
+
         if str(ctx.channel.id) in channels:
             channels.pop(str(ctx.channel.id))
             self.config.save()
@@ -162,8 +165,8 @@ class Config(commands.Cog):
             msg = "Dieser Channel ist nicht eingespeichert"
             await ctx.send(embed=error_embed(msg))
 
-    @remove.command(name="channel")
-    async def remove_channel(self, ctx):
+    @remove.command(name="channel_world")
+    async def remove_channel_world(self, ctx):
         config = self.config.get('channel', ctx.guild.id)
         if config:
             world = config.get(str(ctx.channel.id))
@@ -171,9 +174,10 @@ class Config(commands.Cog):
         else:
             state = False
 
-        if not state:
+        if state is False:
             msg = "Dieser Channel hat keine eigene Welt"
             await ctx.send(embed=error_embed(msg))
+
         else:
             config.pop(str(ctx.channel.id))
             self.config.save()
@@ -218,7 +222,7 @@ class Config(commands.Cog):
     @conquer.command(name="grey")
     async def conquer_grey(self, ctx):
         conquer = self.get_conquer_data(ctx)
-        conquer['bb'] = True if not conquer['bb'] else False
+        conquer['bb'] = False if conquer['bb'] else True
         self.config.save()
 
         state_str = "aktiv" if not conquer['bb'] else "inaktiv"
@@ -244,14 +248,13 @@ class Config(commands.Cog):
                 if not cache:
                     continue
 
-                data = [str(obj) for obj in cache[:self.limit]]
+                data = [str(obj) for obj in cache[:20]]
                 name = "Stämme:" if dstype == "tribe" else "Spieler:"
                 embed.add_field(name=name, value="\n".join(data), inline=False)
                 counter += len(data)
 
             name = "Element" if counter == 1 else "Elemente"
             embed.title = f"{counter} {name} insgesamt:"
-
             await ctx.send(embed=embed)
 
     @conquer.command(name="clear")

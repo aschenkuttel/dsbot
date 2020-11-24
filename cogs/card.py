@@ -5,12 +5,12 @@ import discord
 import random
 import utils
 
-stat = {"id": "ID",
-        "rank": "Rang",
-        "points": "Punkte",
-        "villages": "Dörfer",
-        "all_bash": "Bashpoints",
-        "sup_bash": "UT Bashpoints"}
+stat = {'id': "ID",
+        'rank': "Rang",
+        'points': "Punkte",
+        'villages': "Dörfer",
+        'all_bash': "Bashpoints",
+        'sup_bash': "UT Bashpoints"}
 
 way = {"id": ["älteste", "neuste"],
        "rank": ["besten", "schlechtesten"],

@@ -34,11 +34,11 @@ class ConquerLoop(commands.Cog):
     @commands.is_owner()
     @commands.command(name="manual")
     async def manual(self, ctx):
-        await self.called_by_hour()
+        await self.called_per_hour()
         await ctx.send("manual feed done")
 
     # main loop called from main
-    async def called_by_hour(self):
+    async def called_per_hour(self):
         await self.update_conquer()
 
         counter = 0
@@ -129,7 +129,7 @@ class ConquerLoop(commands.Cog):
             self._conquer[world] = []
 
             try:
-                sec = self.bot.get_seconds(True)
+                sec = self.bot.get_seconds(added_hours=-1)
                 data = await self.fetch_conquer(world_obj, sec)
             except Exception as error:
                 logger.warning(f"{world} skipped: {error}")
@@ -148,7 +148,8 @@ class ConquerLoop(commands.Cog):
             player_ids = []
             village_ids = []
             conquer_cache = []
-            old_unix = self.bot.get_seconds(True, 1)
+            old_unix = self.bot.get_seconds(added_hours=0, timestamp=True)
+
             for entry in cache:
                 vil_id, unix_time, new_owner, old_owner = entry
 
@@ -185,6 +186,7 @@ class ConquerLoop(commands.Cog):
                 conquer.village = villages.get(conquer.id)
                 conquer.old_player = players.get(conquer.old_id)
                 conquer.new_player = players.get(conquer.new_id)
+
                 if conquer.old_player:
                     conquer.old_tribe = tribes.get(conquer.old_player.tribe_id)
                 if conquer.new_player:
@@ -220,7 +222,7 @@ class ConquerLoop(commands.Cog):
         result = []
         for conquer in data:
 
-            if not any(idc in filter_ids for idc in conquer.player_ids):
+            if filter_ids and not bool(set(filter_ids) & set(conquer.player_ids)):
                 continue
 
             if not config['bb'] and conquer.grey:

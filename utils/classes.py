@@ -339,6 +339,9 @@ class DSType:
 class DSGames(commands.Cog):
     async def cog_check(self, ctx):
         container = self.get_container(ctx)
+
+        # if its a list it is a simple cooldown container and we need to check
+        # it since commands with dictionarys need to grab their data on begin
         if isinstance(container, list):
             self.get_game_data(ctx, container)
 
@@ -370,14 +373,14 @@ class DSGames(commands.Cog):
         elif command == "draw":
             command = "videopoker"
 
-        return getattr(self, command)
+        return getattr(self, command, None)
 
     def get_game_data(self, ctx, container=None):
         if container is None:
             container = self.get_container(ctx)
 
         if ctx.guild.id not in container:
-            return None
+            return
 
         if isinstance(container, list):
             raise utils.SilentError

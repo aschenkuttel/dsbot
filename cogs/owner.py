@@ -21,7 +21,7 @@ class Owner(commands.Cog):
     @commands.command(name="reload")
     async def reload_(self, ctx, cog):
         try:
-            self.bot.reload_extension(f"extensions.{cog}")
+            self.bot.reload_extension(f"cogs.{cog}")
             await ctx.send("Extension erfolgreich neu geladen")
             print("-- Extension reloaded --")
         except Exception as error:
@@ -40,22 +40,13 @@ class Owner(commands.Cog):
     async def guilds_(self, ctx):
         await ctx.send(f"{len(self.bot.guilds)}")
 
-    @commands.command(name="stats")
-    async def stats_(self, ctx):
-        data = await self.bot.fetch_usage()
-        if not data:
-            return await ctx.send("no")
-        result = [f"`{usage}` [{cmd}]" for cmd, usage in data]
-        return await ctx.send(
-            embed=discord.Embed(description='\n'.join(result)))
-
     @commands.command(name="change")
     async def change_(self, ctx, guild_id: int, item, value):
-        if item.lower() not in ["prefix", "world", "game", "conquer"]:
+        if item.lower() not in ['prefix', 'world', 'game']:
             await ctx.send("Fehlerhafte Eingabe")
             return
 
-        value = value if item == "prefix" else int(value)
+        value = int(value) if item == "game" else value
         self.bot.config.update(item, value, guild_id)
         await ctx.send(f"`{item}` registriert")
 

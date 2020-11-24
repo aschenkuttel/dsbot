@@ -60,8 +60,8 @@ class Poker(utils.DSGames):
         price = int(data['bet'] + extra)
 
         greet = "Blackjack" if bj else "Glückwunsch"
-        base = f"{greet}, du gewinnst {utils.seperator(price)} Eisen!"
-        embed = self.present_cards(data, base)
+        msg = f"{greet}, du gewinnst {utils.seperator(price)} Eisen!"
+        embed = self.present_cards(data, msg)
         embed.colour = discord.Color.green()
 
         async with self.cooldown(ctx):
@@ -154,7 +154,6 @@ class Poker(utils.DSGames):
             return "Straße"
 
         else:
-
             hands = {'41': "Vierling", '32': "Full House",
                      '311': "Drilling", '221': "Doppel-Paar",
                      '2111': "Paar"}
@@ -188,20 +187,16 @@ class Poker(utils.DSGames):
 
             await asyncio.sleep(60)
 
-            try:
-                current = self.videopoker.get(ctx.guild.id)
-                if stamp == current['time']:
-                    await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
-                    self.videopoker.pop(ctx.guild.id)
-
-            except TypeError:
-                return
+            current = self.videopoker.get(ctx.guild.id, {})
+            if stamp == current['time']:
+                await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
+                self.videopoker.pop(ctx.guild.id)
 
     @utils.game_channel_only()
     @commands.command(name="draw")
     async def draw_(self, ctx, cards=None):
         data = self.get_game_data(ctx)
-        if not data:
+        if data is None:
             msg = "Du musst zuerst eine Runde mit {}vp <100-2000> beginnen"
             await ctx.send(msg.format(ctx.prefix))
             return

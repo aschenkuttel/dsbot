@@ -15,10 +15,11 @@ class Admin(commands.Cog):
         if ctx.guild is None:
             raise commands.NoPrivateMessage
 
-        if ctx.author.guild_permissions.administrator:
+        elif ctx.author.guild_permissions.administrator:
             return True
 
-        raise commands.MissingPermissions(['administrator'])
+        else:
+            raise commands.MissingPermissions(['administrator'])
 
     @commands.group(name="reset", invoke_without_command=True)
     async def reset(self, ctx):
@@ -29,14 +30,12 @@ class Admin(commands.Cog):
     async def game_(self, ctx):
         for game, caches in self.games.items():
             cog = self.bot.get_cog(game)
+
             for cache_name in caches:
                 cache = getattr(cog, cache_name)
-                try:
-                    cache.pop(ctx.guild.id)
-                except KeyError:
-                    pass
+                cache.pop(ctx.guild.id, None)
 
-        msg = "Alle Minigames wurden zurückgesetzt"
+        msg = "Alle Spiele wurden zurückgesetzt"
         await ctx.send(embed=utils.complete_embed(msg))
 
     @reset.command(name="conquer")
@@ -53,8 +52,8 @@ class Admin(commands.Cog):
 
     @commands.command(name="world")
     async def world_(self, ctx):
-        server = self.bot.config.get_related_world(ctx.channel)
-        relation = "Channel" if server == ctx.server else "Server"
+        world = self.bot.config.get_related_world(ctx.channel)
+        relation = "Channel" if world == ctx.server else "Server"
         embed = utils.complete_embed(f"{ctx.world} [{relation}]")
         await ctx.send(embed=embed)
 

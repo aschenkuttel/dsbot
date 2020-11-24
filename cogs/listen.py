@@ -153,7 +153,7 @@ class Listen(commands.Cog):
                          utils.IngameError,
                          utils.SilentError)
 
-    async def called_by_hour(self):
+    async def called_per_hour(self):
         query = 'INSERT INTO usage_data(name, usage) VALUES($1, $2) ' \
                 'ON CONFLICT (name) DO UPDATE SET usage = usage_data.usage + $2'
 
@@ -170,8 +170,10 @@ class Listen(commands.Cog):
     def html_lover(self, raw_data):
         soup = BeautifulSoup(raw_data, 'html.parser')
         tiles = soup.body.find_all(class_='vis')
+
         if len(tiles) < 2:
             return
+
         main = f"{utils.whymtl}<head></head>{tiles[1]}"
         css = f"{self.bot.data_path}/report.css"
         img_bytes = imgkit.from_string(main, False, options=utils.imgkit, css=css)
@@ -215,7 +217,7 @@ class Listen(commands.Cog):
         self.bot.active_guilds.add(guild_id)
 
         world = self.bot.config.get_world(message.channel)
-        if not world:
+        if world is None:
             return
 
         pre = self.bot.config.get_prefix(guild_id)
@@ -228,9 +230,11 @@ class Listen(commands.Cog):
         report_urls = re.findall(r'https://.+/public_report/\S*', content)
         if report_urls and self.bot.config.get_switch('report', guild_id):
             file = await self.fetch_report(report_urls[0])
+
             if file is None:
                 await utils.silencer(message.add_reaction('❌'))
                 return
+
             try:
                 await message.channel.send(file=discord.File(file, "report.png"))
                 await message.delete()
@@ -244,6 +248,7 @@ class Listen(commands.Cog):
         ut_requests = re.findall(r'(\[b].*)|(\[command].*)', content)
         if ut_requests and self.bot.config.get_switch('request', guild_id):
             request_packages = [[]]
+
             for title, command in ut_requests:
                 current = request_packages[-1]
                 header = title.startswith("[b]Dorf:[/b]")
@@ -257,9 +262,11 @@ class Listen(commands.Cog):
             for pkg in request_packages:
                 parser = UTParser(self.bot, world, pkg)
                 embed = await parser.parse()
+
                 if embed is False:
                     await utils.silencer(message.add_reaction('❌'))
                     return
+
                 try:
                     await message.channel.send(embed=embed)
                     await message.delete()
@@ -276,9 +283,10 @@ class Listen(commands.Cog):
             player_ids = [obj.player_id for obj in villages]
             players = await self.bot.fetch_bulk(world, player_ids, dic=True)
             good = []
-            for vil in villages:
 
+            for vil in villages:
                 player = players.get(vil.player_id)
+
                 if player:
                     owner = f"[{player.name}]"
                 else:
@@ -294,6 +302,7 @@ class Listen(commands.Cog):
             if lost:
                 lost = f"**Nicht gefunden:**\n{lost}"
             em = discord.Embed(description=f"{found}\n{lost}")
+
             try:
                 await message.channel.send(embed=em)
             except discord.Forbidden:
@@ -322,10 +331,10 @@ class Listen(commands.Cog):
 
             for name in names:
                 dsobj = found_names.get(name.lower())
+
                 if not dsobj:
                     failed = f"**{name}**<:failed:708982292630077450>"
                     parsed_msg = parsed_msg.replace(f"|{name}|", failed)
-
                 else:
                     parsed_msg = parsed_msg.replace(f"|{name}|", dsobj.mention)
 
@@ -382,7 +391,8 @@ class Listen(commands.Cog):
                 return
             else:
                 data = random.choice(self.bot.msg["noCommand"])
-                return await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
+                await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
+                return
 
         elif isinstance(error, commands.MissingRequiredArgument):
             msg = "Dem Command fehlt ein benötigtes Argument"
@@ -452,8 +462,9 @@ class Listen(commands.Cog):
             msg = f"`{error.name}` konnte nicht gefunden werden"
 
         elif isinstance(error, commands.BotMissingPermissions):
-            msg = f"Dem Bot fehlen folgende Rechte auf diesem Server:\n" \
-                  f"`{', '.join(error.missing_perms)}`"
+            base = "Dem Bot fehlen folgende Rechte auf diesem Server:\n`{}`"
+            msg = base.format(', '.join(error.missing_perms))
+
         elif isinstance(error, commands.ExpectedClosingQuoteError):
             msg = "Ein Argument wurde mit einem Anführungszeichen begonnen und nicht geschlossen"
 

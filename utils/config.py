@@ -135,25 +135,3 @@ class Config:
             return
         else:
             return conquer.get(str(ctx.channel.id))
-
-
-class Cache:
-    def __init__(self, bot):
-        self._cache = {}
-        self.bot = bot
-        self.path = f"{bot.data_path}/cache.json"
-        self.load_cache()
-
-    def load_cache(self):
-        self._cache = json.load(open(self.path))
-
-    def save(self):
-        json.dump(self._cache, open(self.path, 'w'))
-
-    def get(self, key, default=None):
-        return self._cache.get(key, default)
-
-    def set(self, key, value, bulk=False):
-        self._cache[key] = value
-        if bulk is False:
-            self.save()

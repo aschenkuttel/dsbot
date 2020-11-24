@@ -36,7 +36,6 @@ class DSBot(commands.Bot):
         # internal world cache of active worlds with settings
         self.worlds = {}
         self.active_guilds = set()
-        self.cache = utils.Cache(self)
         self.config = utils.Config(self)
 
         # tribal wars and iron database pools
@@ -115,6 +114,9 @@ class DSBot(commands.Bot):
         if not self._lock.is_set():
             return
 
+        if message.author.bot is True:
+            return
+
         ctx = await self.get_context(message, cls=utils.DSContext)
         await self.invoke(ctx)
 
@@ -168,7 +170,7 @@ class DSBot(commands.Bot):
                 pass
 
             for cog in self.cogs.values():
-                loop = getattr(cog, 'called_by_hour', None)
+                loop = getattr(cog, 'called_per_hour', None)
 
                 try:
                     if loop is not None:
@@ -178,18 +180,19 @@ class DSBot(commands.Bot):
                     self.logger.debug(f"{cog.qualified_name} Task Error: {error}")
 
     # current workaround since library update will support that with tasks in short future
-    def get_seconds(self, reverse=False, only=0):
+    def get_seconds(self, added_hours=1, timestamp=False):
         now = datetime.datetime.now()
-        hours = -1 if reverse else 1
-        clean = now + datetime.timedelta(hours=hours + only)
+        clean = now + datetime.timedelta(hours=added_hours)
         goal_time = clean.replace(minute=0, second=0, microsecond=0)
         start_time = now.replace(microsecond=0)
 
-        if reverse:
+        if added_hours < 1:
             goal_time, start_time = start_time, goal_time
 
-        goal = (goal_time - start_time).seconds
-        return goal if not only else start_time.timestamp()
+        if timestamp is True:
+            return start_time.timestamp()
+        else:
+            return (goal_time - start_time).seconds
 
     async def db_connect(self):
         result = []
@@ -213,13 +216,16 @@ class DSBot(commands.Bot):
                     'channel_id BIGINT, creation TIMESTAMP,' \
                     'expiration TIMESTAMP, reason TEXT)'
 
-        iron_data = 'CREATE TABLE IF NOT EXISTS iron_data' \
-                    '(id BIGINT PRIMARY KEY, amount BIGINT)'
+        iron = 'CREATE TABLE IF NOT EXISTS iron_data' \
+               '(id BIGINT PRIMARY KEY, amount BIGINT)'
 
-        usage_data = 'CREATE TABLE IF NOT EXISTS usage_data' \
-                     '(name TEXT PRIMARY KEY, usage BIGINT)'
+        usage = 'CREATE TABLE IF NOT EXISTS usage_data' \
+                '(name TEXT PRIMARY KEY, usage BIGINT)'
 
-        querys = [reminders, iron_data, usage_data]
+        slot = 'CREATE TABLE IF NOT EXISTS slot' \
+               '(id BIGINT PRIMARY KEY, amount BIGINT)'
+
+        querys = [reminders, iron, usage, slot]
 
         async with self.ress.acquire() as conn:
             await conn.execute(";".join(querys))
