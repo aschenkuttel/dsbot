@@ -13,14 +13,14 @@ would use this instance instead: [Discord Invite](http://discordapp.com/oauth2/a
 
 ## Features
 
-**Coordinate Conversion**
-![example](https://i.imgur.com/EDofX0n.png)
-**Report Conversion**
-![example](https://i.imgur.com/MSGlipI.png)
-**Conquer Reports**
-![example](https://i.imgur.com/EefGTQP.png)
-**And a lot of commands**
-![example](https://i.imgur.com/Diwkeks.png)
+**Coordinate Conversion**  
+![example](https://i.imgur.com/EDofX0n.png)  
+**Report Conversion**  
+![example](https://i.imgur.com/MSGlipI.png)  
+**Conquer Reports**  
+![example](https://i.imgur.com/EefGTQP.png)  
+**And a lot of commands**  
+![example](https://i.imgur.com/Diwkeks.png)  
 
 ## Planned Features
 * english language optionable
