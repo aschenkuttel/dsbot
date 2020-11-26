@@ -21,8 +21,8 @@ class Villages(commands.Cog):
             await ctx.send(msg)
             return
 
-        coordinate = isinstance(result[0], utils.Village)
-        attribute = "coords" if coordinate else "mention"
+        is_village = isinstance(result[0], utils.Village)
+        attribute = 'coords' if is_village else 'mention'
 
         represent = []
         for index, obj in enumerate(result, 1):
@@ -32,28 +32,29 @@ class Villages(commands.Cog):
         msg = "\n".join(represent)
 
         if len(msg) <= 2000:
-            if not coordinate:
+            if not is_village:
                 embed = discord.Embed(description=msg)
                 await ctx.author.send(embed=embed)
             else:
                 await ctx.author.send(msg)
 
         else:
-            if not coordinate:
+            if not is_village:
                 represent = []
                 for index, obj in enumerate(result, 1):
                     line = f"{index}. {getattr(obj, 'name')}"
                     represent.append(line)
 
-            file = io.StringIO()
-            file.write(f'{os.linesep}'.join(represent))
-            file.seek(0)
-            await ctx.author.send(file=discord.File(file, 'villages.txt'))
+            text = io.StringIO()
+            text.write(f'{os.linesep}'.join(represent))
+            text.seek(0)
+            file = discord.File(text, 'villages.txt')
+            await ctx.author.send(file=file)
 
         await ctx.private_hint()
 
     async def fetch_in_radius(self, world, village, **kwargs):
-        radius = kwargs.get('radius', 20)
+        radius = kwargs.get('radius')
         points = kwargs.get('points')
         extra_query = kwargs.get('extra')
 
@@ -65,7 +66,6 @@ class Villages(commands.Cog):
         if points:
             query += f' AND points {points.sign} $5'
             arguments.append(points.value)
-            print(arguments)
 
         if extra_query:
             query += extra_query
@@ -169,7 +169,7 @@ class Villages(commands.Cog):
 
             base.append(query_part)
 
-        query = " UNION ALL ".join(base)
+        query = ' UNION ALL '.join(base)
         async with self.bot.pool.acquire() as conn:
             cache = await conn.fetch(query, ctx.server, player_ids)
             result = [utils.Player(rec) for rec in cache]

@@ -396,21 +396,21 @@ class Listen(commands.Cog):
 
         elif isinstance(error, commands.MissingRequiredArgument):
             msg = "Dem Command fehlt ein benötigtes Argument"
-            tip = ctx
+            tip = True
 
         elif isinstance(error, utils.MissingRequiredKey):
             msg = f"`{ctx.prefix}{cmd.lower()} <{'|'.join(error.keys)}>`"
-            tip = ctx
+            tip = True
 
         elif isinstance(error, commands.NoPrivateMessage):
-            msg = "Der Command ist leider nur auf einem Server verfügbar"
+            msg = "Der Command ist leider nur auf einem Server möglich"
 
         elif isinstance(error, commands.PrivateMessageOnly):
-            msg = "Der Command ist leider nur per private Message verfügbar"
+            msg = "Der Command ist leider nur per private Message möglich"
 
         elif isinstance(error, utils.DontPingMe):
             msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
-            tip = ctx
+            tip = True
 
         elif isinstance(error, utils.WorldMissing):
             msg = "Der Server hat noch keine zugeordnete Welt\n" \
@@ -418,19 +418,21 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.UnknownWorld):
             msg = "Diese Welt existiert leider nicht."
-            if error.possible:
-                msg += f"\nMeinst du möglicherweise: `{error.possible}`"
-            tip = ctx
+            tip = True
+
+            if error.possible_world:
+                msg += f"\nMeinst du möglicherweise: `{error.possible_world}`"
 
         elif isinstance(error, utils.InvalidCoordinate):
             msg = "Du musst eine gültige Koordinate angeben"
 
         elif isinstance(error, utils.WrongChannel):
-            if error.type == "game":
+            if error.type == 'game':
                 channel = self.bot.config.get('game', ctx.guild.id)
-                return await ctx.send(f"<#{channel}>")
+                await ctx.send(f"<#{channel}>")
+                return
 
-            else:
+            elif error.type == 'conquer':
                 msg = "Du befindest dich nicht in einem Eroberungschannel"
 
         elif isinstance(error, utils.GameChannelMissing):
@@ -443,7 +445,7 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.InvalidBet):
             base = "Der Einsatz muss zwischen {} und {} Eisen liegen"
-            msg = base.format(error.low, error.high)
+            msg = base.format(error.min, error.max)
 
         elif isinstance(error, commands.NotOwner):
             msg = "Diesen Command kann nur der Bot-Owner ausführen"
@@ -458,7 +460,7 @@ class Listen(commands.Cog):
         elif isinstance(error, utils.DSUserNotFound):
             msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
 
-        elif isinstance(error, utils.MemberConverterNotFound):
+        elif isinstance(error, utils.MemberNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
 
         elif isinstance(error, commands.BotMissingPermissions):
@@ -470,7 +472,8 @@ class Listen(commands.Cog):
 
         if msg:
             try:
-                embed = utils.error_embed(msg, ctx=tip)
+                context = ctx if tip is True else None
+                embed = utils.error_embed(msg, ctx=context)
                 await ctx.send(embed=embed)
             except discord.Forbidden:
                 msg = "Dem Bot fehlen benötigte Rechte: `Embed Links`"

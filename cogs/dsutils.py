@@ -113,6 +113,21 @@ class Utils(commands.Cog):
         numbers = [int(n) for n in re.findall(r'\d+', tables)]
         return sorted(numbers)[-1]
 
+    async def fetch_profile_picture(self, dsobj):
+        async with self.bot.session.get(dsobj.guest_url) as resp:
+            soup = BeautifulSoup(await resp.read(), "html.parser")
+
+            tbody = soup.find(id='content_value')
+            tables = tbody.findAll('table')
+            tds = tables[1].findAll('td', attrs={'valign': 'top'})
+            images = tds[1].findAll('img')
+
+            if not images or "badge" in images[0]['src']:
+                return
+
+            elif images[0]['src'].endswith(("large", "jpg")):
+                return images[0]['src']
+
     def create_figure(self):
         fig = plt.figure(figsize=(10, 4))
         plt.rc(f'xtick', labelsize=16)
@@ -251,6 +266,7 @@ class Utils(commands.Cog):
         async with self.bot.pool.acquire() as conn:
             records = await conn.fetch(query, ctx.server, dsobj.id)
             data = [ds_type.Class(rec) for rec in records]
+            data.reverse()
 
         rows = [f"**{dsobj.name}** | {ctx.world.show(clean=True)} {ctx.world.icon}"]
 
@@ -298,22 +314,11 @@ class Utils(commands.Cog):
         profile = discord.Embed(description="\n".join(rows))
         profile.colour = discord.Color.blue()
 
-        async with self.bot.session.get(dsobj.guest_url) as resp:
-            soup = BeautifulSoup(await resp.read(), "html.parser")
+        image_url = await self.fetch_profile_picture(dsobj)
+        if image_url is not None:
+            profile.set_thumbnail(url=image_url)
 
-            tbody = soup.find(id='content_value')
-            tables = tbody.findAll('table')
-            tds = tables[1].findAll('td', attrs={'valign': 'top'})
-            images = tds[1].findAll('img')
-
-            if not images or "badge" in images[0]['src']:
-                pass
-
-            elif images[0]['src'].endswith(("large", "jpg")):
-                print(images[0]['src'])
-                profile.set_thumbnail(url=images[0]['src'])
-
-        filled = [0] * (29 - len(data)) + [d.points for d in data[::-1]]
+        filled = [0] * (29 - len(data)) + [d.points for d in data]
         plot_data = pd.DataFrame({'x_coord': range(29), 'y_coord': filled})
 
         config = {'color': '#3498db',
@@ -336,7 +341,6 @@ class Utils(commands.Cog):
 
         file = discord.File(buf, "example.png")
         profile.set_image(url="attachment://example.png")
-
         await ctx.send(embed=profile, file=file)
 
     @commands.command(name="nude")
@@ -350,18 +354,9 @@ class Utils(commands.Cog):
             players = [dsobj]
 
         for player in players:
+            result = await self.fetch_profile_picture(player)
 
-            async with self.bot.session.get(player.guest_url) as res:
-                data = await res.read()
-
-            soup = BeautifulSoup(data, "html.parser")
-            tbody = soup.find(id='content_value')
-            tables = tbody.findAll('table')
-            tds = tables[1].findAll('td', attrs={'valign': 'top'})
-            images = tds[1].findAll('img')
-
-            if images and images[0]['src'].endswith("large"):
-                result = images[0]
+            if result is not None:
                 break
 
         else:
@@ -373,10 +368,10 @@ class Utils(commands.Cog):
             await ctx.send(msg)
             return
 
-        async with self.bot.session.get(result['src']) as res2:
-            file = io.BytesIO(await res2.read())
-
-        await ctx.send(file=discord.File(file, "userpic.gif"))
+        async with self.bot.session.get(result) as res2:
+            image = io.BytesIO(await res2.read())
+            file = discord.File(image, "userpic.gif")
+            await ctx.send(file=file)
 
     @commands.command(name="visit")
     async def visit_(self, ctx, world: utils.WorldConverter = None):
@@ -394,7 +389,8 @@ class Utils(commands.Cog):
         if not troops or not coordinates:
             msg = f"Du musst mindestens eine Truppe und ein Dorf angeben\n" \
                   f"**Erklärung und Beispiele unter:** {ctx.prefix}help sl"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         data = [0 for _ in range(12)]
         for kwarg in troops:
@@ -402,36 +398,35 @@ class Utils(commands.Cog):
             try:
                 wiki = list(self.troops.keys())
                 index = wiki.index(name.lower())
+                data[index] = int(amount)
             except ValueError:
                 continue
-            data[index] = int(amount)
 
         if not sum(data):
             troops = ', '.join([o.capitalize() for o in self.troops])
             msg = f"Du musst einen gültigen Truppennamen angeben:\n`{troops}`"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         result = []
         counter = 0
-        cache = []
-        for coord in coordinates:
-            if coord in cache:
-                continue
-            cache.append(coord)
+        package = []
+        iteratable = set(coordinates)
+        for index, coord in enumerate(iteratable):
             x, y = coord.split("|")
             script = self.base.format(*data, x, y)
-            if counter + len(script) > 2000:
-                msg = "\n".join(result)
-                await ctx.author.send(f"```js\n{msg}\n```")
+
+            if counter + len(script) > 2000 or index == len(iteratable) - 1:
+                result.append(package)
             else:
-                result.append(script)
+                package.append(script)
                 counter += len(script)
 
-        if result:
-            msg = "\n".join(result)
+        for package in result:
+            msg = "\n".join(package)
             await ctx.author.send(f"```js\n{msg}\n```")
 
-        if ctx.guild:
+        if ctx.guild is not None:
             await ctx.private_hint()
 
     @commands.command(name="scavenge", aliases=["rz"])
@@ -470,7 +465,8 @@ class Utils(commands.Cog):
             msg = "**Ungültiger Input** - Gesamte Angriffszeile kopieren:\n" \
                   "`?retime Ramme Dorf (335|490) K43 Dorf (338|489) K43 " \
                   "Knueppel-Kutte 3.2 heute um 21:09:56:099`"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         now = datetime.now()
         calendar = parsedatetime.Calendar()

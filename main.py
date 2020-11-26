@@ -38,9 +38,9 @@ class DSBot(commands.Bot):
         self.active_guilds = set()
         self.config = utils.Config(self)
 
-        # tribal wars and iron database pools
-        self.ress = None
+        # tribal wars and user database pools
         self.pool = None
+        self.ress = None
 
         # active connection for discord callback if database fails
         self._conn = None
@@ -477,6 +477,10 @@ class DSBot(commands.Bot):
         await self.close()
 
 
+intents = discord.Intents.default()
+intents.presences = False
+intents.typing = False
+
 # instance creation and bot start
-dsbot = DSBot(command_prefix=prefix, case_insensitive=True)
+dsbot = DSBot(command_prefix=prefix, intents=intents)
 dsbot.run(secret.TOKEN)

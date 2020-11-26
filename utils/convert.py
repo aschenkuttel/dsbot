@@ -1,6 +1,5 @@
-from utils.error import DontPingMe, MemberConverterNotFound, DSUserNotFound
-from utils.error import InvalidCoordinate, UnknownWorld
 from discord.ext import commands
+import utils.error as error
 import re
 
 
@@ -9,7 +8,7 @@ class MemberConverter(commands.Converter):
 
     async def convert(self, ctx, arg):
         if re.match(r'<@!?([0-9]+)>$', arg):
-            raise DontPingMe
+            raise error.DontPingMe
         name = arg.lower()
         for m in ctx.guild.members:
             if name == m.display_name.lower():
@@ -17,7 +16,7 @@ class MemberConverter(commands.Converter):
             if name == m.name.lower():
                 return m
         else:
-            raise MemberConverterNotFound(arg)
+            raise error.MemberNotFound(arg)
 
 
 class DSConverter(commands.Converter):
@@ -41,7 +40,7 @@ class DSConverter(commands.Converter):
             obj = await ctx.bot.fetch_both(ctx.server, argument)
 
         if not obj:
-            raise DSUserNotFound(argument)
+            raise error.DSUserNotFound(argument)
         return obj
 
 
@@ -61,7 +60,7 @@ class WorldConverter(commands.Converter):
                     if numbers[0] in world:
                         break
 
-            raise UnknownWorld(world)
+            raise error.UnknownWorld(world)
 
         else:
             return world
@@ -79,10 +78,10 @@ class CoordinateConverter(commands.Converter):
         return self
 
     def parse(self, argument, valid=False):
-        if not valid:
+        if valid is False:
             coord = re.match(r'\d\d\d\|\d\d\d', argument)
             if not coord:
-                raise InvalidCoordinate
+                raise error.InvalidCoordinate
             else:
                 argument = coord.string
 

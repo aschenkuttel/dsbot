@@ -24,7 +24,7 @@ class WorldMissing(commands.CheckFailure):
 
 class UnknownWorld(commands.CheckFailure):
     def __init__(self, possible):
-        self.possible = possible
+        self.possible_world = possible
         super().__init__('unknown world')
 
 
@@ -41,8 +41,8 @@ class MissingGucci(commands.CheckFailure):
 
 class InvalidBet(commands.CheckFailure):
     def __init__(self, low, high):
-        self.low = low
-        self.high = high
+        self.min = low
+        self.max = high
         super().__init__('bad bet')
 
 
@@ -67,7 +67,7 @@ class DSUserNotFound(commands.CheckFailure):
         super().__init__('dsobj not found')
 
 
-class MemberConverterNotFound(commands.CheckFailure):
+class MemberNotFound(commands.CheckFailure):
     def __init__(self, searchable):
         self.name = searchable
         super().__init__('discord user not found')
