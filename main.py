@@ -127,14 +127,14 @@ class DSBot(commands.Bot):
     def callback(self, *args):
         payload = args[-1]
 
-        if payload == "200":
+        if payload == '200':
             self._update.set()
             return
 
-        elif payload == "404":
-            msg = "database script ended with a failure"
-        elif payload == "400":
+        elif payload == '400':
             msg = "engine broke once, restarting"
+        elif payload == '404':
+            msg = "database script ended with a failure"
         else:
             msg = "unknown payload"
 

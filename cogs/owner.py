@@ -55,6 +55,23 @@ class Owner(commands.Cog):
         await self.bot.update_iron(idc, iron)
         await ctx.send(f"Dem User wurden `{iron} Eisen` hinzugefügt")
 
+    @commands.command(name="execute")
+    async def sql_(self, ctx, *, query):
+        try:
+            async with self.bot.pool.acquire() as conn:
+                await conn.execute(query)
+        except Exception as error:
+            await ctx.send(error)
+
+    @commands.command(name="fetch")
+    async def fetch(self, ctx, *, query):
+        try:
+            async with self.bot.pool.acquire() as conn:
+                response = await conn.fetch(query)
+                await ctx.send(response)
+        except Exception as error:
+            await ctx.send(error)
+
 
 def setup(bot):
     bot.add_cog(Owner(bot))

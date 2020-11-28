@@ -113,7 +113,7 @@ class Utils(commands.Cog):
         numbers = [int(n) for n in re.findall(r'\d+', tables)]
         return sorted(numbers)[-1]
 
-    async def fetch_profile_picture(self, dsobj):
+    async def fetch_profile_picture(self, dsobj, default_avatar=False):
         async with self.bot.session.get(dsobj.guest_url) as resp:
             soup = BeautifulSoup(await resp.read(), "html.parser")
 
@@ -122,10 +122,14 @@ class Utils(commands.Cog):
             tds = tables[1].findAll('td', attrs={'valign': 'top'})
             images = tds[1].findAll('img')
 
-            if not images or "badge" in images[0]['src']:
+            if not images or 'badge' in images[0]['src']:
                 return
 
-            elif images[0]['src'].endswith(("large", "jpg")):
+            endings = ['large']
+            if default_avatar is True:
+                endings.append('jpg')
+
+            if images[0]['src'].endswith(tuple(endings)):
                 return images[0]['src']
 
     def create_figure(self):
@@ -354,7 +358,7 @@ class Utils(commands.Cog):
             players = [dsobj]
 
         for player in players:
-            result = await self.fetch_profile_picture(player)
+            result = await self.fetch_profile_picture(player, bool(dsobj))
 
             if result is not None:
                 break
