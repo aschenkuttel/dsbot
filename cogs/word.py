@@ -115,7 +115,7 @@ class Word(utils.DSGames):
             await ctx.send(msg)
 
     @utils.game_channel_only()
-    @commands.command(name="hangman")
+    @commands.command(name="hangman", aliases=["hg"])
     async def hangman(self, ctx):
         data = self.get_game_data(ctx)
 

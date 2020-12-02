@@ -27,7 +27,7 @@ class Config(commands.Cog):
 
     @commands.group(invoke_without_command=True)
     async def set(self, _):
-        keys = ("world", "game", "conquer", "channel", "prefix")
+        keys = ("world", "channel_world", "game", "conquer", "prefix")
         raise MissingRequiredKey(keys)
 
     @set.command(name="world")

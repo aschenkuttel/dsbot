@@ -1,4 +1,5 @@
 from matplotlib import patheffects, ticker
+from collections import OrderedDict
 from utils import seperator as sep
 from discord.ext import commands
 import matplotlib.pyplot as plt
@@ -293,7 +294,7 @@ class Utils(commands.Cog):
         villages += f" | **Dörfer:** `{utils.seperator(dsobj.villages)}`"
         rows.extend(["", points, villages, "", "**Besiegte Gegner:**"])
 
-        bash_rows = {}
+        bash_rows = OrderedDict()
         for index, stat in enumerate(['all_bash', 'att_bash', 'def_bash', 'sup_bash']):
 
             if index == 3 and isinstance(dsobj, utils.Tribe):

@@ -17,129 +17,6 @@ import re
 logger = logging.getLogger('dsbot')
 
 
-class UTParser:
-    def __init__(self, bot, server, package):
-        self.bot = bot
-        self.server = server
-        self.package = package
-        self.village_cache = {}
-        self.world = bot.worlds[server]
-        self.players = {}
-        self.target_player = None
-        self.target = None
-
-    async def parse(self):
-        resp = await self.fetch_objects()
-        if resp is False or not self.village_cache:
-            return False
-
-        try:
-            embed = await self.embed_builder()
-            return embed
-        except Exception as error:
-            logger.error(f"request error: {error}")
-
-    async def fetch_objects(self):
-        raw = " ".join(self.package)
-        coordinates = re.findall(r'\d\d\d\|\d\d\d', raw)
-        villages = await self.bot.fetch_bulk(self.server, set(coordinates),
-                                             table="village", name=True)
-        self.village_cache = {vil.coords: vil for vil in villages}
-
-        if len(villages) != len(set(coordinates)):
-            return False
-
-        for coord, vil in self.village_cache.items():
-            if vil.player_id in self.players:
-                self.players[vil.player_id].append(vil)
-            else:
-                self.players[vil.player_id] = [vil]
-
-        player_ids = list(self.players.keys())
-        player_objs = await self.bot.fetch_bulk(self.server, player_ids)
-
-        for player in player_objs:
-            vil_list = self.players.pop(player.id)
-            for vil in vil_list:
-                self.players[vil.coords] = player
-
-        self.target = self.village_cache[coordinates[0]]
-        self.target_player = self.players[self.target.coords]
-
-    async def embed_builder(self):
-        embed = discord.Embed(colour=discord.Color.blue())
-        embed.title = f"{self.target_player.name} wird angegriffen!"
-        cache = [f"**Dorf:** {self.target.mention}"]
-        unit_icon_dict = self.bot.msg['unitIcon']
-
-        field_cache = []
-        for line in self.package[1:]:
-            nums = re.findall(r'\d+', line)
-            if "Wallstufe" in line or "Zustimmung" in line:
-                addition = line.replace("[b]", "**")
-                addition = addition.replace("[/b]", "**")
-                addition = addition.replace(nums[0], f"`{nums[0]}`")
-                cache.append(addition)
-            elif "Verteidiger" in line:
-                knight = self.world.config['game']['knight'] == "1"
-                bow = self.world.config['game']['archer'] == "1"
-
-                units = list(unit_icon_dict.values())
-                for unit, icon in unit_icon_dict.items():
-                    if not knight and unit == "knight":
-                        units.remove(icon)
-                    elif not bow and unit == "archer":
-                        units.remove(icon)
-
-                if len(nums) != len(units):
-                    units.remove("<:tw_militia:737220482994274366>")
-
-                stationed = []
-                for index, num in enumerate(nums):
-                    if int(num):
-                        stationed.append(f"{units[index]} {num}")
-
-                cache.extend(["**Verteidiger**:", " ".join(stationed), ""])
-
-            elif line.startswith("[command]"):
-                attacker_coord = re.findall(r'\[coord](.*)\[/coord]', line)
-                village = self.village_cache[attacker_coord[0]]
-                attacker = self.players[attacker_coord[0]]
-
-                possible_info = re.findall(r'\[command](\S*)\[/command]', line)
-                renamed = re.findall(r'\[/command]([^].]*)\[coord]', line)
-                lz_icon = "<:tw_who:737244837149016064>"
-
-                name = renamed[0].strip()
-                if name:
-                    renames = self.bot.msg['unitRename']
-                    lz_unit = renames.get(name)
-                    icon = unit_icon_dict.get(lz_unit)
-                    if icon:
-                        lz_icon = icon
-
-                raw_time = re.findall(r'-->.*?:(.*)\[player]', line)
-                time = raw_time[0].strip()
-
-                inc_icon = self.bot.msg['attackIcon'].get(possible_info[0])
-                attack = f"{inc_icon} {lz_icon} `{time}` [{village.mention}] **{attacker.name}**"
-
-                if len("\n".join(cache + [attack])) > 2048:
-                    field_cache.append(attack)
-                    if len(field_cache) == 4 or line == self.package[-1]:
-                        embed.add_field(name='\u200b', value="\n".join(field_cache), inline=False)
-                        field_cache.clear()
-
-                else:
-                    cache.append(attack)
-
-        embed.description = "\n".join(cache)
-        footer = "Ausgegraute Rammen = unbekannte Laufzeiten"
-        embed.set_footer(text=footer)
-
-        return embed
-
-
 class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -244,38 +121,7 @@ class Listen(commands.Cog):
                 logger.debug("report converted")
                 return
 
-        # ut request conversion
-        ut_requests = re.findall(r'(\[b].*)|(\[command].*)', content)
-        if ut_requests and self.bot.config.get_switch('request', guild_id):
-            request_packages = [[]]
-
-            for title, command in ut_requests:
-                current = request_packages[-1]
-                header = title.startswith("[b]Dorf:[/b]")
-                if header and len(current) == 0:
-                    current.append(title)
-                elif header and len(current) > 0:
-                    request_packages.append([title])
-                elif not header and current:
-                    current.append(title or command)
-
-            for pkg in request_packages:
-                parser = UTParser(self.bot, world, pkg)
-                embed = await parser.parse()
-
-                if embed is False:
-                    await utils.silencer(message.add_reaction('❌'))
-                    return
-
-                try:
-                    await message.channel.send(embed=embed)
-                    await message.delete()
-                except (discord.Forbidden, discord.HTTPException):
-                    continue
-
-            return
-
-        # coord conversion
+        # coordinate conversion
         coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
         if coordinates and self.bot.config.get_switch('coord', guild_id):
             coords = set(coordinates)
@@ -284,19 +130,19 @@ class Listen(commands.Cog):
             players = await self.bot.fetch_bulk(world, player_ids, dic=True)
             good = []
 
-            for vil in villages:
-                player = players.get(vil.player_id)
+            for village in villages:
+                player = players.get(village.player_id)
 
                 if player:
                     owner = f"[{player.name}]"
                 else:
                     owner = "[Barbarendorf]"
 
-                good.append(f"{vil.mention} {owner}")
-                coordinates.remove(f"{vil.x}|{vil.y}")
+                good.append(f"{village.mention} {owner}")
+                coords.remove(village.coords)
 
             found = '\n'.join(good)
-            lost = ', '.join(coordinates)
+            lost = ', '.join(coords)
             if found:
                 found = f"**Gefundene Koordinaten:**\n{found}"
             if lost:
