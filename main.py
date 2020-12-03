@@ -277,8 +277,8 @@ class DSBot(commands.Bot):
 
         if guild:
             base += ' WHERE id = ANY($2)'
-            member = [mem.id for mem in guild.members]
-            args.append(member)
+            members = []
+            args.append([m.id for m in members])
 
         query = base + ' ORDER BY amount DESC LIMIT $1'
 

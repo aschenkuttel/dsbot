@@ -38,6 +38,7 @@ class Money(commands.Cog):
 
         data = []
         cache = await self.bot.fetch_iron_list(100, guild)
+        print(cache)
         for index, record in enumerate(cache):
             player = self.bot.get_user(record['id'])
 
