@@ -271,21 +271,6 @@ class DSBot(commands.Bot):
 
         return money, rank
 
-    async def fetch_iron_list(self, amount, guild=None):
-        base = 'SELECT * FROM iron_data'
-        args = [amount]
-
-        if guild:
-            base += ' WHERE id = ANY($2)'
-            members = []
-            args.append([m.id for m in members])
-
-        query = base + ' ORDER BY amount DESC LIMIT $1'
-
-        async with self.ress.acquire() as conn:
-            data = await conn.fetch(query, *args)
-            return data
-
     async def fetch_usage(self):
         statement = 'SELECT * FROM usage_data'
         async with self.ress.acquire() as conn:

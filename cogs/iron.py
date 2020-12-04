@@ -8,10 +8,39 @@ class Money(commands.Cog):
         self.bot = bot
         self.type = 3
 
+    async def send_ranking(self, ctx, iterable, dead=False):
+        data = []
+        for index, record in enumerate(iterable, 1):
+            player = self.bot.get_user(record['id'])
+
+            if not dead and player is None:
+                continue
+
+            if player is not None:
+                name = player.display_name
+            else:
+                name = "Unknown"
+
+            base = "**Rang {}:** `{} Eisen` [{}]"
+            msg = base.format(index, seperator(record['amount']), name)
+            data.append(msg)
+
+            if len(data) == 5:
+                break
+
+        if data:
+            embed = discord.Embed(description="\n".join(data))
+            embed.colour = discord.Color.blue()
+            await ctx.send(embed=embed)
+
+        else:
+            msg = "Aktuell gibt es keine gespeicherten Scores"
+            await ctx.send(msg)
+
     @commands.group(name="iron", invoke_without_command=True)
     async def iron(self, ctx):
         if not ctx.message.content.endswith("iron"):
-            raise MissingRequiredKey(("top", "global", "send"))
+            raise MissingRequiredKey(("ranking", "send"))
 
         money, rank = await self.bot.fetch_iron(ctx.author.id, True)
         base = "**Dein Speicher:** `{} Eisen`\n**Globaler Rang:** `{}`"
@@ -31,34 +60,39 @@ class Money(commands.Cog):
             base = "Du hast `{}` erfolgreich `{} Eisen` überwiesen (30s Cooldown)"
             await ctx.send(base.format(user.display_name, seperator(amount)))
 
-    @iron.command(name="global", aliases=["top"])
+    @iron.command(name="ranking")
     async def rank_(self, ctx):
-        top = ctx.invoked_with.lower() == "top"
-        guild = ctx.guild if top else None
+        query = 'SELECT * FROM iron_data ORDER BY amount DESC LIMIT 20'
+        async with self.bot.ress.acquire() as conn:
+            cache = await conn.fetch(query)
 
-        data = []
-        cache = await self.bot.fetch_iron_list(100, guild)
-        print(cache)
-        for index, record in enumerate(cache):
-            player = self.bot.get_user(record['id'])
+        await self.send_ranking(ctx, cache)
 
-            if player is None:
-                continue
+    @iron.command(name="local")
+    async def local_(self, ctx, member: MemberConverter = None):
+        f_query = 'SELECT * FROM iron_data WHERE amount >= ' \
+                  '(SELECT amount FROM iron_data WHERE id = $1) ' \
+                  'ORDER BY amount ASC LIMIT 3'
 
-            base = "**Rang {}:** `{} Eisen` [{.display_name}]"
-            msg = base.format(len(data) + 1, seperator(record['amount']), player)
-            data.append(msg)
+        s_query = 'SELECT * FROM iron_data ' \
+                  'WHERE amount < $1 ' \
+                  'ORDER BY amount DESC LIMIT $2'
 
-            if len(data) == 5:
-                break
+        async with self.bot.ress.acquire() as conn:
+            member = member or ctx.author
+            over = await conn.fetch(f_query, member.id)
 
-        if data:
-            embed = discord.Embed(description="\n".join(data), color=discord.Color.blue())
-            await ctx.send(embed=embed)
+            if not over:
+                msg = "Der angegebene Member besitzt leider kein Eisen"
+                await ctx.send(msg)
+                return
 
-        else:
-            msg = "Aktuell gibt es keine gespeicherten Scores"
-            await ctx.send(msg)
+            amount = over[0]['amount']
+            under = await conn.fetch(s_query, amount, 5 - len(over))
+
+        unordered = list(over) + list(under)
+        result = sorted(unordered, key=lambda r: r['amount'], reverse=True)
+        await self.send_ranking(ctx, result, dead=True)
 
 
 def setup(bot):

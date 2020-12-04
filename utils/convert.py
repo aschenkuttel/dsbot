@@ -10,11 +10,9 @@ class MemberConverter(commands.Converter):
         if re.match(r'<@!?([0-9]+)>$', arg):
             raise error.DontPingMe
         name = arg.lower()
-        for m in ctx.guild.members:
-            if name == m.display_name.lower():
-                return m
-            if name == m.name.lower():
-                return m
+        member = await ctx.guild.query_members(name)
+        if member:
+            return member[0]
         else:
             raise error.MemberNotFound(arg)
 
