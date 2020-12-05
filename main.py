@@ -248,28 +248,19 @@ class DSBot(commands.Bot):
 
             return response
 
-    async def fetch_iron(self, user_id, info=False):
+    async def fetch_iron(self, user_id, rank=False):
         async with self.ress.acquire() as conn:
-            if info:
-                query = 'SELECT * FROM iron_data'
-                data = await conn.fetch(query)
-            else:
+            if rank is False:
                 query = 'SELECT * FROM iron_data WHERE id = $1'
                 data = await conn.fetchrow(query, user_id)
+                return data['amount'] if data else 0
 
-        if not info:
-            return data['amount'] if data else 0
-
-        rank = "Unknown"
-        cache = {rec['id']: rec['amount'] for rec in data}
-        money = cache.get(user_id, 0)
-
-        sort = sorted(cache.items(), key=lambda kv: kv[1], reverse=True)
-        for index, (idc, cash) in enumerate(sort):
-            if idc == user_id:
-                rank = index + 1
-
-        return money, rank
+            else:
+                query = 'SELECT amount, (SELECT COUNT(*) FROM iron_data WHERE ' \
+                        'amount >= (SELECT amount FROM iron_data WHERE id = $1)) ' \
+                        'AS count FROM iron_data WHERE id = $1'
+                data = await conn.fetchrow(query, user_id)
+                return list(data) if data else (0, 0)
 
     async def fetch_usage(self):
         statement = 'SELECT * FROM usage_data'

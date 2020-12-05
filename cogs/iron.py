@@ -3,14 +3,14 @@ from discord.ext import commands
 import discord
 
 
-class Money(commands.Cog):
+class Iron(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 3
 
     async def send_ranking(self, ctx, iterable, dead=False):
         data = []
-        for index, record in enumerate(iterable, 1):
+        for index, record in iterable:
             player = self.bot.get_user(record['id'])
 
             if not dead and player is None:
@@ -66,7 +66,11 @@ class Money(commands.Cog):
         async with self.bot.ress.acquire() as conn:
             cache = await conn.fetch(query)
 
-        await self.send_ranking(ctx, cache)
+        result = []
+        for index, record in enumerate(cache, 1):
+            result.append([index, record])
+
+        await self.send_ranking(ctx, result)
 
     @iron.command(name="local")
     async def local_(self, ctx, member: MemberConverter = None):
@@ -74,8 +78,9 @@ class Money(commands.Cog):
                   '(SELECT amount FROM iron_data WHERE id = $1) ' \
                   'ORDER BY amount ASC LIMIT 3'
 
-        s_query = 'SELECT * FROM iron_data ' \
-                  'WHERE amount < $1 ' \
+        s_query = 'SELECT *, (SELECT COUNT(*) FROM iron_data ' \
+                  'WHERE amount > $1) AS count ' \
+                  'FROM iron_data WHERE amount < $1 ' \
                   'ORDER BY amount DESC LIMIT $2'
 
         async with self.bot.ress.acquire() as conn:
@@ -90,10 +95,19 @@ class Money(commands.Cog):
             amount = over[0]['amount']
             under = await conn.fetch(s_query, amount, 5 - len(over))
 
+            rank = under[0]['count'] + 1
+
         unordered = list(over) + list(under)
-        result = sorted(unordered, key=lambda r: r['amount'], reverse=True)
+        ordered = sorted(unordered, key=lambda r: r['amount'], reverse=True)
+        or_index = ordered.index(over[0])
+
+        result = []
+        for index, record in enumerate(ordered):
+            new_rank = rank + or_index - index
+            result.append([new_rank, record])
+
         await self.send_ranking(ctx, result, dead=True)
 
 
 def setup(bot):
-    bot.add_cog(Money(bot))
+    bot.add_cog(Iron(bot))
