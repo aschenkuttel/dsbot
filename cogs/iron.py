@@ -8,18 +8,15 @@ class Iron(commands.Cog):
         self.bot = bot
         self.type = 3
 
-    async def send_ranking(self, ctx, iterable, dead=False):
+    async def send_ranking(self, ctx, iterable):
         data = []
         for index, record in iterable:
             player = self.bot.get_user(record['id'])
 
-            if not dead and player is None:
-                continue
-
-            if player is not None:
-                name = player.display_name
-            else:
+            if player is None:
                 name = "Unknown"
+            else:
+                name = player.display_name
 
             base = "**Rang {}:** `{} Eisen` [{}]"
             msg = base.format(index, seperator(record['amount']), name)
@@ -40,7 +37,7 @@ class Iron(commands.Cog):
     @commands.group(name="iron", invoke_without_command=True)
     async def iron(self, ctx):
         if not ctx.message.content.endswith("iron"):
-            raise MissingRequiredKey(("ranking", "send"))
+            raise MissingRequiredKey(("send", "top", "local"))
 
         money, rank = await self.bot.fetch_iron(ctx.author.id, True)
         base = "**Dein Speicher:** `{} Eisen`\n**Globaler Rang:** `{}`"
@@ -60,9 +57,9 @@ class Iron(commands.Cog):
             base = "Du hast `{}` erfolgreich `{} Eisen` überwiesen (30s Cooldown)"
             await ctx.send(base.format(user.display_name, seperator(amount)))
 
-    @iron.command(name="ranking")
-    async def rank_(self, ctx):
-        query = 'SELECT * FROM iron_data ORDER BY amount DESC LIMIT 20'
+    @iron.command(name="top")
+    async def top_(self, ctx):
+        query = 'SELECT * FROM iron_data ORDER BY amount DESC LIMIT 5'
         async with self.bot.ress.acquire() as conn:
             cache = await conn.fetch(query)
 
@@ -106,7 +103,7 @@ class Iron(commands.Cog):
             new_rank = rank + or_index - index
             result.append([new_rank, record])
 
-        await self.send_ranking(ctx, result, dead=True)
+        await self.send_ranking(ctx, result)
 
 
 def setup(bot):

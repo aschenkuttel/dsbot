@@ -780,11 +780,11 @@ class Help(commands.Cog):
         cmd_type = "Server Command"
         cmd_inp = ["iron",
                    "iron top",
-                   "iron global",
+                   "iron local",
                    "iron send <amount> <discord username>"]
         example = ["iron",
                    "iron top",
-                   "iron global",
+                   "iron local",
                    "iron send 8000 Sheldon"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
