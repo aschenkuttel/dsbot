@@ -216,10 +216,10 @@ class DSBot(commands.Bot):
                     'channel_id BIGINT, creation TIMESTAMP,' \
                     'expiration TIMESTAMP, reason TEXT)'
 
-        iron = 'CREATE TABLE IF NOT EXISTS iron_data' \
+        iron = 'CREATE TABLE IF NOT EXISTS iron' \
                '(id BIGINT PRIMARY KEY, amount BIGINT)'
 
-        usage = 'CREATE TABLE IF NOT EXISTS usage_data' \
+        usage = 'CREATE TABLE IF NOT EXISTS usage' \
                 '(name TEXT PRIMARY KEY, usage BIGINT)'
 
         slot = 'CREATE TABLE IF NOT EXISTS slot' \
@@ -262,13 +262,15 @@ class DSBot(commands.Bot):
                 data = await conn.fetchrow(query, user_id)
                 return list(data) if data else (0, 0)
 
-    async def fetch_usage(self):
-        statement = 'SELECT * FROM usage_data'
+    async def fetch_usage(self, amount=None):
+        statement = 'SELECT * FROM usage_data ORDER BY usage DESC'
+        if amount is not None:
+            statement += f' LIMIT {amount}'
+
         async with self.ress.acquire() as conn:
             data = await conn.fetch(statement)
 
-        cache = {r['name']: r['usage'] for r in data}
-        return sorted(cache.items(), key=operator.itemgetter(1), reverse=True)
+        return [tuple(r.values()) for r in data]
 
     # DS Database Methods
     async def update_worlds(self):

@@ -13,7 +13,8 @@ ingame = "https://{}/{}.php?screen=info_{}&id={}"
 world_title = {'def': "Welt", 'p': "Casual", 'c': "Sonderwelt", 's': "SDS"}
 world_data = {
     'de': {'domain': "die-staemme.de", 'icon': ":flag_de:"},
-    'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"}
+    'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"},
+    'en': {'domain': "tribalwars.net", 'icon': ":flag_gb:"}
 }
 
 

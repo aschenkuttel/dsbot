@@ -5,7 +5,7 @@ import asyncio
 import random
 
 
-class Enjoy(commands.Cog):
+class DCUtils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 2
@@ -141,23 +141,23 @@ class Enjoy(commands.Cog):
         embed.set_image(url=member.avatar_url)
         await ctx.send(embed=embed)
 
-    @commands.command(name="statistic")
-    async def statistic_(self, ctx):
-        data = await self.bot.fetch_usage()
+    @commands.command(name="info")
+    async def info_(self, ctx):
+        result = [f"Aktuell in `{len(self.bot.guilds)}` Servern",
+                  "**Die 5 meist benutzen Commands:**"]
 
-        result = []
-        for cmd, usage in data[:20]:
-            result.append(f"`{usage}` [{cmd}]")
+        data = await self.bot.fetch_usage(amount=5)
 
-        if result:
-            msg = '\n'.join(result)
-        else:
-            msg = "Es stehen noch keine Daten zur Verfügung"
+        for cmd, usage in data:
+            result.append(f"`{usage}` **|** {cmd}")
 
-        embed = discord.Embed(description=msg)
-        embed.set_footer(text='Statistiken werden einmal die Stunde gespeichert')
+        embed = discord.Embed()
+        embed.description = "\n".join(result)
+        embed.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
+        name = "dsBot | Die Stämme x Discord"
+        embed.set_author(icon_url=self.bot.user.avatar_url, name=name)
         await ctx.send(embed=embed)
 
 
 def setup(bot):
-    bot.add_cog(Enjoy(bot))
+    bot.add_cog(DCUtils(bot))
