@@ -15,6 +15,8 @@ class DCUtils(commands.Cog):
 
     @commands.command(name="orakel")
     async def orakel_(self, ctx, *, args):
+        await ctx.trigger_typing()
+
         # checks for both since numbers would
         # count as auppercase as well
         if args == args.upper() and not args == args.lower():
@@ -39,23 +41,22 @@ class DCUtils(commands.Cog):
             await msg.edit(content="dsBot wurde erfolgreich neugestartet.")
 
         elif easter == 2:
-            async with ctx.typing():
-                await asyncio.sleep(10)
-                data = "Ach weißt du, ich wollte dir eigentlich was " \
-                       "schönes schreiben, aber was du letztens zu " \
-                       "mir gesagt hast war echt fies. Selber Schuld!"
-                return await ctx.send(data)
+            await asyncio.sleep(10)
+            msg = "Ach weißt du, ich wollte dir eigentlich was " \
+                  "schönes schreiben, aber was du letztens zu " \
+                  "mir gesagt hast war echt fies. Selber Schuld!"
+            await ctx.send(msg)
 
         else:
-            await ctx.send("Schon wieder eine Frage...")
-            await asyncio.sleep(3)
-            await ctx.send("Weißt du, ich bin deinen Scheiß langsam satt!")
-            await asyncio.sleep(4)
-            await ctx.send("Als ob du die Frage nicht selber beantworten kannst.....")
-            await asyncio.sleep(10)
-            await ctx.send("NEIN DU HÄLTST JETZT MAL DIE SCHNAUZE!!!")
-            await asyncio.sleep(3)
-            await ctx.send("Ich bin Done mit dir, DONE!")
+            responses = ["Schon wieder eine Frage...",
+                         "Weißt du, ich bin deinen Scheiß langsam satt!",
+                         "Als ob du die Frage nicht selber beantworten kannst.....",
+                         "NEIN DU HÄLTST JETZT MAL DIE SCHNAUZE!!!",
+                         "Ich bin Done mit dir, DONE!"]
+            for response in responses:
+                sec = random.randint(3, 6)
+                await asyncio.sleep(sec)
+                await ctx.send(response)
 
     @commands.command(name="duali")
     async def duali_(self, ctx, *, member: MemberConverter):

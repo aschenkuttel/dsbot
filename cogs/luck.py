@@ -82,7 +82,7 @@ class Casino(utils.DSGames):
                    "Aktueller Pot: `{}`\nGewinnzahl: **{}**"
             msg = base.format(number, utils.seperator(self.pot), self.number)
 
-        async with self.cooldown(ctx, time=10):
+        async with self.end_game(ctx, time=10):
             await ctx.send(msg)
 
     @utils.game_channel_only()
@@ -179,7 +179,7 @@ class Casino(utils.DSGames):
                     base = "{}**Unentschieden**, die Einsätze gehen an die Spieler zurück."
                     msg = base.format(arena)
 
-                async with self.cooldown(ctx):
+                async with self.end_game(ctx):
                     await ctx.send(msg)
                     for player in players:
                         await self.bot.update_iron(player.id, data['amount'])

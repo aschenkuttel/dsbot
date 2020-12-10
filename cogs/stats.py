@@ -17,10 +17,6 @@ class Bash(commands.Cog):
         self.in_a_day_value = self.bot.msg['dayValue']
         self.bash_value = self.bot.msg['bashValue']
 
-        self.translate = {}
-        for key, pkg in self.bash_value.items():
-            self.translate[pkg['value']] = key
-
     @commands.command(name="bash")
     async def bash(self, ctx, *, arguments):
         if "/" not in arguments:
@@ -31,8 +27,9 @@ class Bash(commands.Cog):
                 user = [dsobj]
 
         else:
-            player1 = arguments.partition("/")[0].strip()
-            player2 = arguments.partition("/")[2].strip()
+            args = arguments.split("/")
+            player1 = args[0].strip()
+            player2 = args[1].strip()
 
             if player1.lower() == player2.lower():
                 await ctx.send("Dein Witz :arrow_right: Unlustig")
@@ -42,7 +39,7 @@ class Bash(commands.Cog):
             s2 = await self.bot.fetch_both(ctx.server, player2)
             user = [s1, s2]
 
-            if None in user:
+            if s1 is None or s2 is None:
                 wrong_name = player1 if s1 is None else player2
                 raise utils.DSUserNotFound(wrong_name)
 
@@ -58,7 +55,7 @@ class Bash(commands.Cog):
 
                 dsobj.sup_bash = value
 
-        for index, dsobj in enumerate(user):
+        for dsobj in user:
             attributes = {"att_bash": "`OFF` | {}",
                           "def_bash": "`DEF` | {}",
                           "sup_bash": "`SUP` | {}",
@@ -182,7 +179,7 @@ class Bash(commands.Cog):
                 points = row.findAll("td")[3].text
                 datapack[player_id] = points
 
-            players = await self.bot.fetch_bulk(ctx.server, datapack.keys(), dic=True)
+            players = await self.bot.fetch_bulk(ctx.server, datapack.keys(), dictionary=True)
             for player_id, points in datapack.items():
                 player = players.get(player_id)
                 if player:
@@ -232,7 +229,8 @@ class Bash(commands.Cog):
                 value_list.sort(key=lambda tup: tup[1][0] - tup[1][1], reverse=True)
 
                 tribe_ids = [tup[0] for tup in value_list[:5]]
-                tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids, table='tribe', dic=True)
+                kwargs = {'table': 'tribe', 'dictionary': True}
+                tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids, **kwargs)
                 data = [tribes[idc] for idc in tribe_ids]
 
             else:

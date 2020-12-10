@@ -64,7 +64,7 @@ class Poker(utils.DSGames):
         embed = self.present_cards(data, msg)
         embed.colour = discord.Color.green()
 
-        async with self.cooldown(ctx):
+        async with self.end_game(ctx):
             await self.bot.update_iron(ctx.author.id, price)
             await data['msg'].edit(embed=embed)
 
@@ -80,7 +80,7 @@ class Poker(utils.DSGames):
         embed = self.present_cards(data, base)
         embed.colour = discord.Color.red()
 
-        async with self.cooldown(ctx):
+        async with self.end_game(ctx):
             await data['msg'].edit(embed=embed)
 
     def present_cards(self, data, msg, player=False):
@@ -241,7 +241,7 @@ class Poker(utils.DSGames):
             base = "{}{}**Du hast nichts und damit deinen Einsatz verloren** (15s Cooldown)"
             msg = base.format(card_rep, os.linesep)
 
-        async with self.cooldown(ctx):
+        async with self.end_game(ctx):
             await ctx.send(msg)
 
     @utils.game_channel_only()

@@ -22,9 +22,10 @@ class Timer:
     @classmethod
     def from_arguments(cls, bot, arguments):
         self = cls.__new__(cls)
+        self.bot = bot
         self.author_id, self.channel_id = arguments[:2]
         self.creation, self.expiration = arguments[2:4]
-        self.reason, self.bot = arguments[4], bot
+        self.reason = arguments[4]
         return self
 
     async def send(self):

@@ -10,7 +10,8 @@ class Owner(commands.Cog):
     async def cog_check(self, ctx):
         if await self.bot.is_owner(ctx.author):
             return True
-        raise commands.NotOwner()
+        else:
+            raise commands.NotOwner()
 
     @commands.command(name="presence")
     async def presence_(self, ctx, *, args):

@@ -319,7 +319,7 @@ class Card(utils.DSGames):
                 description = '\n'.join(result_msg)
             embed = self.quiz_embed(description, "Quiz beendet!", True)
 
-        async with self.cooldown(ctx):
+        async with self.end_game(ctx):
             await ctx.send(embed=embed)
 
     @utils.game_channel_only()
@@ -564,7 +564,7 @@ class Card(utils.DSGames):
                     description = base.format(player, plural, represent)
                     embed = discord.Embed(description=description)
 
-                    async with self.cooldown(ctx):
+                    async with self.end_game(ctx):
                         await data['ctx'].send(embed=embed)
 
 

@@ -3,7 +3,6 @@ import data.credentials as secret
 from discord.ext import commands
 import concurrent.futures
 import functools
-import operator
 import datetime
 import discord
 import asyncpg
@@ -20,8 +19,7 @@ def prefix(bot, message):
     if message.guild is None:
         return secret.default_prefix
     else:
-        idc = message.guild.id
-        custom = bot.config.get_prefix(idc)
+        custom = bot.config.get_prefix(message.guild.id)
         return custom
 
 
@@ -56,7 +54,7 @@ class DSBot(commands.Bot):
         self.owner_id = 211836670666997762
         self.default_prefix = secret.default_prefix
         self.activity = discord.Activity(type=0, name=self.msg['status'])
-        self.add_check(self.global_world)
+        self.add_check(self.global_check)
         self.remove_command("help")
 
         # initiate main loop and load modules
@@ -78,7 +76,7 @@ class DSBot(commands.Bot):
             await self._conn.add_listener("log", self.callback)
 
             # adds needed option for vps
-            if os.name != "nt":
+            if os.name != 'nt':
                 utils.imgkit['xvfb'] = ''
 
             # loads active worlds from database
@@ -91,7 +89,7 @@ class DSBot(commands.Bot):
         return await self._lock.wait()
 
     # global check and ctx.world inject
-    async def global_world(self, ctx):
+    async def global_check(self, ctx):
         parent = ctx.command.parent
         cmd = str(ctx.command)
 
@@ -147,7 +145,6 @@ class DSBot(commands.Bot):
             package = functools.partial(func, *args, **kwargs)
             result = await self.loop.run_in_executor(pool, package)
 
-        pool.shutdown()
         return result
 
     async def loop_per_hour(self):
@@ -167,7 +164,6 @@ class DSBot(commands.Bot):
 
             except asyncio.TimeoutError:
                 self.logger.error("worlds not updated")
-                pass
 
             for cog in self.cogs.values():
                 loop = getattr(cog, 'called_per_hour', None)
@@ -205,6 +201,7 @@ class DSBot(commands.Bot):
                          'database': db,
                          'loop': self.loop,
                          'max_size': 50}
+
             cache = await asyncpg.create_pool(**conn_data)
             result.append(cache)
 
@@ -292,15 +289,17 @@ class DSBot(commands.Bot):
 
         self.worlds = cache
 
-    async def fetch_all(self, world, table=None, dic=False):
-        dsobj = utils.DSType(table or 0)
+    async def fetch_all(self, world, table=0, dictionary=False):
+        dsobj = utils.DSType(table)
+
         async with self.pool.acquire() as conn:
             query = f'SELECT * FROM {dsobj.table} WHERE world = $1'
             cache = await conn.fetch(query, world)
-            result = [dsobj.Class(rec) for rec in cache]
 
-            if dic:
-                result = {obj.id: obj for obj in result}
+            if dictionary:
+                result = {rec['id']: dsobj.Class(rec) for rec in cache}
+            else:
+                result = [dsobj.Class(rec) for rec in cache]
 
             return result
 
@@ -332,8 +331,8 @@ class DSBot(commands.Bot):
 
         return result[0] if amount == 1 else result
 
-    async def fetch_player(self, world, searchable, *, name=False, archive=None):
-        table = f"player{archive}" if archive else "player"
+    async def fetch_player(self, world, searchable, *, name=False, archive=''):
+        table = f"player{archive}"
 
         if name:
             searchable = utils.converter(searchable, True)
@@ -343,8 +342,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
-
-        return utils.Player(result) if result else None
+            return utils.Player(result) if result else None
 
     async def fetch_tribe(self, world, searchable, *, name=False, archive=None):
         table = f"tribe{archive}" if archive else "tribe"
@@ -415,7 +413,7 @@ class DSBot(commands.Bot):
             res = await conn.fetch(query, world, allys)
             return [utils.Player(rec) for rec in res]
 
-    async def fetch_bulk(self, world, iterable, table=None, *, name=False, dic=False):
+    async def fetch_bulk(self, world, iterable, table=None, *, name=False, dictionary=False):
         dsobj = utils.DSType(table or 0)
         base = f'SELECT * FROM {dsobj.table} WHERE world = $1'
 
@@ -435,7 +433,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             res = await conn.fetch(query, world, iterable)
-            if dic:
+            if dictionary:
                 return {rec[1]: dsobj.Class(rec) for rec in res}
             else:
                 return [dsobj.Class(rec) for rec in res]

@@ -127,7 +127,7 @@ class Listen(commands.Cog):
             coords = set(coordinates)
             villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
             player_ids = [obj.player_id for obj in villages]
-            players = await self.bot.fetch_bulk(world, player_ids, dic=True)
+            players = await self.bot.fetch_bulk(world, player_ids, dictionary=True)
             good = []
 
             for village in villages:

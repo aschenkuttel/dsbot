@@ -22,7 +22,7 @@ class Word(utils.DSGames):
                "Du hast `{} Eisen` gewonnen :trophy: (15s Cooldown)"
         msg = base.format(ctx.author.display_name, amount)
 
-        async with self.self.cooldown(ctx):
+        async with self.end_game(ctx):
             await self.bot.update_iron(ctx.author.id, amount)
             await ctx.send(msg)
 
@@ -33,7 +33,7 @@ class Word(utils.DSGames):
         if data['life'] <= 0:
             base = "**Game Over** | Lösungswort:{}`{}` (15s Cooldown)"
             msg = base.format(os.linesep, data['solution'])
-            async with self.cooldown(ctx):
+            async with self.end_game(ctx):
                 await ctx.send(msg)
 
         else:
@@ -42,7 +42,7 @@ class Word(utils.DSGames):
             msg = base.format(title, data['life'], guessed)
             await ctx.send(msg)
 
-    def blender(self, id_or_blanks):
+    def show_blanks(self, id_or_blanks):
         if isinstance(id_or_blanks, int):
             blanks = self.hangman[id_or_blanks]['blanks']
         else:
@@ -62,19 +62,18 @@ class Word(utils.DSGames):
             data['msg'] = await ctx.send(content)
             return
 
-        word = None
+        word = ""
         while not word:
             cache = random.choice(self.bot.msg["hangman"])
-            if len(cache.split()) == 1:
+            if cache.count(" ") == 0:
                 word = cache.strip()
 
         word_list = list(word)
-        while ''.join(word_list) == word:
+        while "".join(word_list) == word:
             random.shuffle(word_list)
 
-        show = ' '.join(word_list).upper()
-        start_time = datetime.datetime.now()
-        data = {'word': show, 'win': word, 'time': start_time}
+        show = " ".join(word_list).upper()
+        data = {'word': show, 'win': word, 'time': datetime.datetime.now()}
         self.anagram[ctx.guild.id] = data
 
         start_msg = await ctx.send(f"`{show}` (60s Timeout)")
@@ -86,8 +85,8 @@ class Word(utils.DSGames):
 
         try:
             win_msg = await self.bot.wait_for('message', check=check, timeout=30)
-
         except asyncio.TimeoutError:
+
             try:
                 hint_list = word[:int(len(word) / 4)].upper()
                 hint = f"{' '.join(hint_list)} . . ."
@@ -96,12 +95,12 @@ class Word(utils.DSGames):
                 win_msg = await self.bot.wait_for('message', check=check, timeout=30)
 
             except asyncio.TimeoutError:
-                await ctx.send(f"Die Zeit ist abgelaufen: `{word}`")
-                self.anagram.pop(ctx.guild.id)
-                return
+                async with self.end_game(ctx):
+                    await ctx.send(f"Die Zeit ist abgelaufen: `{word}`")
+                    return
 
         end_time = datetime.datetime.now()
-        raw_diff = (end_time - start_time).total_seconds()
+        raw_diff = (end_time - data['time']).total_seconds()
         float_diff = float("%.1f" % raw_diff)
         percent = (1 - float_diff / 60 + 1)
         amount = int((200 * len(word) + 100 * percent ** 2) * percent)
@@ -110,7 +109,7 @@ class Word(utils.DSGames):
                "`{} Eisen` gewonnen (15s Cooldown)"
         msg = base.format(win_msg.author.display_name, float_diff, amount)
 
-        async with self.cooldown(ctx):
+        async with self.end_game(ctx):
             await self.bot.update_iron(win_msg.author.id, amount)
             await ctx.send(msg)
 
@@ -120,19 +119,19 @@ class Word(utils.DSGames):
         data = self.get_game_data(ctx)
 
         if data is None:
-            word = random.choice(self.bot.msg["hangman"])
+            word = random.choice(self.bot.msg['hangman'])
             blanks = list(re.sub(r'[\w]', '_', word))
             data = {'guessed': [], 'blanks': blanks, 'solution': word, 'life': 8}
             self.hangman[ctx.guild.id] = data
 
             base = "Das Spiel wurde gestartet, errate mit **{}guess**:\n{}"
-            board = f"{self.blender(blanks)} - `8 Leben`"
+            board = f"{self.show_blanks(blanks)} - `8 Leben`"
             msg = base.format(ctx.prefix, board)
             await ctx.send(msg)
 
         else:
             base = "Es läuft bereits ein Spiel:\n{}"
-            msg = base.format(self.blender(ctx.guild.id))
+            msg = base.format(self.show_blanks(ctx.guild.id))
             await ctx.send(msg)
 
     @utils.game_channel_only()
@@ -143,7 +142,8 @@ class Word(utils.DSGames):
         if data is None:
             base = "Aktuell ist kein Spiel im Gange.\nStarte mit `{}hangman`"
             msg = base.format(ctx.prefix)
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         guess = args.lower()
         win = data['solution']
@@ -193,7 +193,7 @@ class Word(utils.DSGames):
 
         else:
             # sends new blanks with the found chars in it
-            await ctx.send(self.blender(blanks))
+            await ctx.send(self.show_blanks(blanks))
 
 
 def setup(bot):

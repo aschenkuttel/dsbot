@@ -164,10 +164,10 @@ class ConquerLoop(commands.Cog):
                 conquer_cache.append(conquer)
 
             # Make all the API Calls
-            players = await self.bot.fetch_bulk(world, player_ids, dic=True)
+            players = await self.bot.fetch_bulk(world, player_ids, dictionary=True)
             tribe_ids = [obj.tribe_id for obj in players.values() if obj.tribe_id]
-            tribes = await self.bot.fetch_bulk(world, tribe_ids, 'tribe', dic=True)
-            villages = await self.bot.fetch_bulk(world, village_ids, 'village', dic=True)
+            tribes = await self.bot.fetch_bulk(world, tribe_ids, 'tribe', dictionary=True)
+            villages = await self.bot.fetch_bulk(world, village_ids, 'village', dictionary=True)
 
             conquer_cache.reverse()
             for index, conquer in enumerate(conquer_cache):
@@ -184,8 +184,8 @@ class ConquerLoop(commands.Cog):
                         continue
 
                 conquer.village = villages.get(conquer.id)
-                conquer.old_player = players.get(conquer.old_id)
-                conquer.new_player = players.get(conquer.new_id)
+                conquer.old_player = players.get(conquer.old_player_id)
+                conquer.new_player = players.get(conquer.new_player_id)
 
                 if conquer.old_player:
                     conquer.old_tribe = tribes.get(conquer.old_player.tribe_id)
@@ -225,7 +225,7 @@ class ConquerLoop(commands.Cog):
             if filter_ids and not bool(set(filter_ids) & set(conquer.player_ids)):
                 continue
 
-            if not config['bb'] and conquer.grey:
+            if not config['bb'] and conquer.grey_conquer():
                 continue
 
             if not conquer.village:

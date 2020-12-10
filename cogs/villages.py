@@ -2,6 +2,7 @@ from utils import CoordinateConverter
 from discord.ext import commands
 from collections import Counter
 import discord
+import typing
 import random
 import utils
 import io
@@ -75,10 +76,11 @@ class Villages(commands.Cog):
             return [utils.Village(rec) for rec in result]
 
     @commands.command(name="villages")
-    async def villages_(self, ctx, amount: str, *args):
-        if not amount.isdigit() and amount.lower() != "all":
+    async def villages_(self, ctx, amount: typing.Union[int, str], *args):
+        if amount.lower() != "all":
             msg = "Die Anzahl muss entweder eine Zahl oder `all` sein."
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         if not args:
             raise commands.MissingRequiredArgument
@@ -122,20 +124,21 @@ class Villages(commands.Cog):
             result = [utils.Village(rec) for rec in cache]
 
         random.shuffle(result)
-        if amount != "all":
-            if len(result) < int(amount):
+        if isinstance(amount, int):
+            if len(result) < amount:
                 ds_type = "Spieler" if dsobj.alone else "Stamm"
                 raw = "Der {} `{}` hat leider nur `{}` Dörfer"
+                args = [ds_type, dsobj.name, len(result)]
+
                 if con:
                     raw += "auf dem Kontinent `{}`"
-                    msg = raw.format(ds_type, dsobj.name, len(result), con)
-                else:
-                    msg = raw.format(ds_type, dsobj.name, len(result))
-                await ctx.send(msg)
+                    args.append(con)
+
+                await ctx.send(raw.format(*args))
                 return
 
             else:
-                result = result[:int(amount)]
+                result = result[:amount]
 
         await self.send_result(ctx, result, "Dörfer")
 
@@ -164,7 +167,7 @@ class Villages(commands.Cog):
                          f'AND {table}.id = ANY($2)'
 
             if tribe.value in [True, False]:
-                state = "!=" if tribe.value else "="
+                state = '!=' if tribe.value else '='
                 query_part += f' AND {table}.tribe_id {state} 0'
 
             base.append(query_part)
@@ -181,7 +184,7 @@ class Villages(commands.Cog):
             last = player_cache.get(player.id)
             if last is None:
 
-                if not points.compare(player.points):
+                if not points == player.points:
                     player_cache[player.id] = False
                 else:
                     player_cache[player.id] = player

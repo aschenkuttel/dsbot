@@ -176,13 +176,11 @@ class MapVillage:
 
 class Conquer:
     def __init__(self, world, data):
+        self.world = world
         self.id = data[0]
         self.unix = data[1]
-        self.new_id = data[2]
-        self.old_id = data[3]
-        self.world = world
-        self.old_tribe = None
-        self.new_tribe = None
+        self.new_player_id = data[2]
+        self.old_player_id = data[3]
         self.village = None
 
     @property
@@ -191,18 +189,17 @@ class Conquer:
 
     @property
     def player_ids(self):
-        return self.new_id, self.old_id
-
-    @property
-    def grey(self):
-        return 0 in (self.new_id, self.old_id)
+        return self.new_player_id, self.old_player_id
 
     @property
     def coords(self):
         return f"{self.village.x}|{self.village.y}"
 
+    def grey_conquer(self):
+        return self.old_player_id == 0
+
     def self_conquer(self):
-        return self.old_id == self.new_id
+        return self.old_player_id == self.new_player_id
 
 
 class DSColor:
@@ -349,7 +346,7 @@ class DSGames(commands.Cog):
         return True
 
     @asynccontextmanager
-    async def cooldown(self, ctx, time=15):
+    async def end_game(self, ctx, time=15):
         container = self.get_container(ctx)
         if isinstance(container, list):
             container.append(ctx.guild.id)
@@ -398,16 +395,16 @@ class Keyword:
         self.value = value
         self.sign = sign
 
-    def compare(self, other_value):
+    def __eq__(self, other):
         if self.value is None:
             return True
 
         if self.sign == "<":
-            return other_value < self.value
+            return other < self.value
         elif self.sign == ">":
-            return other_value > self.value
+            return other > self.value
         else:
-            return other_value == self.value
+            return other == self.value
 
     def __bool__(self):
         return bool(self.value)

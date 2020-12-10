@@ -35,11 +35,6 @@ class MapMenue:
         self.color = DSColor()
         self.dead = False
 
-    def get_value(self, index):
-        values = [self.zoom, self.center, self.player,
-                  self.tribes, self.highlight, self.bb]
-        return values[index]
-
     async def setup(self, restart=False):
         options = []
         for icon, value in self.bot.msg['mapOptions'].items():
@@ -190,7 +185,11 @@ class MapMenue:
         return True
 
     def update_embed(self, index):
-        value = self.get_value(index)
+        values = [self.zoom, self.center,
+                  self.player, self.tribes,
+                  self.highlight, self.bb]
+
+        value = values[index]
         options = self.embed.description
         field = options.split("\n")[index]
         old_value = re.findall(r'\[.*]', field)[0]
@@ -216,24 +215,14 @@ class Map(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 1
-        self.low = 0
-        self.high = 3001
-        self.space = 20
+        self.minimum_size = 0
+        self.maximum_size = 3001
+        self.borderspace = 20
         self.top10_cache = {}
         self.menue_cache = {}
         self.colors = DSColor()
         self.max_font_size = 300
         self.img = Image.open(f"{self.bot.data_path}/map.png")
-        self.default = [0, "500|500", [], [], 0, True]
-        self.menue_icons = [
-            '<:center:672875546773946369>',
-            '<:dsmap:672912316240756767>',
-            '<:friend:672875516117778503>',
-            '<:tribe:672862439074693123>',
-            '<:report:672862439242465290>',
-            '<:old:672862439112441879>',
-            '<:button:672910606700904451>',
-        ]
         user = commands.BucketType.user
         self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
 
@@ -304,20 +293,37 @@ class Map(commands.Cog):
             return zone
 
     def get_bounds(self, villages):
-        x_coords = [v.x for v in villages if self.low < v.x < self.high if v.rank != 22]
-        y_coords = [v.y for v in villages if self.low < v.y < self.high if v.rank != 22]
-        first, second = min(x_coords), min(y_coords)
-        third, fourth = max(x_coords), max(y_coords)
-        a1 = self.low if (first - self.space) < self.low else first - self.space
-        a2 = self.low if (second - self.space) < self.low else second - self.space
-        b1 = self.high if (third + self.space) > self.high else third + self.space
-        b2 = self.high if (fourth + self.space) > self.high else fourth + self.space
-        return [a1, a2, b1, b2]
+        x_coords = []
+        y_coords = []
+
+        for vil in villages:
+            if vil.rank == 22:
+                continue
+
+            if self.minimum_size < vil.x < self.maximum_size:
+                x_coords.append(vil.x)
+            if self.minimum_size < vil.y < self.maximum_size:
+                y_coords.append(vil.y)
+
+        bounds = []
+        for min_coord in (min(x_coords), min(y_coords)):
+            if (min_coord - self.borderspace) < self.minimum_size:
+                bounds.append(self.minimum_size)
+            else:
+                bounds.append(min_coord)
+
+        for max_coord in (max(x_coords), max(y_coords)):
+            if (max_coord + self.borderspace) > self.maximum_size:
+                bounds.append(self.maximum_size)
+            else:
+                bounds.append(max_coord)
+
+        return bounds
 
     def in_bounds(self, vil):
-        if not self.low <= vil.x < self.high:
+        if not self.minimum_size <= vil.x < self.maximum_size:
             return False
-        elif not self.low <= vil.y < self.high:
+        elif not self.minimum_size <= vil.y < self.maximum_size:
             return False
         else:
             return True
@@ -344,7 +350,7 @@ class Map(commands.Cog):
         watermark = Image.new('RGBA', image.size, (255, 255, 255, 0))
         board = ImageDraw.Draw(watermark)
 
-        percentage = image.size[0] / self.high
+        percentage = image.size[0] / self.maximum_size
         font_size = int(150 * percentage)
         font = ImageFont.truetype(f'{self.bot.data_path}/water.otf', font_size)
         position = image.size[0] - int(400 * percentage), image.size[1] - int(232 * percentage)
@@ -355,7 +361,7 @@ class Map(commands.Cog):
 
     def label_map(self, result, village_cache, zoom=0):
         reservation = []
-        font_size = int(self.max_font_size * ((result.size[0] - 50) / self.high))
+        font_size = int(self.max_font_size * ((result.size[0] - 50) / self.maximum_size))
         sorted_cache = sorted(village_cache.items(), key=lambda l: len(l[1]))
         most_villages = len(sorted_cache[-1][1])
 
@@ -391,7 +397,7 @@ class Map(commands.Cog):
                     break
 
             # draw title and shadow / index tribe color
-            dist = int((result.size[0] / self.high) * 10 + 1)
+            dist = int((result.size[0] / self.maximum_size) * 10 + 1)
             image.text([position[0] + dist, position[1] + dist], str(dsobj), (0, 0, 0, 255), font)
             image.text(position, str(dsobj), tuple(dsobj.color + [255]), font)
 
