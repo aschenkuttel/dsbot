@@ -135,7 +135,7 @@ class Word(utils.DSGames):
             await ctx.send(msg)
 
     @utils.game_channel_only()
-    @commands.command(name="guess")
+    @commands.command(name="guess", hidden=True)
     async def guess(self, ctx, *, args):
         data = self.get_game_data(ctx)
 

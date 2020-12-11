@@ -193,7 +193,7 @@ class Poker(utils.DSGames):
                 self.videopoker.pop(ctx.guild.id)
 
     @utils.game_channel_only()
-    @commands.command(name="draw")
+    @commands.command(name="draw", hidden=True)
     async def draw_(self, ctx, cards=None):
         data = self.get_game_data(ctx)
         if data is None:

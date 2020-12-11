@@ -85,8 +85,8 @@ class Config(commands.Cog):
             msg = f"Der Prefix `{prefix}` ist nun aktiv"
             await ctx.send(embed=complete_embed(msg))
 
-    @set.command(name="channel_world")
-    async def set_channel_world(self, ctx, world: WorldConverter):
+    @set.command(name="channelworld")
+    async def set_channelworld(self, ctx, world: WorldConverter):
         config = self.config.get('channel', ctx.guild.id)
 
         if config is None:

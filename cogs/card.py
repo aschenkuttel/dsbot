@@ -233,8 +233,8 @@ class Card(utils.DSGames):
         embed.set_footer(text=instruction)
         return embed
 
-    @commands.command(name="quiz")
     @utils.game_channel_only()
+    @commands.command(name="quiz")
     async def quiz(self, ctx, rounds: int = 5):
         if ctx.guild.id in self.quiz:
             await ctx.send("Auf diesem Server läuft bereits eine Runde")
@@ -410,7 +410,7 @@ class Card(utils.DSGames):
                     self.tribalcard.pop(ctx.guild.id)
 
     @commands.dm_only()
-    @commands.command(name="play")
+    @commands.command(name="play", hidden=True)
     async def play_(self, ctx, card_or_property):
         for guild_id, data in self.tribalcard.items():
             if data is False:

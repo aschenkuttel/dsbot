@@ -60,6 +60,9 @@ class Help(commands.Cog):
             category = self.categories[cog_type]
             for cmd in cog.get_commands():
 
+                if cmd.hidden is True:
+                    continue
+
                 for alias in cmd.aliases:
                     if len(alias) < 3:
                         cmd_name = f"{alias} [{cmd}]"

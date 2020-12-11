@@ -107,7 +107,7 @@ class Reminder(commands.Cog):
             else:
                 await self._lock.wait()
 
-    @commands.command(name="now")
+    @commands.command(name="now", hidden=True)
     async def now_(self, ctx):
         now = datetime.now()
         represent = now.strftime(self.preset)
