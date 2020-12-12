@@ -6,7 +6,8 @@ would use this instance instead: [Discord Invite](http://discordapp.com/oauth2/a
 
 ## Supported versions
 * [DE] https://die-staemme.de
-* [CH] https://staemme.ch  
+* [CH] https://staemme.ch
+* [EN] https://tribal-wars.net
 
 *Feel free to contact me if you want*  
 *another language version supported*
@@ -20,7 +21,7 @@ would use this instance instead: [Discord Invite](http://discordapp.com/oauth2/a
 **Conquer Reports**  
 ![example](https://i.imgur.com/EefGTQP.png)  
 **And a lot of commands**  
-![example](https://i.imgur.com/Diwkeks.png)  
+![example](https://i.imgur.com/7Kjbp6b.png)  
 
 ## Planned Features
 * english language optionable
