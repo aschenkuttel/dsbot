@@ -31,8 +31,8 @@ class Listen(commands.Cog):
                          utils.SilentError)
 
     async def called_per_hour(self):
-        query = 'INSERT INTO usage_data(name, usage) VALUES($1, $2) ' \
-                'ON CONFLICT (name) DO UPDATE SET usage = usage_data.usage + $2'
+        query = 'INSERT INTO usage(name, usage) VALUES($1, $2) ' \
+                'ON CONFLICT (name) DO UPDATE SET usage = usage.usage + $2'
 
         data = [(k, v) for k, v in self.cmd_counter.items()]
         if not data:

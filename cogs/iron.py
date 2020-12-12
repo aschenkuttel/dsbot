@@ -59,7 +59,7 @@ class Iron(commands.Cog):
 
     @iron.command(name="top")
     async def top_(self, ctx):
-        query = 'SELECT * FROM iron_data ORDER BY amount DESC LIMIT 5'
+        query = 'SELECT * FROM iron ORDER BY amount DESC LIMIT 5'
         async with self.bot.ress.acquire() as conn:
             cache = await conn.fetch(query)
 
@@ -71,13 +71,13 @@ class Iron(commands.Cog):
 
     @iron.command(name="local")
     async def local_(self, ctx, member: MemberConverter = None):
-        f_query = 'SELECT * FROM iron_data WHERE amount >= ' \
-                  '(SELECT amount FROM iron_data WHERE id = $1) ' \
+        f_query = 'SELECT * FROM iron WHERE amount >= ' \
+                  '(SELECT amount FROM iron WHERE id = $1) ' \
                   'ORDER BY amount ASC LIMIT 3'
 
-        s_query = 'SELECT *, (SELECT COUNT(*) FROM iron_data ' \
+        s_query = 'SELECT *, (SELECT COUNT(*) FROM iron ' \
                   'WHERE amount > $1) AS count ' \
-                  'FROM iron_data WHERE amount < $1 ' \
+                  'FROM iron WHERE amount < $1 ' \
                   'ORDER BY amount DESC LIMIT $2'
 
         async with self.bot.ress.acquire() as conn:

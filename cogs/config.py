@@ -13,6 +13,8 @@ class Config(commands.Cog):
         self.config_title = self.bot.msg['configTitle']
 
     async def cog_check(self, ctx):
+        if ctx.guild is None:
+            return True
         if ctx.author.guild_permissions.administrator:
             return True
         else:

@@ -147,14 +147,12 @@ class Help(commands.Cog):
                    "set channel_world <world>",
                    "set game",
                    "set conquer",
-                   "set prefix <prefix>",
-                   "set switch <converter>"]
+                   "set prefix <prefix>"]
         example = ["set world de172",
                    "set channel_world de164",
                    "set game",
                    "set conquer",
-                   "set prefix -",
-                   "set switch mention"]
+                   "set prefix -"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -211,7 +209,7 @@ class Help(commands.Cog):
         desc = "Aktiviert oder deaktiviert einen der 3 Konverter:\n" \
                "Koordinaten, Berichte oder BB-Codes."
         cmd_type = "Admin Command"
-        cmd_inp = ["switch <coord|report|mention>`",
+        cmd_inp = ["switch <coord|report|mention>",
                    "switch list"]
         example = ["switch coord",
                    "switch report",
@@ -704,8 +702,10 @@ class Help(commands.Cog):
                "globalen Pot, der Einsatz beträgt immer 1000 " \
                "Eisen und wandert in den Pot."
         cmd_type = "Server Command"
-        cmd_inp = ["slots"]
-        example = ["slots"]
+        cmd_inp = ["slots",
+                   "slotistics"]
+        example = ["slots",
+                   "slotistics"]
         data = title, desc, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await ctx.author.send(embed=embed)
@@ -777,8 +777,8 @@ class Help(commands.Cog):
     async def iron_(self, ctx):
         title = ["iron"]
         desc = "Beim Gewinnen der meisten Spiele erhält man Eisen. Hiermit " \
-               "kann man sich seinen Speicher anzeigen lassen, die " \
-               "aktuelle Top 5 des Servers, die globale Top 5 oder " \
+               "kann man sich seinen Speicher anzeigen lassen, seine aktuelle " \
+               "Position + die seiner Nachbarn, die globale Top 5 oder " \
                "anderen Spielern Eisen schicken."
         cmd_type = "Server Command"
         cmd_inp = ["iron",

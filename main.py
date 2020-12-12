@@ -229,13 +229,13 @@ class DSBot(commands.Bot):
 
     async def update_iron(self, user_id, iron):
         async with self.ress.acquire() as conn:
-            query = 'INSERT INTO iron_data(id, amount) VALUES($1, $2) ' \
-                    'ON CONFLICT (id) DO UPDATE SET amount = iron_data.amount + $2'
+            query = 'INSERT INTO iron(id, amount) VALUES($1, $2) ' \
+                    'ON CONFLICT (id) DO UPDATE SET amount = iron.amount + $2'
             await conn.execute(query, user_id, iron)
 
     async def subtract_iron(self, user_id, iron, supress=False):
         async with self.ress.acquire() as conn:
-            query = 'UPDATE iron_data SET amount = amount - $2 ' \
+            query = 'UPDATE iron SET amount = amount - $2 ' \
                     'WHERE id = $1 AND amount >= $2 RETURNING TRUE'
             response = await conn.fetchrow(query, user_id, iron)
 
@@ -248,19 +248,19 @@ class DSBot(commands.Bot):
     async def fetch_iron(self, user_id, rank=False):
         async with self.ress.acquire() as conn:
             if rank is False:
-                query = 'SELECT * FROM iron_data WHERE id = $1'
+                query = 'SELECT * FROM iron WHERE id = $1'
                 data = await conn.fetchrow(query, user_id)
                 return data['amount'] if data else 0
 
             else:
-                query = 'SELECT amount, (SELECT COUNT(*) FROM iron_data WHERE ' \
-                        'amount >= (SELECT amount FROM iron_data WHERE id = $1)) ' \
-                        'AS count FROM iron_data WHERE id = $1'
+                query = 'SELECT amount, (SELECT COUNT(*) FROM iron WHERE ' \
+                        'amount >= (SELECT amount FROM iron WHERE id = $1)) ' \
+                        'AS count FROM iron WHERE id = $1'
                 data = await conn.fetchrow(query, user_id)
                 return list(data) if data else (0, 0)
 
     async def fetch_usage(self, amount=None):
-        statement = 'SELECT * FROM usage_data ORDER BY usage DESC'
+        statement = 'SELECT * FROM usage ORDER BY usage DESC'
         if amount is not None:
             statement += f' LIMIT {amount}'
 
@@ -375,7 +375,7 @@ class DSBot(commands.Bot):
 
         return utils.Village(result) if result else None
 
-    async def fetch_both(self, world, searchable, *, name=True, archive=None):
+    async def fetch_both(self, world, searchable, *, name=True, archive=''):
         kwargs = {'name': name, 'archive': archive}
         player = await self.fetch_player(world, searchable, **kwargs)
         if player:

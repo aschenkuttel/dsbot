@@ -86,8 +86,8 @@ class Casino(utils.DSGames):
             await ctx.send(msg)
 
     @utils.game_channel_only()
-    @commands.command(name="slotistic")
-    async def slotistic_(self, ctx):
+    @commands.command(name="slotistics")
+    async def slotistics_(self, ctx):
         query = 'SELECT * FROM slot WHERE id = $1'
         async with self.bot.ress.acquire() as conn:
             cache = await conn.fetchrow(query, ctx.author.id)
