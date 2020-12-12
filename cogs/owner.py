@@ -1,9 +1,8 @@
 from discord.ext import commands
 import discord
-import utils
 
 
-class Admin(commands.Cog):
+class Owner(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = bot.config
@@ -11,7 +10,8 @@ class Admin(commands.Cog):
     async def cog_check(self, ctx):
         if await self.bot.is_owner(ctx.author):
             return True
-        raise commands.NotOwner()
+        else:
+            raise commands.NotOwner()
 
     @commands.command(name="presence")
     async def presence_(self, ctx, *, args):
@@ -30,7 +30,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="guild_reset")
     async def guild_reset_(self, ctx, guild_id: int):
-        response = self.bot.config.remove_guild(guild_id)
+        response = self.bot.config.remove_config(guild_id)
         if response:
             msg = "Serverdaten zurückgesetzt"
         else:
@@ -41,22 +41,14 @@ class Admin(commands.Cog):
     async def guilds_(self, ctx):
         await ctx.send(f"{len(self.bot.guilds)}")
 
-    @commands.command(name="stats")
-    async def stats_(self, ctx):
-        data = await self.bot.fetch_usage()
-        if not data:
-            return await ctx.send("no")
-        result = [f"`{usage}` [{cmd}]" for cmd, usage in data]
-        return await ctx.send(
-            embed=discord.Embed(description='\n'.join(result)))
-
     @commands.command(name="change")
     async def change_(self, ctx, guild_id: int, item, value):
-        if item.lower() not in ["prefix", "world", "game", "conquer"]:
-            await ctx.send(embed=utils.error_embed("Fehlerhafte Eingabe"))
+        if item.lower() not in ['prefix', 'world', 'game']:
+            await ctx.send("Fehlerhafte Eingabe")
             return
-        value = value if item == "prefix" else int(value)
-        self.bot.config.change_item(guild_id, item, value)
+
+        value = int(value) if item == "game" else value
+        self.bot.config.update(item, value, guild_id)
         await ctx.send(f"`{item}` registriert")
 
     @commands.command(name="update_iron")
@@ -64,6 +56,23 @@ class Admin(commands.Cog):
         await self.bot.update_iron(idc, iron)
         await ctx.send(f"Dem User wurden `{iron} Eisen` hinzugefügt")
 
+    @commands.command(name="execute")
+    async def sql_(self, ctx, *, query):
+        try:
+            async with self.bot.pool.acquire() as conn:
+                await conn.execute(query)
+        except Exception as error:
+            await ctx.send(error)
+
+    @commands.command(name="fetch")
+    async def fetch(self, ctx, *, query):
+        try:
+            async with self.bot.pool.acquire() as conn:
+                response = await conn.fetch(query)
+                await ctx.send(response)
+        except Exception as error:
+            await ctx.send(error)
+
 
 def setup(bot):
-    bot.add_cog(Admin(bot))
+    bot.add_cog(Owner(bot))

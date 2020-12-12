@@ -3,7 +3,10 @@ from datetime import datetime
 import dateparser
 import asyncio
 import discord
+import logging
 import utils
+
+logger = logging.getLogger('dsbot')
 
 
 class Timer:
@@ -19,9 +22,10 @@ class Timer:
     @classmethod
     def from_arguments(cls, bot, arguments):
         self = cls.__new__(cls)
+        self.bot = bot
         self.author_id, self.channel_id = arguments[:2]
         self.creation, self.expiration = arguments[2:4]
-        self.reason, self.bot = arguments[4], bot
+        self.reason = arguments[4]
         return self
 
     async def send(self):
@@ -31,19 +35,26 @@ class Timer:
         channel = self.bot.get_channel(self.channel_id)
         author = self.bot.get_user(self.author_id)
 
-        if None in [channel, author]:
+        if author is None:
             return
+
+        if channel is None:
+            channel = author
 
         try:
             msg = f"**Erinnerung:** {author.mention}"
             await channel.send(msg, embed=embed)
+            logger.debug(f"reminder {self.id}: successfull")
+
         except (discord.Forbidden, discord.HTTPException):
+            logger.debug(f"reminder {self.id}: not allowed")
             return
 
 
 class Reminder(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 2
         self.char_limit = 200
         self.preset = "%d/%m/%Y | %H:%M:%S Uhr"
         self.set = {'PREFER_DATES_FROM': 'future'}
@@ -76,6 +87,8 @@ class Reminder(commands.Cog):
                         self.current_reminder = Timer(self.bot, data)
 
             if self.current_reminder:
+                logger.debug(f"reminder {self.current_reminder.id}: sleeping")
+
                 difference = (self.current_reminder.expiration - datetime.now())
                 seconds = difference.total_seconds()
                 await asyncio.sleep(seconds)
@@ -85,6 +98,7 @@ class Reminder(commands.Cog):
                     await conn.execute(query, self.current_reminder.id)
 
                 if seconds > -60:
+                    logger.debug(f"reminder {self.current_reminder.id}: send message")
                     await self.current_reminder.send()
 
                 self.current_reminder = None
@@ -93,7 +107,7 @@ class Reminder(commands.Cog):
             else:
                 await self._lock.wait()
 
-    @commands.command(name="now")
+    @commands.command(name="now", hidden=True)
     async def now_(self, ctx):
         now = datetime.now()
         represent = now.strftime(self.preset)
@@ -149,6 +163,7 @@ class Reminder(commands.Cog):
                 if reminder.expiration < self.current_reminder.expiration:
                     self.restart(reminder)
 
+            logger.debug(f"reminder {resp['id']}: registered")
             embed.description = f"{embed.description[:-3]} (ID {resp['id']}):**"
             await ctx.send(embed=embed)
 

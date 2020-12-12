@@ -1,5 +1,8 @@
+from utils import CoordinateConverter
 from discord.ext import commands
+from collections import Counter
 import discord
+import typing
 import random
 import utils
 import io
@@ -10,29 +13,77 @@ import os
 class Villages(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 1
+        self.base_options = {'radius': [1, 10, 25], 'points': None}
 
-    async def send_coords(self, ctx, result):
-        coords = [f"{i}. {r['x']}|{r['y']}" for i, r in enumerate(result, 1)]
+    async def send_result(self, ctx, result, object_name):
+        if not result:
+            msg = f"Es sind keine {object_name} in Reichweite"
+            await ctx.send(msg)
+            return
 
-        if len(coords) < 181:
-            await ctx.author.send('\n'.join(coords))
+        is_village = isinstance(result[0], utils.Village)
+        attribute = 'coords' if is_village else 'mention'
+
+        represent = []
+        for index, obj in enumerate(result, 1):
+            line = f"{index}. {getattr(obj, attribute)}"
+            represent.append(line)
+
+        msg = "\n".join(represent)
+
+        if len(msg) <= 2000:
+            if not is_village:
+                embed = discord.Embed(description=msg)
+                await ctx.author.send(embed=embed)
+            else:
+                await ctx.author.send(msg)
+
         else:
-            file = io.StringIO()
-            file.write(f'{os.linesep}'.join(coords))
-            file.seek(0)
-            await ctx.author.send(file=discord.File(file, 'villages.txt'))
+            if not is_village:
+                represent = []
+                for index, obj in enumerate(result, 1):
+                    line = f"{index}. {getattr(obj, 'name')}"
+                    represent.append(line)
+
+            text = io.StringIO()
+            text.write(f'{os.linesep}'.join(represent))
+            text.seek(0)
+            file = discord.File(text, 'villages.txt')
+            await ctx.author.send(file=file)
 
         await ctx.private_hint()
 
+    async def fetch_in_radius(self, world, village, **kwargs):
+        radius = kwargs.get('radius')
+        points = kwargs.get('points')
+        extra_query = kwargs.get('extra')
+
+        arguments = [world, village.x, village.y, radius.value]
+
+        query = 'SELECT * FROM village WHERE world = $1 ' \
+                'AND SQRT(POWER(ABS($2 - x), 2) + POWER(ABS($3 - y), 2)) <= $4'
+
+        if points:
+            query += f' AND points {points.sign} $5'
+            arguments.append(points.value)
+
+        if extra_query:
+            query += extra_query
+
+        async with self.bot.pool.acquire() as conn:
+            result = await conn.fetch(query, *arguments)
+            return [utils.Village(rec) for rec in result]
+
     @commands.command(name="villages")
-    async def villages_(self, ctx, amount: str, *args):
-        if not amount.isdigit() and amount.lower() != "all":
-            msg = "Die Anzahl der gewünschten Dörfer muss entweder eine Zahl oder `all` sein."
-            return await ctx.send(embed=utils.error_embed(msg))
+    async def villages_(self, ctx, amount: typing.Union[int, str], *args):
+        if amount.lower() != "all":
+            msg = "Die Anzahl muss entweder eine Zahl oder `all` sein."
+            await ctx.send(msg)
+            return
 
         if not args:
-            msg = "Fehlerhafte Eingabe - Beispiel:\n**!villages 10 Knueppel-Kutte K55**"
-            return await ctx.send(embed=utils.error_embed(msg))
+            raise commands.MissingRequiredArgument
 
         con = None
         if len(args) == 1:
@@ -42,6 +93,7 @@ class Villages(commands.Cog):
             name = ' '.join(args[:-1])
         else:
             name = ' '.join(args)
+
         dsobj = await self.bot.fetch_both(ctx.server, name)
         if not dsobj:
             if con:
@@ -55,7 +107,8 @@ class Villages(commands.Cog):
             query = "SELECT * FROM player WHERE world = $1 AND tribe_id = $2;"
             async with self.bot.pool.acquire() as conn:
                 cache = await conn.fetch(query, ctx.server, dsobj.id)
-            id_list = [rec['id'] for rec in cache]
+                id_list = [rec['id'] for rec in cache]
+
         else:
             id_list = [dsobj.id]
 
@@ -67,54 +120,93 @@ class Villages(commands.Cog):
             arguments.extend([con[2], con[1]])
 
         async with self.bot.pool.acquire() as conn:
-            result = await conn.fetch(query, *arguments)
+            cache = await conn.fetch(query, *arguments)
+            result = [utils.Village(rec) for rec in cache]
 
         random.shuffle(result)
-        if amount != "all":
-            if len(result) < int(amount):
+        if isinstance(amount, int):
+            if len(result) < amount:
                 ds_type = "Spieler" if dsobj.alone else "Stamm"
                 raw = "Der {} `{}` hat leider nur `{}` Dörfer"
+                args = [ds_type, dsobj.name, len(result)]
+
                 if con:
                     raw += "auf dem Kontinent `{}`"
-                    msg = raw.format(ds_type, dsobj.name, len(result), con)
-                else:
-                    msg = raw.format(ds_type, dsobj.name, len(result))
-                return await ctx.send(embed=utils.error_embed(msg))
+                    args.append(con)
+
+                await ctx.send(raw.format(*args))
+                return
+
             else:
-                result = result[:int(amount)]
+                result = result[:amount]
 
-        await self.send_coords(ctx, result)
+        await self.send_result(ctx, result, "Dörfer")
 
-    @commands.command(name="bb")
-    async def bb_(self, ctx, center, *, options=None):
-        coord = re.match(r'\d\d\d\|\d\d\d', center)
-        if not coord:
-            msg = "Du musst eine gültige Koordinate eingeben"
-            await ctx.send(msg)
-            return
+    @commands.command(name="barbarian", aliases=["bb"])
+    async def barbarian_(self, ctx, village: CoordinateConverter, *, options=None):
+        radius, points = utils.keyword(options, **self.base_options)
+        kwargs = {'radius': radius, 'points': points,
+                  'extra': ' AND village.player = 0'}
 
-        radius, points = utils.keyword(options, radius=20, points=None)
+        result = await self.fetch_in_radius(ctx.server, village, **kwargs)
+        await self.send_result(ctx, result, "Barbarendörfer")
 
-        x = int(coord.string.split("|")[0])
-        y = int(coord.string.split("|")[1])
-        x_coords = list(range(x - radius, x + radius + 1))
-        y_coords = list(range(y - radius, y + radius + 1))
+    @commands.command(name="inactive", aliases=["graveyard"])
+    async def graveyard_(self, ctx, village: CoordinateConverter, *, options=None):
+        args = utils.keyword(options, **self.base_options, since=[1, 3, 14], tribe=None)
+        radius, points, inactive_since, tribe = args
 
-        arguments = [ctx.server, x_coords, y_coords]
-        query = 'SELECT * FROM village WHERE world = $1 AND ' \
-                'x = ANY($2) AND y = ANY($3) AND player = 0 '
-        if points:
-            query += 'AND points <= $4'
-            arguments.append(points)
+        all_villages = await self.fetch_in_radius(ctx.server, village, radius=radius)
+        player_ids = set([vil.player_id for vil in all_villages])
 
+        base = []
+        for num in range(inactive_since.value + 1):
+            table = f"player{num or ''}"
+            query_part = f'SELECT * FROM {table} ' \
+                         f'WHERE {table}.world = $1 ' \
+                         f'AND {table}.id = ANY($2)'
+
+            if tribe.value in [True, False]:
+                state = '!=' if tribe.value else '='
+                query_part += f' AND {table}.tribe_id {state} 0'
+
+            base.append(query_part)
+
+        query = ' UNION ALL '.join(base)
         async with self.bot.pool.acquire() as conn:
-            result = await conn.fetch(query, *arguments)
+            cache = await conn.fetch(query, ctx.server, player_ids)
+            result = [utils.Player(rec) for rec in cache]
 
-        if not result:
-            msg = "Es sind keine Barbarendörfer in Reichweite"
-            await ctx.send(msg)
-        else:
-            await self.send_coords(ctx, result)
+        player_cache = {}
+        day_counter = Counter()
+        for player in result:
+
+            last = player_cache.get(player.id)
+            if last is None:
+
+                if not points == player.points:
+                    player_cache[player.id] = False
+                else:
+                    player_cache[player.id] = player
+
+            elif last is False:
+                continue
+
+            elif last.points <= player.points:
+                player_cache[player.id] = player
+                day_counter[player.id] += 1
+
+            else:
+                player_cache[player.id] = False
+
+        result = []
+        for player_id, player in player_cache.items():
+            if day_counter[player_id] != inactive_since.value:
+                continue
+            else:
+                result.append(player)
+
+        await self.send_result(ctx, result, "inaktiven Spieler")
 
 
 def setup(bot):

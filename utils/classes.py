@@ -1,5 +1,7 @@
+from contextlib import asynccontextmanager
 from discord.ext import commands
 from datetime import datetime
+import asyncio
 import discord
 import utils
 import json
@@ -11,7 +13,8 @@ ingame = "https://{}/{}.php?screen=info_{}&id={}"
 world_title = {'def': "Welt", 'p': "Casual", 'c': "Sonderwelt", 's': "SDS"}
 world_data = {
     'de': {'domain': "die-staemme.de", 'icon': ":flag_de:"},
-    'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"}
+    'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"},
+    'en': {'domain': "tribalwars.net", 'icon': ":flag_gb:"}
 }
 
 
@@ -139,6 +142,14 @@ class Tribe(DSObject):
         self.all_bash = data['all_bash']
         self.all_rank = data['all_rank']
 
+    async def fetch_supbash(self, ctx):
+        query = 'SELECT player.sup_bash FROM player ' \
+                'WHERE world = $1 AND player.tribe_id = $2'
+
+        async with ctx.bot.pool.acquire() as conn:
+            data = await conn.fetch(query, ctx.server, self.id)
+            return sum([rec['sup_bash'] for rec in data])
+
 
 class Village(DSObject):
     def __init__(self, data):
@@ -165,13 +176,11 @@ class MapVillage:
 
 class Conquer:
     def __init__(self, world, data):
+        self.world = world
         self.id = data[0]
         self.unix = data[1]
-        self.new_id = data[2]
-        self.old_id = data[3]
-        self.world = world
-        self.old_tribe = None
-        self.new_tribe = None
+        self.new_player_id = data[2]
+        self.old_player_id = data[3]
         self.village = None
 
     @property
@@ -180,18 +189,17 @@ class Conquer:
 
     @property
     def player_ids(self):
-        return self.new_id, self.old_id
-
-    @property
-    def grey(self):
-        return 0 in (self.new_id, self.old_id)
+        return self.new_player_id, self.old_player_id
 
     @property
     def coords(self):
         return f"{self.village.x}|{self.village.y}"
 
+    def grey_conquer(self):
+        return self.old_player_id == 0
+
     def self_conquer(self):
-        return self.old_id == self.new_id
+        return self.old_player_id == self.new_player_id
 
 
 class DSColor:
@@ -315,3 +323,88 @@ class DSType:
                 self.table = "village"
             else:
                 self.table = arg
+
+    async def fetch(self, ctx, *args, **kwargs):
+        method = getattr(ctx.bot, f"fetch_{self.table}")
+        response = await method(ctx.server, *args, **kwargs)
+
+        if response is None:
+            raise utils.DSUserNotFound(args[0])
+        else:
+            return response
+
+
+class DSGames(commands.Cog):
+    async def cog_check(self, ctx):
+        container = self.get_container(ctx)
+
+        # if its a list it is a simple cooldown container and we need to check
+        # it since commands with dictionarys need to grab their data on begin
+        if isinstance(container, list):
+            self.get_game_data(ctx, container)
+
+        return True
+
+    @asynccontextmanager
+    async def end_game(self, ctx, time=15):
+        container = self.get_container(ctx)
+        if isinstance(container, list):
+            container.append(ctx.guild.id)
+            method = container.remove
+        else:
+            container[ctx.guild.id] = False
+            method = container.pop
+
+        try:
+            yield
+        finally:
+            await asyncio.sleep(time)
+
+            if ctx.guild.id in container:
+                method(ctx.guild.id)
+
+    def get_container(self, ctx):
+        command = str(ctx.command)
+
+        if command == "guess":
+            command = "hangman"
+        elif command == "draw":
+            command = "videopoker"
+
+        return getattr(self, command, None)
+
+    def get_game_data(self, ctx, container=None):
+        if container is None:
+            container = self.get_container(ctx)
+
+        if ctx.guild.id not in container:
+            return
+
+        if isinstance(container, list):
+            raise utils.SilentError
+        else:
+            data = container[ctx.guild.id]
+            if data is False:
+                raise utils.SilentError
+            else:
+                return data
+
+
+class Keyword:
+    def __init__(self, value, sign="="):
+        self.value = value
+        self.sign = sign
+
+    def __eq__(self, other):
+        if self.value is None:
+            return True
+
+        if self.sign == "<":
+            return other < self.value
+        elif self.sign == ">":
+            return other > self.value
+        else:
+            return other == self.value
+
+    def __bool__(self):
+        return bool(self.value)

@@ -1,6 +1,5 @@
-from utils.error import DontPingMe, MemberConverterNotFound, DSUserNotFound, UnknownWorld
-from utils.classes import DSWorld
 from discord.ext import commands
+import utils.error as error
 import re
 
 
@@ -9,15 +8,13 @@ class MemberConverter(commands.Converter):
 
     async def convert(self, ctx, arg):
         if re.match(r'<@!?([0-9]+)>$', arg):
-            raise DontPingMe
+            raise error.DontPingMe
         name = arg.lower()
-        for m in ctx.guild.members:
-            if name == m.display_name.lower():
-                return m
-            if name == m.name.lower():
-                return m
+        member = await ctx.guild.query_members(name)
+        if member:
+            return member[0]
         else:
-            raise MemberConverterNotFound(arg)
+            raise error.MemberNotFound(arg)
 
 
 class DSConverter(commands.Converter):
@@ -41,7 +38,7 @@ class DSConverter(commands.Converter):
             obj = await ctx.bot.fetch_both(ctx.server, argument)
 
         if not obj:
-            raise DSUserNotFound(argument)
+            raise error.DSUserNotFound(argument)
         return obj
 
 
@@ -61,15 +58,30 @@ class WorldConverter(commands.Converter):
                     if numbers[0] in world:
                         break
 
-            raise UnknownWorld(world)
+            raise error.UnknownWorld(world)
 
         else:
             return world
 
 
-class TimeConverter(commands.Converter):
-    def __init__(self):
-        pass
+class CoordinateConverter(commands.Converter):
+    def __init__(self, argument=None):
+        self.x = None
+        self.y = None
+        if argument:
+            self.x, self.y = self.parse(argument, valid=True)
 
-    async def convert(self, ctx, arguments):
-        pass
+    async def convert(self, ctx, argument):
+        self.x, self.y = self.parse(argument)
+        return self
+
+    def parse(self, argument, valid=False):
+        if valid is False:
+            coord = re.match(r'\d\d\d\|\d\d\d', argument)
+            if not coord:
+                raise error.InvalidCoordinate
+            else:
+                argument = coord.string
+
+        raw_x, raw_y = argument.split("|")
+        return int(raw_x), int(raw_y)

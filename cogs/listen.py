@@ -1,7 +1,7 @@
 from PIL import Image, ImageChops
 from discord.ext import commands
 from collections import Counter
-from datetime import timedelta
+from datetime import datetime
 from bs4 import BeautifulSoup
 import traceback
 import logging
@@ -27,11 +27,12 @@ class Listen(commands.Cog):
                          commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
-                         utils.IngameError)
+                         utils.IngameError,
+                         utils.SilentError)
 
-    async def called_by_hour(self):
-        query = 'INSERT INTO usage_data(name, usage) VALUES($1, $2) ' \
-                'ON CONFLICT (name) DO UPDATE SET usage = usage_data.usage + $2'
+    async def called_per_hour(self):
+        query = 'INSERT INTO usage(name, usage) VALUES($1, $2) ' \
+                'ON CONFLICT (name) DO UPDATE SET usage = usage.usage + $2'
 
         data = [(k, v) for k, v in self.cmd_counter.items()]
         if not data:
@@ -46,8 +47,10 @@ class Listen(commands.Cog):
     def html_lover(self, raw_data):
         soup = BeautifulSoup(raw_data, 'html.parser')
         tiles = soup.body.find_all(class_='vis')
+
         if len(tiles) < 2:
             return
+
         main = f"{utils.whymtl}<head></head>{tiles[1]}"
         css = f"{self.bot.data_path}/report.css"
         img_bytes = imgkit.from_string(main, False, options=utils.imgkit, css=css)
@@ -87,21 +90,28 @@ class Listen(commands.Cog):
         if message.author.id in self.blacklist:
             return
 
-        self.bot.active_guilds.add(message.guild.id)
+        guild_id = message.guild.id
+        self.bot.active_guilds.add(guild_id)
 
         world = self.bot.config.get_world(message.channel)
-        if not world:
+        if world is None:
             return
 
-        pre = self.bot.config.get_prefix(message.guild.id)
+        pre = self.bot.config.get_prefix(guild_id)
         if message.content.lower().startswith(pre.lower()):
             return
 
-        # Report Converter
-        if message.content.__contains__("public_report"):
-            file = await self.fetch_report(message.content)
+        content = message.clean_content
+
+        # report conversion
+        report_urls = re.findall(r'https://.+/public_report/\S*', content)
+        if report_urls and self.bot.config.get_switch('report', guild_id):
+            file = await self.fetch_report(report_urls[0])
+
             if file is None:
-                return await utils.silencer(message.add_reaction('❌'))
+                await utils.silencer(message.add_reaction('❌'))
+                return
+
             try:
                 await message.channel.send(file=discord.File(file, "report.png"))
                 await message.delete()
@@ -111,34 +121,34 @@ class Listen(commands.Cog):
                 logger.debug("report converted")
                 return
 
-        # Coord Converter
-        result = re.findall(r'\d\d\d\|\d\d\d', message.content)
-        if result:
-
-            result = set(result)
-            coords = [obj.replace('|', '') for obj in result]
-            villages = await self.bot.fetch_bulk(world, coords, "village", name=True)
+        # coordinate conversion
+        coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
+        if coordinates and self.bot.config.get_switch('coord', guild_id):
+            coords = set(coordinates)
+            villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
             player_ids = [obj.player_id for obj in villages]
-            players = await self.bot.fetch_bulk(world, player_ids, dic=True)
+            players = await self.bot.fetch_bulk(world, player_ids, dictionary=True)
             good = []
-            for vil in villages:
 
-                player = players.get(vil.player_id)
+            for village in villages:
+                player = players.get(village.player_id)
+
                 if player:
                     owner = f"[{player.name}]"
                 else:
                     owner = "[Barbarendorf]"
 
-                good.append(f"{vil.mention} {owner}")
-                result.remove(f"{vil.x}|{vil.y}")
+                good.append(f"{village.mention} {owner}")
+                coords.remove(village.coords)
 
             found = '\n'.join(good)
-            lost = ','.join(result)
+            lost = ', '.join(coords)
             if found:
                 found = f"**Gefundene Koordinaten:**\n{found}"
             if lost:
                 lost = f"**Nicht gefunden:**\n{lost}"
             em = discord.Embed(description=f"{found}\n{lost}")
+
             try:
                 await message.channel.send(embed=em)
             except discord.Forbidden:
@@ -147,28 +157,17 @@ class Listen(commands.Cog):
                 logger.debug("coord converted")
                 return
 
-        # DS Player/Tribe Converter
-        if "|" not in message.content:
-            return
-
-        content = message.clean_content
-        mentions = message.mentions.copy()
-        mentions.extend(message.role_mentions)
-        mentions.extend(message.channel_mentions)
-
-        for mention in mentions:
-            if isinstance(mention, discord.Member):
-                raw = f"@{mention.display_name}"
-            else:
-                raw = f"@{mention.name}"
-            content = content.replace(raw, "")
-
-        names = re.findall(r'(?<!\|)\|([\w][^|]*?)\|(?!\|)', message.clean_content)
-        if names:
+        # ds mention converter
+        names = re.findall(r'(?<!\|)\|([\S][^|]*?)\|(?!\|)', content)
+        if names and self.bot.config.get_switch('mention', guild_id):
             parsed_msg = message.clean_content.replace("`", "")
             ds_objects = await self.bot.fetch_bulk(world, names[:10], name=True)
             cache = await self.bot.fetch_bulk(world, names[:10], 1, name=True)
             ds_objects.extend(cache)
+
+            mentions = message.mentions.copy()
+            mentions.extend(message.role_mentions)
+            mentions.extend(message.channel_mentions)
 
             found_names = {}
             for dsobj in ds_objects:
@@ -178,14 +177,14 @@ class Listen(commands.Cog):
 
             for name in names:
                 dsobj = found_names.get(name.lower())
+
                 if not dsobj:
                     failed = f"**{name}**<:failed:708982292630077450>"
                     parsed_msg = parsed_msg.replace(f"|{name}|", failed)
-
                 else:
                     parsed_msg = parsed_msg.replace(f"|{name}|", dsobj.mention)
 
-            current = message.created_at + timedelta(hours=1)
+            current = datetime.now()
             time = current.strftime("%H:%M Uhr")
             title = f"{message.author.display_name} um {time}"
             embed = discord.Embed(description=parsed_msg)
@@ -207,47 +206,56 @@ class Listen(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_completion(self, ctx):
-        cid, cmd = (ctx.message.id, ctx.invoked_with)
-        logger.debug(f"command completed [{cid}]")
+        logger.debug(f"command completed [{ctx.message.id}]")
 
         if ctx.author.id != self.bot.owner_id:
-            self.cmd_counter[str(ctx.command)] += 1
+            if ctx.command.parent is not None:
+                cmd = str(ctx.command.parent)
+            else:
+                cmd = str(ctx.command)
+
+            self.cmd_counter[cmd] += 1
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
-        self.bot.config.remove_guild(guild.id)
+        self.bot.config.remove_config(guild.id)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         cmd = ctx.invoked_with
         msg, tip = None, None
 
-        logger.debug(f"command error [{ctx.message.id}]: {error}")
-
         error = getattr(error, 'original', error)
         if isinstance(error, self.silenced):
             return
 
-        elif isinstance(error, commands.CommandNotFound):
+        logger.debug(f"command error [{ctx.message.id}]: {error}")
+
+        if isinstance(error, commands.CommandNotFound):
             if len(cmd) == cmd.count(ctx.prefix):
                 return
             else:
                 data = random.choice(self.bot.msg["noCommand"])
-                return await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
+                await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
+                return
 
         elif isinstance(error, commands.MissingRequiredArgument):
             msg = "Dem Command fehlt ein benötigtes Argument"
-            tip = ctx
+            tip = True
+
+        elif isinstance(error, utils.MissingRequiredKey):
+            msg = f"`{ctx.prefix}{cmd.lower()} <{'|'.join(error.keys)}>`"
+            tip = True
 
         elif isinstance(error, commands.NoPrivateMessage):
-            msg = "Der Command ist leider nur auf einem Server verfügbar"
+            msg = "Der Command ist leider nur auf einem Server möglich"
 
         elif isinstance(error, commands.PrivateMessageOnly):
-            msg = "Der Command ist leider nur per private Message verfügbar"
+            msg = "Der Command ist leider nur per private Message möglich"
 
         elif isinstance(error, utils.DontPingMe):
             msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
-            tip = ctx
+            tip = True
 
         elif isinstance(error, utils.WorldMissing):
             msg = "Der Server hat noch keine zugeordnete Welt\n" \
@@ -255,16 +263,21 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.UnknownWorld):
             msg = "Diese Welt existiert leider nicht."
-            if error.possible:
-                msg += f"\nMeinst du möglicherweise: `{error.possible}`"
-            tip = ctx
+            tip = True
+
+            if error.possible_world:
+                msg += f"\nMeinst du möglicherweise: `{error.possible_world}`"
+
+        elif isinstance(error, utils.InvalidCoordinate):
+            msg = "Du musst eine gültige Koordinate angeben"
 
         elif isinstance(error, utils.WrongChannel):
-            if error.type == "game":
-                channel = self.bot.config.get_item(ctx.guild.id, "game")
-                return await ctx.send(f"<#{channel}>")
+            if error.type == 'game':
+                channel_id = self.bot.config.get('game', ctx.guild.id)
+                await ctx.send(f"<#{channel_id}>")
+                return
 
-            else:
+            elif error.type == 'conquer':
                 msg = "Du befindest dich nicht in einem Eroberungschannel"
 
         elif isinstance(error, utils.GameChannelMissing):
@@ -277,7 +290,7 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.InvalidBet):
             base = "Der Einsatz muss zwischen {} und {} Eisen liegen"
-            msg = base.format(error.low, error.high)
+            msg = base.format(error.min, error.max)
 
         elif isinstance(error, commands.NotOwner):
             msg = "Diesen Command kann nur der Bot-Owner ausführen"
@@ -292,18 +305,20 @@ class Listen(commands.Cog):
         elif isinstance(error, utils.DSUserNotFound):
             msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
 
-        elif isinstance(error, utils.MemberConverterNotFound):
+        elif isinstance(error, utils.MemberNotFound):
             msg = f"`{error.name}` konnte nicht gefunden werden"
 
         elif isinstance(error, commands.BotMissingPermissions):
-            msg = f"Dem Bot fehlen folgende Rechte auf diesem Server:\n" \
-                  f"`{', '.join(error.missing_perms)}`"
+            base = "Dem Bot fehlen folgende Rechte auf diesem Server:\n`{}`"
+            msg = base.format(', '.join(error.missing_perms))
+
         elif isinstance(error, commands.ExpectedClosingQuoteError):
             msg = "Ein Argument wurde mit einem Anführungszeichen begonnen und nicht geschlossen"
 
         if msg:
             try:
-                embed = utils.error_embed(msg, ctx=tip)
+                context = ctx if tip is True else None
+                embed = utils.error_embed(msg, ctx=context)
                 await ctx.send(embed=embed)
             except discord.Forbidden:
                 msg = "Dem Bot fehlen benötigte Rechte: `Embed Links`"

@@ -1,20 +1,17 @@
+from matplotlib import patheffects, ticker
+from collections import OrderedDict
 from utils import seperator as sep
-from matplotlib import patheffects
 from discord.ext import commands
 import matplotlib.pyplot as plt
-from matplotlib import ticker
 from bs4 import BeautifulSoup
 from datetime import datetime
 import parsedatetime
 import pandas as pd
 import discord
-import asyncio
 import utils
 import math
 import re
 import io
-
-number_emote = "{}\N{COMBINING ENCLOSING KEYCAP}"
 
 
 class MemberMenue:
@@ -31,7 +28,8 @@ class MemberMenue:
     async def add_buttons(self):
         numbers = []
         for num in range(1, len(self.pages) + 1):
-            numbers.append(number_emote.format(num))
+            button = f"{num}\N{COMBINING ENCLOSING KEYCAP}"
+            numbers.append(button)
 
         self.emojis = ["⏪", *numbers, "⏩"]
 
@@ -47,6 +45,9 @@ class MemberMenue:
 
             elif user != self.owner:
                 return
+
+        if str(reaction.emoji) not in self.emojis:
+            return
 
         self.last = now
         last_index = len(self.pages) - 1
@@ -76,11 +77,11 @@ class MemberMenue:
         await self.msg.edit(embed=embed)
 
 
-class Rm(commands.Cog):
+class Utils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 1
         self.maximum = 0
-        self.duration = 300
         self.cap_dict = {}
         self.active_pager = {}
         self.troops = self.bot.msg['troops']
@@ -91,10 +92,7 @@ class Rm(commands.Cog):
                     "('https://media.innogamescdn.com/com_DS_DE/" \
                     "scripts/qb_main/scriptgenerator.js'); void(0);"
 
-        user = commands.BucketType.user
-        self._cd = commands.CooldownMapping.from_cooldown(1.0, 2.0, user)
-
-    async def called_by_hour(self):
+    async def called_per_hour(self):
         now = datetime.utcnow()
         tmp = self.active_pager.copy()
         for message_id, pager in tmp.items():
@@ -112,8 +110,28 @@ class Rm(commands.Cog):
                 'AND table_name LIKE \'player%\''
 
         cache = await conn.fetch(query)
-        tables = [rec['table_name'] for rec in cache]
-        return int(sorted(tables)[-1][-1])
+        tables = " ".join([rec['table_name'] for rec in cache])
+        numbers = [int(n) for n in re.findall(r'\d+', tables)]
+        return sorted(numbers)[-1]
+
+    async def fetch_profile_picture(self, dsobj, default_avatar=False):
+        async with self.bot.session.get(dsobj.guest_url) as resp:
+            soup = BeautifulSoup(await resp.read(), "html.parser")
+
+            tbody = soup.find(id='content_value')
+            tables = tbody.findAll('table')
+            tds = tables[1].findAll('td', attrs={'valign': 'top'})
+            images = tds[1].findAll('img')
+
+            if not images or 'badge' in images[0]['src']:
+                return
+
+            endings = ['large']
+            if default_avatar is True:
+                endings.append('jpg')
+
+            if images[0]['src'].endswith(tuple(endings)):
+                return images[0]['src']
 
     def create_figure(self):
         fig = plt.figure(figsize=(10, 4))
@@ -133,7 +151,9 @@ class Rm(commands.Cog):
             axes.tick_params(axis=coord, colors='white')
 
         def x_format(num, _):
-            return f"-{int((28 - num) / 7)} Woche"
+            weeknum = int((28 - num) / 7)
+            if weeknum not in (0, 4):
+                return f"-{weeknum} Woche"
 
         def y_format(num, _):
             magnitude = 0
@@ -170,18 +190,21 @@ class Rm(commands.Cog):
             await pager.update(reaction, user)
 
     @commands.command(name="members")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def members_(self, ctx, tribe: utils.DSConverter("tribe"), url_type="ingame"):
         members = await self.bot.fetch_tribe_member(ctx.server, tribe.id)
         sorted_members = sorted(members, key=lambda obj: obj.rank)
 
         if not sorted_members:
             msg = "Der angegebene Stamm hat keine Mitglieder"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         elif url_type not in ["ingame", "guest", "twstats"]:
             msg = "Der angegebene URL-Typ ist nicht vorhanden:\n" \
                   "`(ingame[default], guest, twstats)`"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         tribe_url = getattr(tribe, f"{url_type}_url")
 
@@ -211,55 +234,44 @@ class Rm(commands.Cog):
         self.active_pager[msg.id] = pager
         await pager.add_buttons()
 
-    @commands.command(name="rm")
-    async def rm_(self, ctx, *tribes: str):
+    @commands.command(name="rundmail", aliases=["rm"])
+    async def rundmail_(self, ctx, *tribes: str):
+        if not tribes:
+            raise commands.MissingRequiredArgument
+
         if len(tribes) > 10:
             msg = "Nur bis zu `10 Stämme` aufgrund der maximalen Zeichenlänge"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         data = await self.bot.fetch_tribe_member(ctx.server, tribes, name=True)
-        if isinstance(data, str):
-            await ctx.send(f"Der Stamm `{data}` existiert so nicht")
-        elif not data:
+        if not data:
             await ctx.send("Die angegebenen Stämme haben keine Mitglieder")
+
         else:
             result = [obj.name for obj in data]
             await ctx.author.send(';'.join(result))
             await ctx.message.add_reaction("📨")
 
     @commands.command(name="player", aliases=["tribe"])
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def ingame_(self, ctx, *, username):
         ds_type = utils.DSType(ctx.invoked_with.lower())
+        dsobj = await ds_type.fetch(ctx, username, name=True)
 
+        queries = []
+        for num in range(29):
+            table = f"{ds_type.table}{num or ''}"
+            base = f'SELECT * FROM {table} WHERE ' \
+                   f'{table}.world = $1 AND {table}.id = $2'
+
+            queries.append(base)
+
+        query = " UNION ALL ".join(queries)
         async with self.bot.pool.acquire() as conn:
-            latest = await self.fetch_oldest_tableday(conn)
-
-            queries = []
-            for num in range(0, latest + 1):
-                placeholder = '{0}'
-                num = num or ''
-                base = f'SELECT * FROM {placeholder}{num} WHERE ' \
-                       f'{placeholder}{num}.world = $1 AND '
-
-                if ds_type.table == "player":
-                    base += f'LOWER({placeholder}{num}.name) = $2'
-                else:
-                    base += f'(LOWER({placeholder}{num}.tag) = $2 OR ' \
-                            f'LOWER({placeholder}{num}.name) = $2)'
-
-                queries.append(base)
-
-        query = " UNION ALL ".join(queries).format(ds_type.table)
-
-        async with self.bot.pool.acquire() as conn:
-            searchable = utils.converter(username, True)
-            cache = await conn.fetch(query, ctx.server, searchable)
-            data = [ds_type.Class(rec) for rec in cache]
-
-        if not data:
-            raise utils.DSUserNotFound(username)
-        else:
-            dsobj = data[0]
+            records = await conn.fetch(query, ctx.server, dsobj.id)
+            data = [ds_type.Class(rec) for rec in records]
+            data.reverse()
 
         rows = [f"**{dsobj.name}** | {ctx.world.show(clean=True)} {ctx.world.icon}"]
 
@@ -271,29 +283,35 @@ class Rm(commands.Cog):
         rows.append(" | ".join(urls))
 
         points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | **Rang:** `{dsobj.rank}`"
-        villages = f"**Dörfer:** `{utils.seperator(dsobj.villages)}`"
 
-        if getattr(dsobj, 'tribe_id', None):
+        if hasattr(dsobj, 'tribe_id'):
             tribe = await self.bot.fetch_tribe(ctx.server, dsobj.tribe_id)
-            desc = tribe.mention if tribe else "Stammeslos"
-            villages += f" | **Stamm:** {desc}"
+            desc = tribe.mention if tribe else "None"
+            villages = f"**Stamm:** {desc}"
+        else:
+            villages = f"**Mitglieder:** `{dsobj.member}`"
 
+        villages += f" | **Dörfer:** `{utils.seperator(dsobj.villages)}`"
         rows.extend(["", points, villages, "", "**Besiegte Gegner:**"])
 
-        bash_rows = {}
+        bash_rows = OrderedDict()
         for index, stat in enumerate(['all_bash', 'att_bash', 'def_bash', 'sup_bash']):
-            value = getattr(dsobj, stat, None)
 
-            if value is not None:
+            if index == 3 and isinstance(dsobj, utils.Tribe):
+                value = await dsobj.fetch_supbash(ctx)
+                rank_value = None
+            else:
+                value = getattr(dsobj, stat)
                 rank_stat = f"{stat.split('_')[0]}_rank"
                 rank_value = getattr(dsobj, rank_stat)
-                stat_title = self.bot.msg['statTitle'][stat]
-                represent = f"{stat_title}: `{sep(value)}`"
 
-                if rank_value:
-                    represent += f" | Rang: `{rank_value}`"
+            stat_title = self.bot.msg['statTitle'][stat]
+            represent = f"{stat_title}: `{sep(value)}`"
 
-                bash_rows[represent] = value
+            if rank_value:
+                represent += f" | Rang: `{rank_value}`"
+
+            bash_rows[represent] = value
 
         clean = sorted(bash_rows.items(), key=lambda l: l[1], reverse=True)
         rows.extend([line[0] for line in clean])
@@ -301,19 +319,12 @@ class Rm(commands.Cog):
         profile = discord.Embed(description="\n".join(rows))
         profile.colour = discord.Color.blue()
 
-        async with self.bot.session.get(dsobj.guest_url) as resp:
-            soup = BeautifulSoup(await resp.read(), "html.parser")
+        image_url = await self.fetch_profile_picture(dsobj)
+        if image_url is not None:
+            profile.set_thumbnail(url=image_url)
 
-            tbody = soup.find(id='content_value')
-            tables = tbody.findAll('table')
-            tds = tables[1].findAll('td', attrs={'valign': 'top'})
-            images = tds[1].findAll('img')
-
-            if images and images[0]['src'].endswith(("large", "jpg")):
-                profile.set_thumbnail(url=images[0]['src'])
-
-        filled = [0] * (28 - len(data)) + [d.points for d in data[::-1]]
-        plot_data = pd.DataFrame({'x_coord': range(1, 29), 'y_coord': filled})
+        filled = [0] * (29 - len(data)) + [d.points for d in data]
+        plot_data = pd.DataFrame({'x_coord': range(29), 'y_coord': filled})
 
         config = {'color': '#3498db',
                   'linewidth': 5,
@@ -335,8 +346,37 @@ class Rm(commands.Cog):
 
         file = discord.File(buf, "example.png")
         profile.set_image(url="attachment://example.png")
-
         await ctx.send(embed=profile, file=file)
+
+    @commands.command(name="nude")
+    @commands.cooldown(1, 10.0, commands.BucketType.user)
+    async def nude_(self, ctx, *, dsobj: utils.DSConverter = None):
+        await ctx.trigger_typing()
+
+        if dsobj is None:
+            players = await self.bot.fetch_random(ctx.server, amount=30, max=True)
+        else:
+            players = [dsobj]
+
+        for player in players:
+            result = await self.fetch_profile_picture(player, bool(dsobj))
+
+            if result is not None:
+                break
+
+        else:
+            if dsobj:
+                msg = f"Glaub mir, die Nudes von `{dsobj.name}` willst du nicht!"
+            else:
+                msg = "Die maximale Anzahl von Versuchen wurden erreicht"
+
+            await ctx.send(msg)
+            return
+
+        async with self.bot.session.get(result) as res2:
+            image = io.BytesIO(await res2.read())
+            file = discord.File(image, "userpic.gif")
+            await ctx.send(file=file)
 
     @commands.command(name="visit")
     async def visit_(self, ctx, world: utils.WorldConverter = None):
@@ -346,15 +386,16 @@ class Rm(commands.Cog):
         description = f"[{world.show(True)}]({world.guest_url})"
         await ctx.send(embed=discord.Embed(description=description))
 
-    @commands.command(name="sl")
-    async def sl_(self, ctx, *, args):
+    @commands.command(name="quickbar", aliases=["sl"])
+    async def quickbar_(self, ctx, *, args):
         troops = re.findall(r'[A-z]*=\d*', args)
         coordinates = re.findall(r'\d\d\d\|\d\d\d', args)
 
         if not troops or not coordinates:
             msg = f"Du musst mindestens eine Truppe und ein Dorf angeben\n" \
                   f"**Erklärung und Beispiele unter:** {ctx.prefix}help sl"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         data = [0 for _ in range(12)]
         for kwarg in troops:
@@ -362,43 +403,42 @@ class Rm(commands.Cog):
             try:
                 wiki = list(self.troops.keys())
                 index = wiki.index(name.lower())
+                data[index] = int(amount)
             except ValueError:
                 continue
-            data[index] = int(amount)
 
         if not sum(data):
             troops = ', '.join([o.capitalize() for o in self.troops])
             msg = f"Du musst einen gültigen Truppennamen angeben:\n`{troops}`"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         result = []
         counter = 0
-        cache = []
-        for coord in coordinates:
-            if coord in cache:
-                continue
-            cache.append(coord)
+        package = []
+        iteratable = set(coordinates)
+        for index, coord in enumerate(iteratable):
             x, y = coord.split("|")
             script = self.base.format(*data, x, y)
-            if counter + len(script) > 2000:
-                msg = "\n".join(result)
-                await ctx.author.send(f"```js\n{msg}\n```")
+
+            if counter + len(script) > 2000 or index == len(iteratable) - 1:
+                result.append(package)
             else:
-                result.append(script)
+                package.append(script)
                 counter += len(script)
 
-        if result:
-            msg = "\n".join(result)
+        for package in result:
+            msg = "\n".join(package)
             await ctx.author.send(f"```js\n{msg}\n```")
 
-        if ctx.guild:
+        if ctx.guild is not None:
             await ctx.private_hint()
 
-    @commands.command(name="rz", aliases=["rz3", "rz4"])
-    async def rz3_(self, ctx, *args: int):
+    @commands.command(name="scavenge", aliases=["rz"])
+    async def scavenge_(self, ctx, *args: int):
         if len(args) > 7:
             msg = "Das Maximum von 7 verschiedenen Truppentypen wurde überschritten"
-            return await ctx.send(embed=utils.error_embed(msg))
+            return await ctx.send(msg)
 
         three = ctx.invoked_with.lower() == "rz3"
 
@@ -430,7 +470,8 @@ class Rm(commands.Cog):
             msg = "**Ungültiger Input** - Gesamte Angriffszeile kopieren:\n" \
                   "`?retime Ramme Dorf (335|490) K43 Dorf (338|489) K43 " \
                   "Knueppel-Kutte 3.2 heute um 21:09:56:099`"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         now = datetime.now()
         calendar = parsedatetime.Calendar()
@@ -446,10 +487,7 @@ class Rm(commands.Cog):
 
         if unit is None:
             value = args[-1].lower()
-            unit = self.troops.get(value, value)
-
-            if unit not in self.movement:
-                unit = 'ram'
+            unit = self.troops.get(value, 'ram')
 
         unit_speed = self.movement.get(unit)
 
@@ -458,12 +496,13 @@ class Rm(commands.Cog):
         x, y = abs(target[0] - target[2]), abs(target[1] - target[3])
 
         diff = (x * x + y * y) ** 0.5
-        raw_seconds = diff * unit_speed * ctx.world.speed
+        raw_seconds = diff * unit_speed
         seconds = round(raw_seconds * 60)
 
         target_date = datetime.fromtimestamp(date.timestamp() + seconds)
         time = target_date.strftime('%H:%M:%S')
-        msg = f"**Rückkehr:** {time}:000 `[{value.upper()}]`"
+        name = value.upper() if value in self.troops else "RAMME"
+        msg = f"**Rückkehr:** {time} `[{name}]`"
         await ctx.send(msg)
 
     @commands.command(name="settings")
@@ -505,56 +544,6 @@ class Rm(commands.Cog):
         embed.description = "\n".join(cache)
         await ctx.send(embed=embed)
 
-    @commands.command(name="poll")
-    async def poll_(self, ctx, question, *options):
-        if len(options) > 9:
-            msg = "Die maximale Anzahl der Auswahlmöglichkeiten beträgt 9"
-            return await ctx.send(utils.error_embed(msg))
-
-        parsed_options = ""
-        for index, opt in enumerate(options):
-            choice = f"\n`{index + 1}.` {opt}"
-            parsed_options += choice
-
-        title = f"**Abstimmung von {ctx.author.display_name}:**"
-        description = f"{title}\n{question}{parsed_options}"
-        embed = discord.Embed(description=description, color=discord.Color.purple())
-        embed.set_footer(text="Abstimmung endet in 15 Minuten")
-        poll = await ctx.send(embed=embed)
-
-        for num in range(len(options)):
-            emoji = number_emote.format(num + 1)
-            await poll.add_reaction(emoji)
-
-        await ctx.safe_delete()
-        await asyncio.sleep(self.duration)
-
-        for time in [2, 1]:
-            cur = int(self.duration / 60) * time
-            embed.set_footer(text=f"Abstimmung endet in {cur} Minuten")
-            await poll.edit(embed=embed)
-            await asyncio.sleep(self.duration)
-
-        refetched = await ctx.channel.fetch_message(poll.id)
-        votes = sorted(refetched.reactions, key=lambda r: r.count, reverse=True)
-        color = discord.Color.red()
-
-        if [r.count for r in votes].count(1) == len(votes):
-            msg = "`Niemand hat an der Abstimmung teilgenommen`"
-
-        elif votes[0].count > votes[1].count:
-            color = discord.Color.green()
-            winner = refetched.reactions.index(votes[0])
-            msg = f"`{options[winner]} hat gewonnen`"
-
-        else:
-            msg = "`Es konnte kein klares Ergebnis erzielt werden`"
-
-        result = f"{title}\n{question}\n{msg}"
-        wimbed = discord.Embed(description=result, color=color)
-        wimbed.set_footer(text="Abstimmung beendet")
-        await poll.edit(embed=wimbed)
-
 
 def setup(bot):
-    bot.add_cog(Rm(bot))
+    bot.add_cog(Utils(bot))

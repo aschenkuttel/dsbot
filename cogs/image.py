@@ -11,6 +11,7 @@ import os
 class Graphic(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 2
         self.emojis = {}
         self.setup_emojis()
 
@@ -27,6 +28,7 @@ class Graphic(commands.Cog):
     def img_resize(self, img):
         x = img.size[0]
         y = x / 1.5
+
         if img.size[0] / img.size[1] > 1.5:
             y = img.size[1]
             x = y * 1.5
@@ -41,6 +43,7 @@ class Graphic(commands.Cog):
         img = next(frames)
         x = img.size[0]
         y = x / 1.5
+
         if img.size[0] / img.size[1] > 1.5:
             y = img.size[1]
             x = y * 1.5
@@ -53,12 +56,14 @@ class Graphic(commands.Cog):
             yield pic
 
     def setup_emojis(self):
-        path = f"{self.bot.data_path}/emojis/"
-        for file in os.listdir(path):
-            with open(f"{path}/{file}", 'rb') as pic:
-                img = bytearray(pic.read())
-                name = file.split(".")[0]
-            self.emojis[name] = img
+        path = f"{self.bot.data_path}/emojis"
+        for folder in os.listdir(path):
+            new_path = f"{path}/{folder}"
+            for file in os.listdir(new_path):
+                with open(f"{new_path}/{file}", 'rb') as pic:
+                    img = bytearray(pic.read())
+                    name = file.split(".")[0]
+                    self.emojis[name] = img
 
     @commands.command(name="avatar")
     async def avatar_(self, ctx, url):
@@ -68,8 +73,8 @@ class Graphic(commands.Cog):
 
         img = Image.open(BytesIO(avatar_bytes))
         if img.size[0] <= 270 and img.size[1] <= 180:
-            msg = "Das angegebene Bild ist bereits klein genug"
-            return await ctx.send(embed=error_embed(msg))
+            await ctx.send("Das angegebene Bild ist bereits klein genug")
+            return
 
         output_buffer = BytesIO()
         if img.format == "GIF":
@@ -89,45 +94,6 @@ class Graphic(commands.Cog):
         await ctx.author.send(file=file)
         await ctx.private_hint()
 
-    @commands.command(name="nude")
-    @commands.cooldown(1, 10.0, commands.BucketType.user)
-    async def nude_(self, ctx, *, dsobj: DSConverter = None):
-        await ctx.trigger_typing()
-
-        if dsobj is None:
-            players = await self.bot.fetch_random(ctx.server, amount=30, max=True)
-        else:
-            players = [dsobj]
-
-        for player in players:
-
-            async with self.bot.session.get(player.guest_url) as res:
-                data = await res.read()
-
-            soup = BeautifulSoup(data, "html.parser")
-            tbody = soup.find(id='content_value')
-            tables = tbody.findAll('table')
-            tds = tables[1].findAll('td', attrs={'valign': 'top'})
-            images = tds[1].findAll('img')
-
-            if images and images[0]['src'].endswith("large"):
-                result = images[0]
-                break
-
-        else:
-            if dsobj:
-                msg = f"Glaub mir, die Nudes von `{dsobj.name}` willst du nicht!"
-            else:
-                msg = "Die maximale Anzahl von Versuchen wurden erreicht"
-
-            await ctx.send(embed=error_embed(msg))
-            return
-
-        async with self.bot.session.get(result['src']) as res2:
-            file = BytesIO(await res2.read())
-
-        await ctx.send(file=discord.File(file, "userpic.gif"))
-
     @commands.command(name="emoji")
     @commands.bot_has_permissions(manage_emojis=True)
     async def emoji_(self, ctx):
@@ -135,8 +101,10 @@ class Graphic(commands.Cog):
         for name, emoji in self.emojis.items():
             if name in [e.name for e in ctx.guild.emojis]:
                 continue
+
             await ctx.guild.create_custom_emoji(name=name, image=emoji)
             counter += 1
+
         await ctx.send(f"`{counter}/{len(self.emojis)}` Emojis wurden hinzugefügt")
 
     @avatar_.error

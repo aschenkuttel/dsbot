@@ -1,21 +1,43 @@
-from utils import MemberConverter, seperator, error_embed
+from utils import MemberConverter, MissingRequiredKey, seperator
 from discord.ext import commands
 import discord
 
 
-class Money(commands.Cog):
+class Iron(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 3
 
-    @commands.group(name="iron")
+    async def send_ranking(self, ctx, iterable):
+        data = []
+        for index, record in iterable:
+            player = self.bot.get_user(record['id'])
+
+            if player is None:
+                name = "Unknown"
+            else:
+                name = player.display_name
+
+            base = "**Rang {}:** `{} Eisen` [{}]"
+            msg = base.format(index, seperator(record['amount']), name)
+            data.append(msg)
+
+            if len(data) == 5:
+                break
+
+        if data:
+            embed = discord.Embed(description="\n".join(data))
+            embed.colour = discord.Color.blue()
+            await ctx.send(embed=embed)
+
+        else:
+            msg = "Aktuell gibt es keine gespeicherten Scores"
+            await ctx.send(msg)
+
+    @commands.group(name="iron", invoke_without_command=True)
     async def iron(self, ctx):
-        cmd_list = ("top", "global", "send")
-        if ctx.subcommand_passed and ctx.subcommand_passed not in cmd_list:
-            msg = f"Falsche Eingabe | `{ctx.prefix}iron <top/global/send>"
-            return await ctx.send(embed=error_embed(msg))
-
-        if ctx.invoked_subcommand:
-            return
+        if not ctx.message.content.endswith("iron"):
+            raise MissingRequiredKey(("send", "top", "local"))
 
         money, rank = await self.bot.fetch_iron(ctx.author.id, True)
         base = "**Dein Speicher:** `{} Eisen`\n**Globaler Rang:** `{}`"
@@ -35,37 +57,54 @@ class Money(commands.Cog):
             base = "Du hast `{}` erfolgreich `{} Eisen` überwiesen (30s Cooldown)"
             await ctx.send(base.format(user.display_name, seperator(amount)))
 
-    @iron.command(name="global", aliases=["top"])
-    async def rank_(self, ctx):
-        top = ctx.invoked_with.lower() == "top"
-        guild = ctx.guild if top else None
+    @iron.command(name="top")
+    async def top_(self, ctx):
+        query = 'SELECT * FROM iron ORDER BY amount DESC LIMIT 5'
+        async with self.bot.ress.acquire() as conn:
+            cache = await conn.fetch(query)
 
-        data = []
-        cache = await self.bot.fetch_iron_list(100, guild)
-        for index, record in enumerate(cache):
-            if top:
-                player = guild.get_member(record['id'])
-            else:
-                player = self.bot.get_user(record['id'])
+        result = []
+        for index, record in enumerate(cache, 1):
+            result.append([index, record])
 
-            if player is None:
-                continue
+        await self.send_ranking(ctx, result)
 
-            base = "**Rang {}:** `{} Eisen` [{.display_name}]"
-            msg = base.format(len(data) + 1, seperator(record['amount']), player)
-            data.append(msg)
+    @iron.command(name="local")
+    async def local_(self, ctx, member: MemberConverter = None):
+        f_query = 'SELECT * FROM iron WHERE amount >= ' \
+                  '(SELECT amount FROM iron WHERE id = $1) ' \
+                  'ORDER BY amount ASC LIMIT 3'
 
-            if len(data) == 5:
-                break
+        s_query = 'SELECT *, (SELECT COUNT(*) FROM iron ' \
+                  'WHERE amount > $1) AS count ' \
+                  'FROM iron WHERE amount < $1 ' \
+                  'ORDER BY amount DESC LIMIT $2'
 
-        if data:
-            embed = discord.Embed(description="\n".join(data), color=discord.Color.blue())
-            await ctx.send(embed=embed)
+        async with self.bot.ress.acquire() as conn:
+            member = member or ctx.author
+            over = await conn.fetch(f_query, member.id)
 
-        else:
-            msg = "Aktuell gibt es keine gespeicherten Scores"
-            await ctx.send(embed=error_embed(msg))
+            if not over:
+                msg = "Der angegebene Member besitzt leider kein Eisen"
+                await ctx.send(msg)
+                return
+
+            amount = over[0]['amount']
+            under = await conn.fetch(s_query, amount, 5 - len(over))
+
+            rank = under[0]['count'] + 1
+
+        unordered = list(over) + list(under)
+        ordered = sorted(unordered, key=lambda r: r['amount'], reverse=True)
+        or_index = ordered.index(over[0])
+
+        result = []
+        for index, record in enumerate(ordered):
+            new_rank = rank + or_index - index
+            result.append([new_rank, record])
+
+        await self.send_ranking(ctx, result)
 
 
 def setup(bot):
-    bot.add_cog(Money(bot))
+    bot.add_cog(Iron(bot))

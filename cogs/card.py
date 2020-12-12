@@ -5,13 +5,12 @@ import discord
 import random
 import utils
 
-
-stat = {"id": "ID",
-        "rank": "Rang",
-        "points": "Punkte",
-        "villages": "Dörfer",
-        "all_bash": "Bashpoints",
-        "sup_bash": "UT Bashpoints"}
+stat = {'id': "ID",
+        'rank': "Rang",
+        'points': "Punkte",
+        'villages': "Dörfer",
+        'all_bash': "Bashpoints",
+        'sup_bash': "UT Bashpoints"}
 
 way = {"id": ["älteste", "neuste"],
        "rank": ["besten", "schlechtesten"],
@@ -37,12 +36,13 @@ prop = {"name": "Spieler", "id": "ID", "rank": "Rang", "points": "Punkte",
         "sup_bash": "SUP", "all_bash": "Insgesamt"}
 
 
-class Card(commands.Cog):
+class Card(utils.DSGames):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 3
         self.cache = []
         self.quiz = {}
-        self.tc = {}
+        self.tribalcard = {}
         self.game_pool = [
             self.top_entity,
             self.general_ask,
@@ -86,7 +86,7 @@ class Card(commands.Cog):
             return winner if cache else None
 
     # Module One
-    async def top_entity(self, ctx, cur):
+    async def top_entity(self, ctx, rounds):
         switch = random.choice([True, False])
         gravity = random.choice([True, False])
         top = 15 if switch else 100
@@ -111,7 +111,7 @@ class Card(commands.Cog):
         sweet = f"{stat[key]} {value}" if lowest else f"{utils.seperator(value)} {stat[key]}"
         answer_str = f"{obj.name} | {sweet}"
 
-        await ctx.send(embed=self.quiz_embed(question, cur))
+        await ctx.send(embed=self.quiz_embed(question, rounds))
         result = await self.wait_for_answers(ctx, index)
         return result, answer_str
 
@@ -203,11 +203,11 @@ class Card(commands.Cog):
         return result, obj.name
 
     def show_hand(self, hand, instruction, beginner=False):
-        description = f"**Tribalcards | Deine Hand:**\n\n"
+        description = f"**Tribalcard | Deine Hand:**\n\n"
         for index, player in enumerate(hand):
 
             if beginner and index == 0:
-                card = f"Oberster Karte:\n"
+                card = f"Oberste Karte:\n"
                 values = []
                 for key, value in prop.items():
                     pval = getattr(player, key)
@@ -233,16 +233,16 @@ class Card(commands.Cog):
         embed.set_footer(text=instruction)
         return embed
 
-    @commands.command(name="quiz")
     @utils.game_channel_only()
+    @commands.command(name="quiz")
     async def quiz(self, ctx, rounds: int = 5):
         if ctx.guild.id in self.quiz:
-            msg = "Auf diesem Server läuft bereits eine Runde"
-            return await ctx.send(embed=utils.error_embed(msg))
+            await ctx.send("Auf diesem Server läuft bereits eine Runde")
+            return
 
         if not 5 <= rounds <= 20:
-            msg = "Es müssen zwischen 5-20 Runden sein"
-            return await ctx.send(embed=utils.error_embed(msg))
+            await ctx.send("Es müssen zwischen 5-20 Runden sein")
+            return
 
         title = "**Das Spiel startet in Kürze** (15s)"
         msg = "Pro Runde ein Zeitfenster von 10s,\n" \
@@ -255,8 +255,9 @@ class Card(commands.Cog):
         game_count = 0
         while game_count < rounds:
             game = random.choice(self.game_pool)
-            cur = f"{game_count + 1} / {rounds}"
-            response = await game(ctx, cur)
+            current_rounds: str = f"{game_count + 1} / {rounds}"
+            # noinspection PyArgumentList
+            response = await game(ctx, current_rounds)
 
             # not enough data
             if response is None:
@@ -298,9 +299,9 @@ class Card(commands.Cog):
 
         if game_count < rounds:
             msg = "Keine Antwort, Quiz vorzeitig beendet"
-            await ctx.send(embed=utils.error_embed(msg))
-        else:
+            embed = utils.error_embed(msg)
 
+        else:
             pool = self.quiz[ctx.guild.id]
             ranking = sorted(pool.items(), key=lambda k: k[1], reverse=True)
             result_msg = []
@@ -316,26 +317,24 @@ class Card(commands.Cog):
                 description = "Nicht ein einziger Punkt. Enttäuschend!"
             else:
                 description = '\n'.join(result_msg)
-            end_embed = self.quiz_embed(description, "Quiz beendet!", True)
-            await ctx.send(embed=end_embed)
+            embed = self.quiz_embed(description, "Quiz beendet!", True)
 
-        self.quiz.pop(ctx.guild.id)
+        async with self.end_game(ctx):
+            await ctx.send(embed=embed)
 
     @utils.game_channel_only()
-    @commands.command(name="tribalcards", aliases=["tc"])
-    async def tribalcards_(self, ctx, response=None):
-        data = self.tc.get(ctx.guild.id)
-        if data is False:
-            return
+    @commands.command(name="tribalcard", aliases=["tc"])
+    async def tribalcard_(self, ctx, response=None):
+        data = self.get_game_data(ctx)
 
         if ctx.author.id in self.cache and response is None:
             msg = f"Du bist bereits Spieler einer aktiven Tribalcard-Runde"
-            return await ctx.send(embed=utils.error_embed(msg))
+            return await ctx.send(msg)
 
         if response and response.lower() == "join":
             if not data:
                 base = "Aktuell ist keine Spielanfrage offen, starte mit `{}`"
-                msg = f"{base.format(ctx.prefix)}tribalcards"
+                msg = f"{base.format(ctx.prefix)}tribalcard"
 
             elif len(data['players']) == 4:
                 msg = "Es sind bereits 4 Spieler registriert"
@@ -365,9 +364,9 @@ class Card(commands.Cog):
 
             data = {'players': {ctx.author: {}}, 'id': ctx.message.id,
                     'played': {}, 'beginner': ctx.author, 'ctx': ctx}
-            self.tc[ctx.guild.id] = data
+            self.tribalcard[ctx.guild.id] = data
 
-            base = "**{}** möchte eine Runde **Tribalcards** spielen,\ntritt der Runde mit " \
+            base = "**{}** möchte eine Runde **Tribalcard** spielen,\ntritt der Runde mit " \
                    "`{}tc join` bei:\n(2-4 Spieler, Spiel beginnt in 60s)"
             msg = base.format(ctx.author.display_name, ctx.prefix)
             begin = await ctx.send(msg)
@@ -375,19 +374,20 @@ class Card(commands.Cog):
             await asyncio.sleep(20)
             data['active'] = True
 
-            player_num = len(data['players'])
-            if player_num == 1:
-                self.tc.pop(ctx.guild.id)
+            player_amount = len(data['players'])
+            if player_amount == 1:
                 content = "Es wollte leider niemand mitspielen :/\n**Spiel beendet**"
                 await begin.edit(content=content)
+                self.tribalcard.pop(ctx.guild.id)
                 return
 
-            amount = (3 - player_num) * player_num
+            # 7 base cards + diff per player
+            amount = player_amount * (12 - player_amount)
             cards = await self.bot.fetch_random(ctx.server, amount=amount, top=100)
             for player, userdata in data['players'].items():
                 hand = userdata['cards'] = []
                 userdata['points'] = 0
-                while len(hand) < amount / player_num:
+                while len(hand) < amount / player_amount:
                     card = cards.pop(0)
                     hand.append(card)
 
@@ -400,26 +400,27 @@ class Card(commands.Cog):
                        "**Spiel beendet**"
                 msg = base.format(ctx.author.display_name)
                 await begin.edit(content=msg)
-                self.tc.pop(ctx.guild.id)
+                self.tribalcard.pop(ctx.guild.id)
 
             else:
                 data['players'][ctx.author]['msg'] = resp
                 await asyncio.sleep(3600)
-                current = self.tc.get(ctx.guild.id)
+                current = self.tribalcard.get(ctx.guild.id)
                 if current and current['id'] == data['id']:
-                    self.tc.pop(ctx.guild.id)
+                    self.tribalcard.pop(ctx.guild.id)
 
     @commands.dm_only()
-    @commands.command(name="play")
+    @commands.command(name="play", hidden=True)
     async def play_(self, ctx, card_or_property):
-        for guild_id, data in self.tc.items():
+        for guild_id, data in self.tribalcard.items():
             if data is False:
                 continue
             if ctx.author in data['players']:
                 break
         else:
-            msg = "Du befindest dich in keiner Tribalcards-Runde"
-            return await ctx.send(msg)
+            msg = "Du befindest dich in keiner Tribalcard-Runde"
+            await ctx.send(msg)
+            return
 
         userdata = data['players'][ctx.author]
         if ctx.author in data['played']:
@@ -462,14 +463,16 @@ class Card(commands.Cog):
             if not data['played']:
                 base = "Du musst warten bis sich {} für eine Eigenschaft entschieden hat"
                 msg = base.format(data['beginner'].display_name)
-                return await ctx.send(msg, delete_after=10)
+                await ctx.send(msg, delete_after=10)
+                return
 
             try:
                 index = int(card_or_property) - 1
                 card = userdata['cards'].pop(index)
             except (ValueError, IndexError):
                 msg = "Bitte gebe eine gültige Kartennummer an"
-                return await ctx.send(msg, delete_after=10)
+                await ctx.send(msg, delete_after=10)
+                return
 
             played = data['played']
             players = data['players']
@@ -557,14 +560,12 @@ class Card(commands.Cog):
 
                     player = "**, **".join(winners)
                     plural = "hat" if len(winners) == 1 else "haben"
-                    base = "**{}** {} das Tribalcards Spiel gewonnen!\n{}"
+                    base = "**{}** {} das Tribalcard Spiel gewonnen!\n{}"
                     description = base.format(player, plural, represent)
                     embed = discord.Embed(description=description)
-                    await data['ctx'].send(embed=embed)
 
-                    self.tc[data['ctx'].guild.id] = False
-                    await asyncio.sleep(15)
-                    self.tc.pop(data['ctx'].guild.id)
+                    async with self.end_game(ctx):
+                        await data['ctx'].send(embed=embed)
 
 
 def setup(bot):

@@ -1,10 +1,11 @@
 .idea/
-cogs/dev_Test.py
 data/config.json
 data/cache.json
-data/naruto.py
+data/credentials.py
 discord.log
+cogs/dev.py
 dsbot.log
 datadb.py
 msg.json
 lab.py
+venv

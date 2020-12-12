@@ -1,9 +1,8 @@
 from async_timeout import timeout
+import data.credentials as secret
 from discord.ext import commands
-import data.naruto as secret
 import concurrent.futures
 import functools
-import operator
 import datetime
 import discord
 import asyncpg
@@ -18,56 +17,70 @@ import os
 # gets called every message to gather the custom prefix
 def prefix(bot, message):
     if message.guild is None:
-        return bot.prefix
-    idc = message.guild.id
-    custom = bot.config.get_prefix(idc)
-    return custom
+        return secret.default_prefix
+    else:
+        custom = bot.config.get_prefix(message.guild.id)
+        return custom
 
 
 # implementation of own class / overwrites
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.worlds = {}
-        self.ress = None
-        self.pool = None
-        self.conn = None
-        self.session = None
-        self.active_guilds = set()
-        self.prefix = secret.prefix
-        self.white = secret.pm_commands
-        self.owner_id = 211836670666997762
+
         self.path = os.path.dirname(__file__)
         self.data_path = f"{self.path}/data"
-        self.logger = utils.create_logger('dsbot', self.path)
-        self.msg = json.load(open(f"{self.data_path}/msg.json"))
-        self.activity = discord.Activity(type=0, name=self.msg['status'])
-        self.loop.create_task(self.loop_per_hour())
-        self.add_check(self.global_world)
+
+        # internal world cache of active worlds with settings
+        self.worlds = {}
+        self.active_guilds = set()
         self.config = utils.Config(self)
-        self.cache = utils.Cache(self)
+
+        # tribal wars and user database pools
+        self.pool = None
+        self.ress = None
+
+        # active connection for discord callback if database fails
+        self._conn = None
+        self.session = None
+
+        self.logger = utils.create_logger('dsbot', self.data_path)
+        self.msg = json.load(open(f"{self.data_path}/msg.json", encoding="utf-8"))
+
+        # update lock which waits for external database script and setup lock
         self._update = asyncio.Event()
         self._lock = asyncio.Event()
+
+        self.owner_id = 211836670666997762
+        self.default_prefix = secret.default_prefix
+        self.activity = discord.Activity(type=0, name=self.msg['status'])
+        self.add_check(self.global_check)
         self.remove_command("help")
+
+        # initiate main loop and load modules
+        self.loop.create_task(self.loop_per_hour())
         self.setup_cogs()
 
     # setup functions
     async def on_ready(self):
         # db / aiohttp setup
-        if not self.session or not self.pool:
+        if not self._lock.is_set():
+
+            # initiates session object and db conns
             self.session = aiohttp.ClientSession(loop=self.loop)
             self.pool, self.ress = await self.db_connect()
             await self.setup_tables()
 
+            # initiate logging connection for discord callback
+            self._conn = await self.pool.acquire()
+            await self._conn.add_listener("log", self.callback)
+
             # adds needed option for vps
-            if os.name != "nt":
+            if os.name != 'nt':
                 utils.imgkit['xvfb'] = ''
 
+            # loads active worlds from database
             await self.update_worlds()
-
-        if not self.conn:
-            self.conn = await self.pool.acquire()
-            await self.conn.add_listener("log", self.callback)
 
         self._lock.set()
         print("Erfolgreich Verbunden!")
@@ -75,12 +88,12 @@ class DSBot(commands.Bot):
     async def wait_until_unlocked(self):
         return await self._lock.wait()
 
-    # global check and ctx.world implementation
-    async def global_world(self, ctx):
+    # global check and ctx.world inject
+    async def global_check(self, ctx):
         parent = ctx.command.parent
         cmd = str(ctx.command)
 
-        if bool({str(parent), cmd} & self.white):
+        if bool({str(parent), cmd} & secret.pm_commands):
             return True
         elif ctx.guild is None:
             raise commands.NoPrivateMessage()
@@ -99,6 +112,9 @@ class DSBot(commands.Bot):
         if not self._lock.is_set():
             return
 
+        if message.author.bot is True:
+            return
+
         ctx = await self.get_context(message, cls=utils.DSContext)
         await self.invoke(ctx)
 
@@ -109,14 +125,14 @@ class DSBot(commands.Bot):
     def callback(self, *args):
         payload = args[-1]
 
-        if payload == "200":
+        if payload == '200':
             self._update.set()
             return
 
-        elif payload == "404":
-            msg = "database script ended with a failure"
-        elif payload == "400":
+        elif payload == '400':
             msg = "engine broke once, restarting"
+        elif payload == '404':
+            msg = "database script ended with a failure"
         else:
             msg = "unknown payload"
 
@@ -124,20 +140,19 @@ class DSBot(commands.Bot):
         self.loop.create_task(self.report_to_owner(msg))
 
     # defaul executor somehow leaks RAM
-    async def execute(self, func, *args):
+    async def execute(self, func, *args, **kwargs):
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            package = functools.partial(func, *args)
+            package = functools.partial(func, *args, **kwargs)
             result = await self.loop.run_in_executor(pool, package)
 
-        pool.shutdown()
         return result
 
     async def loop_per_hour(self):
         await self._lock.wait()
-        seconds = self.get_seconds()
-        await asyncio.sleep(seconds)
 
         while not self.is_closed():
+            seconds = self.get_seconds()
+            await asyncio.sleep(seconds)
 
             self.logger.debug("loop per hour")
             try:
@@ -149,31 +164,31 @@ class DSBot(commands.Bot):
 
             except asyncio.TimeoutError:
                 self.logger.error("worlds not updated")
-                pass
 
             for cog in self.cogs.values():
-                loop = getattr(cog, 'called_by_hour', None)
+                loop = getattr(cog, 'called_per_hour', None)
 
                 try:
                     if loop is not None:
                         await loop()
+
                 except Exception as error:
                     self.logger.debug(f"{cog.qualified_name} Task Error: {error}")
 
-            seconds = self.get_seconds()
-            await asyncio.sleep(seconds)
-
     # current workaround since library update will support that with tasks in short future
-    def get_seconds(self, reverse=False, only=0):
+    def get_seconds(self, added_hours=1, timestamp=False):
         now = datetime.datetime.now()
-        hours = -1 if reverse else 1
-        clean = now + datetime.timedelta(hours=hours + only)
+        clean = now + datetime.timedelta(hours=added_hours)
         goal_time = clean.replace(minute=0, second=0, microsecond=0)
         start_time = now.replace(microsecond=0)
-        if reverse:
+
+        if added_hours < 1:
             goal_time, start_time = start_time, goal_time
-        goal = (goal_time - start_time).seconds
-        return goal if not only else start_time.timestamp()
+
+        if timestamp is True:
+            return start_time.timestamp()
+        else:
+            return (goal_time - start_time).seconds
 
     async def db_connect(self):
         result = []
@@ -186,6 +201,7 @@ class DSBot(commands.Bot):
                          'database': db,
                          'loop': self.loop,
                          'max_size': 50}
+
             cache = await asyncpg.create_pool(**conn_data)
             result.append(cache)
 
@@ -197,26 +213,29 @@ class DSBot(commands.Bot):
                     'channel_id BIGINT, creation TIMESTAMP,' \
                     'expiration TIMESTAMP, reason TEXT)'
 
-        iron_data = 'CREATE TABLE IF NOT EXISTS iron_data' \
-                    '(id BIGINT PRIMARY KEY, amount BIGINT)'
+        iron = 'CREATE TABLE IF NOT EXISTS iron' \
+               '(id BIGINT PRIMARY KEY, amount BIGINT)'
 
-        usage_data = 'CREATE TABLE IF NOT EXISTS usage_data' \
-                     '(name TEXT PRIMARY KEY, usage BIGINT)'
+        usage = 'CREATE TABLE IF NOT EXISTS usage' \
+                '(name TEXT PRIMARY KEY, usage BIGINT)'
 
-        querys = [reminders, iron_data, usage_data]
+        slot = 'CREATE TABLE IF NOT EXISTS slot' \
+               '(id BIGINT PRIMARY KEY, amount BIGINT)'
+
+        querys = [reminders, iron, usage, slot]
 
         async with self.ress.acquire() as conn:
             await conn.execute(";".join(querys))
 
     async def update_iron(self, user_id, iron):
         async with self.ress.acquire() as conn:
-            query = 'INSERT INTO iron_data(id, amount) VALUES($1, $2) ' \
-                    'ON CONFLICT (id) DO UPDATE SET amount = iron_data.amount + $2'
+            query = 'INSERT INTO iron(id, amount) VALUES($1, $2) ' \
+                    'ON CONFLICT (id) DO UPDATE SET amount = iron.amount + $2'
             await conn.execute(query, user_id, iron)
 
     async def subtract_iron(self, user_id, iron, supress=False):
         async with self.ress.acquire() as conn:
-            query = 'UPDATE iron_data SET amount = amount - $2 ' \
+            query = 'UPDATE iron SET amount = amount - $2 ' \
                     'WHERE id = $1 AND amount >= $2 RETURNING TRUE'
             response = await conn.fetchrow(query, user_id, iron)
 
@@ -226,51 +245,29 @@ class DSBot(commands.Bot):
 
             return response
 
-    async def fetch_iron(self, user_id, info=False):
+    async def fetch_iron(self, user_id, rank=False):
         async with self.ress.acquire() as conn:
-            if info:
-                query = 'SELECT * FROM iron_data'
-                data = await conn.fetch(query)
-            else:
-                query = 'SELECT * FROM iron_data WHERE id = $1'
+            if rank is False:
+                query = 'SELECT * FROM iron WHERE id = $1'
                 data = await conn.fetchrow(query, user_id)
+                return data['amount'] if data else 0
 
-        if not info:
-            return data['amount'] if data else 0
+            else:
+                query = 'SELECT amount, (SELECT COUNT(*) FROM iron WHERE ' \
+                        'amount >= (SELECT amount FROM iron WHERE id = $1)) ' \
+                        'AS count FROM iron WHERE id = $1'
+                data = await conn.fetchrow(query, user_id)
+                return list(data) if data else (0, 0)
 
-        rank = "Unknown"
-        cache = {rec['id']: rec['amount'] for rec in data}
-        money = cache.get(user_id, 0)
+    async def fetch_usage(self, amount=None):
+        statement = 'SELECT * FROM usage ORDER BY usage DESC'
+        if amount is not None:
+            statement += f' LIMIT {amount}'
 
-        sort = sorted(cache.items(), key=lambda kv: kv[1], reverse=True)
-        for index, (idc, cash) in enumerate(sort):
-            if idc == user_id:
-                rank = index + 1
-
-        return money, rank
-
-    async def fetch_iron_list(self, amount, guild=None):
-        base = 'SELECT * FROM iron_data'
-        args = [amount]
-
-        if guild:
-            base += ' WHERE id = ANY($2)'
-            member = [mem.id for mem in guild.members]
-            args.append(member)
-
-        query = base + ' ORDER BY amount DESC LIMIT $1'
-
-        async with self.ress.acquire() as conn:
-            data = await conn.fetch(query, *args)
-            return data
-
-    async def fetch_usage(self):
-        statement = 'SELECT * FROM usage_data'
         async with self.ress.acquire() as conn:
             data = await conn.fetch(statement)
 
-        cache = {r['name']: r['usage'] for r in data}
-        return sorted(cache.items(), key=operator.itemgetter(1), reverse=True)
+        return [tuple(r.values()) for r in data]
 
     # DS Database Methods
     async def update_worlds(self):
@@ -292,15 +289,17 @@ class DSBot(commands.Bot):
 
         self.worlds = cache
 
-    async def fetch_all(self, world, table=None, dic=False):
-        dsobj = utils.DSType(table or 0)
+    async def fetch_all(self, world, table=0, dictionary=False):
+        dsobj = utils.DSType(table)
+
         async with self.pool.acquire() as conn:
             query = f'SELECT * FROM {dsobj.table} WHERE world = $1'
             cache = await conn.fetch(query, world)
-            result = [dsobj.Class(rec) for rec in cache]
 
-            if dic:
-                result = {obj.id: obj for obj in result}
+            if dictionary:
+                result = {rec['id']: dsobj.Class(rec) for rec in cache}
+            else:
+                result = [dsobj.Class(rec) for rec in cache]
 
             return result
 
@@ -332,8 +331,8 @@ class DSBot(commands.Bot):
 
         return result[0] if amount == 1 else result
 
-    async def fetch_player(self, world, searchable, *, name=False, archive=None):
-        table = f"player{archive}" if archive else "player"
+    async def fetch_player(self, world, searchable, *, name=False, archive=''):
+        table = f"player{archive}"
 
         if name:
             searchable = utils.converter(searchable, True)
@@ -343,8 +342,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
-
-        return utils.Player(result) if result else None
+            return utils.Player(result) if result else None
 
     async def fetch_tribe(self, world, searchable, *, name=False, archive=None):
         table = f"tribe{archive}" if archive else "tribe"
@@ -377,7 +375,7 @@ class DSBot(commands.Bot):
 
         return utils.Village(result) if result else None
 
-    async def fetch_both(self, world, searchable, *, name=True, archive=None):
+    async def fetch_both(self, world, searchable, *, name=True, archive=''):
         kwargs = {'name': name, 'archive': archive}
         player = await self.fetch_player(world, searchable, **kwargs)
         if player:
@@ -389,7 +387,7 @@ class DSBot(commands.Bot):
     async def fetch_top(self, world, table=None, till=10, balanced=False):
         dsobj = utils.DSType(table or 0)
         till = 100 if balanced else till
-        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2'
+        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2 ORDER BY rank'
 
         async with self.pool.acquire() as conn:
             top10 = await conn.fetch(query, world, till)
@@ -413,10 +411,9 @@ class DSBot(commands.Bot):
         query = f'SELECT * FROM player WHERE world = $1 AND tribe_id = ANY($2)'
         async with self.pool.acquire() as conn:
             res = await conn.fetch(query, world, allys)
+            return [utils.Player(rec) for rec in res]
 
-        return [utils.Player(rec) for rec in res]
-
-    async def fetch_bulk(self, world, iterable, table=None, *, name=False, dic=False):
+    async def fetch_bulk(self, world, iterable, table=None, *, name=False, dictionary=False):
         dsobj = utils.DSType(table or 0)
         base = f'SELECT * FROM {dsobj.table} WHERE world = $1'
 
@@ -424,7 +421,9 @@ class DSBot(commands.Bot):
             query = f'{base} AND id = ANY($2)'
         else:
             if dsobj.table == "village":
+                iterable = [vil.replace("|", "") for vil in iterable]
                 query = f'{base} AND CAST(x AS TEXT)||CAST(y as TEXT) = ANY($2)'
+
             else:
                 iterable = [utils.converter(obj, True) for obj in iterable]
                 if dsobj.table == "tribe":
@@ -434,7 +433,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             res = await conn.fetch(query, world, iterable)
-            if dic:
+            if dictionary:
                 return {rec[1]: dsobj.Class(rec) for rec in res}
             else:
                 return [dsobj.Class(rec) for rec in res]
@@ -454,6 +453,10 @@ class DSBot(commands.Bot):
         await self.close()
 
 
+intents = discord.Intents.default()
+intents.presences = False
+intents.typing = False
+
 # instance creation and bot start
-dsbot = DSBot(command_prefix=prefix, case_insensitive=True)
+dsbot = DSBot(command_prefix=prefix, intents=intents)
 dsbot.run(secret.TOKEN)

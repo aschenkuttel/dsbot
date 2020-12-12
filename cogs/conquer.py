@@ -24,7 +24,7 @@ class ConquerLoop(commands.Cog):
         counter = 0
         for guild in self.bot.guilds:
             if guild.id not in self.bot.active_guilds:
-                self.bot.config.remove_item(guild.id, 'conquer', bulk=True)
+                self.bot.config.remove('conquer', guild.id, bulk=True)
                 counter += 1
 
         self.bot.config.save()
@@ -34,11 +34,11 @@ class ConquerLoop(commands.Cog):
     @commands.is_owner()
     @commands.command(name="manual")
     async def manual(self, ctx):
-        await self.called_by_hour()
+        await self.called_per_hour()
         await ctx.send("manual feed done")
 
     # main loop called from main
-    async def called_by_hour(self):
+    async def called_per_hour(self):
         await self.update_conquer()
 
         counter = 0
@@ -50,7 +50,7 @@ class ConquerLoop(commands.Cog):
         logger.debug(f"conquer feed complete ({counter} guilds)")
 
     async def conquer_feed(self, guild):
-        conquer = self.bot.config.get_item(guild.id, 'conquer')
+        conquer = self.bot.config.get('conquer', guild.id)
         if not conquer:
             return
 
@@ -129,7 +129,7 @@ class ConquerLoop(commands.Cog):
             self._conquer[world] = []
 
             try:
-                sec = self.bot.get_seconds(True)
+                sec = self.bot.get_seconds(added_hours=-1)
                 data = await self.fetch_conquer(world_obj, sec)
             except Exception as error:
                 logger.warning(f"{world} skipped: {error}")
@@ -148,7 +148,8 @@ class ConquerLoop(commands.Cog):
             player_ids = []
             village_ids = []
             conquer_cache = []
-            old_unix = self.bot.get_seconds(True, 1)
+            old_unix = self.bot.get_seconds(added_hours=0, timestamp=True)
+
             for entry in cache:
                 vil_id, unix_time, new_owner, old_owner = entry
 
@@ -163,10 +164,10 @@ class ConquerLoop(commands.Cog):
                 conquer_cache.append(conquer)
 
             # Make all the API Calls
-            players = await self.bot.fetch_bulk(world, player_ids, dic=True)
+            players = await self.bot.fetch_bulk(world, player_ids, dictionary=True)
             tribe_ids = [obj.tribe_id for obj in players.values() if obj.tribe_id]
-            tribes = await self.bot.fetch_bulk(world, tribe_ids, 'tribe', dic=True)
-            villages = await self.bot.fetch_bulk(world, village_ids, 'village', dic=True)
+            tribes = await self.bot.fetch_bulk(world, tribe_ids, 'tribe', dictionary=True)
+            villages = await self.bot.fetch_bulk(world, village_ids, 'village', dictionary=True)
 
             conquer_cache.reverse()
             for index, conquer in enumerate(conquer_cache):
@@ -183,8 +184,9 @@ class ConquerLoop(commands.Cog):
                         continue
 
                 conquer.village = villages.get(conquer.id)
-                conquer.old_player = players.get(conquer.old_id)
-                conquer.new_player = players.get(conquer.new_id)
+                conquer.old_player = players.get(conquer.old_player_id)
+                conquer.new_player = players.get(conquer.new_player_id)
+
                 if conquer.old_player:
                     conquer.old_tribe = tribes.get(conquer.old_player.tribe_id)
                 if conquer.new_player:
@@ -207,20 +209,23 @@ class ConquerLoop(commands.Cog):
         if not data:
             return
 
-        only_tribes = config['filter']
+        filter_ids = {}
+        if config['tribe']:
+            members = await self.bot.fetch_tribe_member(world, config['tribe'])
+            filter_ids.update({obj.id: obj for obj in members})
 
-        tribe_players = {}
-        if only_tribes:
-            members = await self.bot.fetch_tribe_member(world, only_tribes)
-            tribe_players = {obj.id: obj for obj in members}
+        if config['player']:
+            players = await self.bot.fetch_bulk(world, config['player'])
+            filter_ids.update({obj.id: obj for obj in players})
 
         date = None
         result = []
         for conquer in data:
-            if only_tribes and not any(idc in tribe_players for idc in conquer.player_ids):
+
+            if filter_ids and not bool(set(filter_ids) & set(conquer.player_ids)):
                 continue
 
-            if not config['bb'] and conquer.grey:
+            if not config['bb'] and conquer.grey_conquer():
                 continue
 
             if not conquer.village:
