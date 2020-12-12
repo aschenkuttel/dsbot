@@ -206,8 +206,7 @@ class Listen(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_completion(self, ctx):
-        cid, cmd = (ctx.message.id, ctx.invoked_with)
-        logger.debug(f"command completed [{cid}]")
+        logger.debug(f"command completed [{ctx.message.id}]")
 
         if ctx.author.id != self.bot.owner_id:
             if ctx.command.parent is not None:
@@ -274,8 +273,8 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.WrongChannel):
             if error.type == 'game':
-                channel = self.bot.config.get('game', ctx.guild.id)
-                await ctx.send(f"<#{channel}>")
+                channel_id = self.bot.config.get('game', ctx.guild.id)
+                await ctx.send(f"<#{channel_id}>")
                 return
 
             elif error.type == 'conquer':

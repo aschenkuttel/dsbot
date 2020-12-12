@@ -333,12 +333,11 @@ class Map(commands.Cog):
         zoom = kwargs.get('zoom', 0)
         center = kwargs.get('center', (500, 500))
 
-        if zoom:
+        if zoom != 0:
             # 1, 2, 3, 4, 5 | 80% ,65%, 50%, 35%, 20%
-            shell = {'id': None, 'player': None, 'x': center[0], 'y': center[1], 'rank': None}
-            percentage = ((5 - zoom) * 20 + (zoom - 1) * 5) / 100
-            length = int((bounds[2] - bounds[0]) * percentage / 2)
-
+            percentages = [0.8, 0.65, 0.5, 0.35, 0.2]
+            length = int((bounds[2] - bounds[0]) * percentages[zoom - 1] / 2)
+            shell = {'id': 0, 'player': 0, 'x': center[0], 'y': center[1], 'rank': 0}
             vil = MapVillage(shell)
             bounds = [vil.x - length, vil.y - length, vil.x + length, vil.y + length]
 
@@ -350,10 +349,9 @@ class Map(commands.Cog):
         watermark = Image.new('RGBA', image.size, (255, 255, 255, 0))
         board = ImageDraw.Draw(watermark)
 
-        percentage = image.size[0] / self.maximum_size
-        font_size = int(150 * percentage)
-        font = ImageFont.truetype(f'{self.bot.data_path}/water.otf', font_size)
-        position = image.size[0] - int(400 * percentage), image.size[1] - int(232 * percentage)
+        percentage = int(image.size[0] / self.maximum_size)
+        font = ImageFont.truetype(f'{self.bot.data_path}/water.otf', 150 * percentage)
+        position = image.size[0] - 400 * percentage, image.size[1] - 232 * percentage
         board.text(position, "dsBot", (255, 255, 255, 50), font)
 
         image.paste(watermark, mask=watermark)
@@ -380,9 +378,8 @@ class Map(commands.Cog):
             vil_y = [int(v[1] * 1.5) for v in villages]
             centroid = sum(vil_y) / len(villages), sum(vil_x) / len(villages)
 
-            factor = int((len(villages) / most_villages) * (font_size / 4))
+            factor = len(villages) / most_villages * font_size / 4
             size = int(font_size - (font_size / 4) + factor + (zoom * 3.5))
-
             font = ImageFont.truetype(f'{self.bot.data_path}/bebas.ttf', size)
             font_width, font_height = image.textsize(str(dsobj), font=font)
             position = [int(centroid[0] - font_width / 2), int(centroid[1] - font_height / 2)]
