@@ -77,7 +77,7 @@ class Villages(commands.Cog):
 
     @commands.command(name="villages")
     async def villages_(self, ctx, amount: typing.Union[int, str], *args):
-        if amount.lower() != "all":
+        if isinstance(amount, str) and amount.lower() != "all":
             msg = "Die Anzahl muss entweder eine Zahl oder `all` sein."
             await ctx.send(msg)
             return
@@ -184,7 +184,7 @@ class Villages(commands.Cog):
             last = player_cache.get(player.id)
             if last is None:
 
-                if not points == player.points:
+                if not points.compare(player.points):
                     player_cache[player.id] = False
                 else:
                     player_cache[player.id] = player
@@ -192,7 +192,7 @@ class Villages(commands.Cog):
             elif last is False:
                 continue
 
-            elif last.points <= player.points:
+            elif last.points <= player.points and last.att_bash == player.att_bash:
                 player_cache[player.id] = player
                 day_counter[player.id] += 1
 

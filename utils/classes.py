@@ -395,7 +395,7 @@ class Keyword:
         self.value = value
         self.sign = sign
 
-    def __eq__(self, other):
+    def compare(self, other):
         if self.value is None:
             return True
 
