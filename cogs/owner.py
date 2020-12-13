@@ -37,9 +37,18 @@ class Owner(commands.Cog):
             msg = "Keine zugehörige Config gefunden"
         await ctx.send(msg)
 
-    @commands.command(name="guilds")
-    async def guilds_(self, ctx):
-        await ctx.send(f"{len(self.bot.guilds)}")
+    @commands.command(name="stats")
+    async def stats_(self, ctx):
+        async with self.bot.ress.acquire() as conn:
+            cache = await conn.fetch('SELECT * FROM usage')
+
+        data = []
+        for record in cache:
+            line = f"`{record['name']}` [{record['amount']}]"
+            data.append(line)
+
+        embed = discord.Embed(description="\n".join(data))
+        await ctx.send(embed=embed)
 
     @commands.command(name="change")
     async def change_(self, ctx, guild_id: int, item, value):

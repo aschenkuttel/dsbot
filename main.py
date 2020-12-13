@@ -33,6 +33,7 @@ class DSBot(commands.Bot):
 
         # internal world cache of active worlds with settings
         self.worlds = {}
+        self.members = {}
         self.active_guilds = set()
         self.config = utils.Config(self)
 
@@ -81,8 +82,9 @@ class DSBot(commands.Bot):
 
             # loads active worlds from database
             await self.update_worlds()
+            await self.load_members()
+            self._lock.set()
 
-        self._lock.set()
         print("Erfolgreich Verbunden!")
 
     async def wait_until_unlocked(self):
@@ -97,6 +99,8 @@ class DSBot(commands.Bot):
             return True
         elif ctx.guild is None:
             raise commands.NoPrivateMessage()
+        else:
+            self.update_member(ctx.author)
 
         server = self.config.get_world(ctx.channel)
         world = self.worlds.get(server)
@@ -119,7 +123,7 @@ class DSBot(commands.Bot):
         await self.invoke(ctx)
 
     async def report_to_owner(self, msg):
-        owner = self.get_user(self.owner_id)
+        owner = await self.fetch_user(self.owner_id)
         await owner.send(msg)
 
     def callback(self, *args):
@@ -208,24 +212,76 @@ class DSBot(commands.Bot):
         return result
 
     async def setup_tables(self):
-        reminders = 'CREATE TABLE IF NOT EXISTS reminder' \
-                    '(id SERIAL PRIMARY KEY, author_id BIGINT,' \
-                    'channel_id BIGINT, creation TIMESTAMP,' \
-                    'expiration TIMESTAMP, reason TEXT)'
+        reminder = 'CREATE TABLE IF NOT EXISTS reminder' \
+                   '(id SERIAL PRIMARY KEY, author_id BIGINT,' \
+                   'channel_id BIGINT, creation TIMESTAMP,' \
+                   'expiration TIMESTAMP, reason TEXT)'
 
         iron = 'CREATE TABLE IF NOT EXISTS iron' \
                '(id BIGINT PRIMARY KEY, amount BIGINT)'
 
         usage = 'CREATE TABLE IF NOT EXISTS usage' \
-                '(name TEXT PRIMARY KEY, usage BIGINT)'
+                '(name TEXT PRIMARY KEY, amount BIGINT)'
 
         slot = 'CREATE TABLE IF NOT EXISTS slot' \
                '(id BIGINT PRIMARY KEY, amount BIGINT)'
 
-        querys = [reminders, iron, usage, slot]
+        member = 'CREATE TABLE IF NOT EXISTS member' \
+                 '(id BIGINT, guild_id BIGINT, name TEXT, nick TEXT, ' \
+                 'last_update TIMESTAMP, PRIMARY KEY (id, guild_id))'
+
+        querys = [reminder, iron, usage, slot, member]
 
         async with self.ress.acquire() as conn:
             await conn.execute(";".join(querys))
+
+    async def load_members(self):
+        cache = {g.id: {} for g in self.guilds}
+
+        async with self.ress.acquire() as conn:
+            data = await conn.fetch('SELECT * FROM member')
+
+            for record in data:
+                member = utils.DSMember(record)
+                if member.guild_id not in cache:
+                    continue
+                else:
+                    cache[member.guild_id][member.id] = member
+
+            self.members = cache
+
+    def get_member(self, member_id):
+        for members in self.members.values():
+            member = members.get(member_id)
+            if member is not None:
+                return member
+
+    def get_guild_member(self, guild_id, member_id):
+        members = self.members.get(guild_id)
+        if members is None:
+            return
+
+        return members.get(member_id)
+
+    def get_member_by_name(self, guild_id, name):
+        members = self.members.get(guild_id)
+        if members is None:
+            return
+
+        for member in members.values():
+            if member.nick and member.nick.lower() == name.lower():
+                return member
+            if member.name.lower() == name.lower():
+                return member
+
+    def update_member(self, member):
+        cache = self.members.get(member.guild.id)
+        if cache is None:
+            cache = self.members[member.guild.id] = {}
+
+        old = cache.get(member.id)
+        if not old or old != member:
+            cache[member.id] = utils.DSMember.from_object(member)
 
     async def update_iron(self, user_id, iron):
         async with self.ress.acquire() as conn:

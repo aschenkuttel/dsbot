@@ -210,12 +210,16 @@ class ConquerLoop(commands.Cog):
             return
 
         filter_ids = {}
-        if config['tribe']:
-            members = await self.bot.fetch_tribe_member(world, config['tribe'])
+        bbs = config.get('bb')
+
+        tribe_filter = config.get('tribe')
+        if tribe_filter:
+            members = await self.bot.fetch_tribe_member(world, tribe_filter)
             filter_ids.update({obj.id: obj for obj in members})
 
-        if config['player']:
-            players = await self.bot.fetch_bulk(world, config['player'])
+        player_filter = config.get('player')
+        if player_filter:
+            players = await self.bot.fetch_bulk(world, player_filter)
             filter_ids.update({obj.id: obj for obj in players})
 
         date = None
@@ -225,7 +229,7 @@ class ConquerLoop(commands.Cog):
             if filter_ids and not bool(set(filter_ids) & set(conquer.player_ids)):
                 continue
 
-            if not config['bb'] and conquer.grey_conquer():
+            if not bbs and conquer.grey_conquer():
                 continue
 
             if not conquer.village:

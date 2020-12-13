@@ -103,7 +103,7 @@ class Casino(utils.DSGames):
 
         cache = [title]
         for index, row in enumerate(slot_rank[1:]):
-            player = self.bot.get_user(row['id'])
+            player = self.bot.get_member(row['id'])
             name = player.name if player else "Unknown"
             row = f"**Rang {index + 1}:** `{row['amount']} Eisen` [{name}]"
             cache.append(row)

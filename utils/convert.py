@@ -9,8 +9,12 @@ class MemberConverter(commands.Converter):
     async def convert(self, ctx, arg):
         if re.match(r'<@!?([0-9]+)>$', arg):
             raise error.DontPingMe
-        name = arg.lower()
-        member = await ctx.guild.query_members(name)
+
+        member = ctx.bot.get_member_by_name(ctx.guild.id, arg)
+        if member is not None:
+            return member
+
+        member = await ctx.guild.query_members(arg)
         if member:
             return member[0]
         else:

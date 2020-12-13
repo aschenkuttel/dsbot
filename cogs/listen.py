@@ -31,17 +31,33 @@ class Listen(commands.Cog):
                          utils.SilentError)
 
     async def called_per_hour(self):
-        query = 'INSERT INTO usage(name, usage) VALUES($1, $2) ' \
-                'ON CONFLICT (name) DO UPDATE SET usage = usage.usage + $2'
+        async with self.bot.ress.acquire() as conn:
+            await self.update_usage(conn)
+            await self.update_members(conn)
+
+    async def update_usage(self, conn):
+        query = 'INSERT INTO usage(name, amount) VALUES($1, $2) ' \
+                'ON CONFLICT (name) DO UPDATE SET amount = usage.amount + $2'
 
         data = [(k, v) for k, v in self.cmd_counter.items()]
         if not data:
             return
 
-        async with self.bot.ress.acquire() as conn:
-            await conn.executemany(query, data)
-
+        await conn.executemany(query, data)
         self.cmd_counter.clear()
+
+    async def update_members(self, conn):
+        args = []
+        for members in self.bot.members.values():
+            for member in members.values():
+                args.append(member.arguments)
+
+        query = 'INSERT INTO member (id, guild_id, name, nick, last_update) ' \
+                'VALUES ($1, $2, $3, $4, $5) ' \
+                'ON CONFLICT (id, guild_id) DO UPDATE SET ' \
+                'name = $3, nick = $4, last_update = $5'
+
+        await conn.executemany(query, args)
 
     # Report HTML to Image Converter
     def html_lover(self, raw_data):
@@ -118,6 +134,7 @@ class Listen(commands.Cog):
             except discord.Forbidden:
                 pass
             finally:
+                self.bot.update_member(message.author)
                 logger.debug("report converted")
                 return
 
@@ -154,6 +171,7 @@ class Listen(commands.Cog):
             except discord.Forbidden:
                 pass
             finally:
+                self.bot.update_member(message.author)
                 logger.debug("coord converted")
                 return
 
@@ -197,6 +215,7 @@ class Listen(commands.Cog):
             except (discord.Forbidden, discord.NotFound):
                 pass
             finally:
+                self.bot.update_member(message.author)
                 logger.debug("bbcode converted")
 
     @commands.Cog.listener()
