@@ -8,15 +8,22 @@ class Iron(commands.Cog):
         self.bot = bot
         self.type = 3
 
-    async def send_ranking(self, ctx, iterable):
+    async def send_ranking(self, ctx, iterable, guild=False):
         data = []
         for index, record in iterable:
-            player = self.bot.get_user(record['id'])
 
-            if player is None:
-                name = "Unknown"
+            if guild is True:
+                ids = (ctx.guild.id, record['id'])
+                member = self.bot.get_guild_member(*ids)
             else:
-                name = player.display_name
+                member = self.bot.get_member(record['id'])
+
+            if member is None:
+                name = "Unknown"
+            elif guild is True:
+                name = member.display_name
+            else:
+                name = member.name
 
             base = "**Rang {}:** `{} Eisen` [{}]"
             msg = base.format(index, seperator(record['amount']), name)
@@ -59,6 +66,23 @@ class Iron(commands.Cog):
 
     @iron.command(name="top")
     async def top_(self, ctx):
+        members = self.bot.members.get(ctx.guild.id)
+        if members is None:
+            return
+
+        query = 'SELECT * FROM iron WHERE id = ANY($1) ' \
+                'ORDER BY amount DESC LIMIT 5'
+        async with self.bot.ress.acquire() as conn:
+            data = await conn.fetch(query, list(members))
+
+            result = []
+            for index, record in enumerate(data, 1):
+                result.append([index, record])
+
+            await self.send_ranking(ctx, result, guild=True)
+
+    @iron.command(name="global")
+    async def global_(self, ctx):
         query = 'SELECT * FROM iron ORDER BY amount DESC LIMIT 5'
         async with self.bot.ress.acquire() as conn:
             cache = await conn.fetch(query)

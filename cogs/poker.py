@@ -187,8 +187,8 @@ class Poker(utils.DSGames):
 
             await asyncio.sleep(60)
 
-            current = self.videopoker.get(ctx.guild.id, {})
-            if stamp == current.get('time'):
+            current = self.videopoker.get(ctx.guild.id)
+            if current and stamp == current.get('time'):
                 await begin.edit(content="**Spielende:** Zeitüberschreitung(60s)")
                 self.videopoker.pop(ctx.guild.id)
 

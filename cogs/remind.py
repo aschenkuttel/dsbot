@@ -33,7 +33,7 @@ class Timer:
         embed.description = self.reason
 
         channel = self.bot.get_channel(self.channel_id)
-        author = self.bot.get_user(self.author_id)
+        author = await self.bot.fetch_user(self.author_id)
 
         if author is None:
             return

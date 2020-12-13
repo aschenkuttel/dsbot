@@ -408,3 +408,34 @@ class Keyword:
 
     def __bool__(self):
         return bool(self.value)
+
+
+class DSMember:
+    def __init__(self, record):
+        self.id = record['id']
+        self.guild_id = record['guild_id']
+        self.name = record['name']
+        self.nick = record['nick']
+        self.last_update = record['last_update']
+
+    def __eq__(self, other):
+        return self.name == other.name and self.nick == other.nick
+
+    @classmethod
+    def from_object(cls, member):
+        self = cls.__new__(cls)
+        self.id = member.id
+        self.guild_id = member.guild.id
+        self.name = member.name
+        self.nick = member.nick
+        self.last_update = datetime.now()
+        return self
+
+    @property
+    def arguments(self):
+        return (self.id, self.guild_id, self.name,
+                self.nick, self.last_update)
+
+    @property
+    def display_name(self):
+        return self.nick or self.name
