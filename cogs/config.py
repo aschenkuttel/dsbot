@@ -224,7 +224,7 @@ class Config(commands.Cog):
     @conquer.command(name="grey")
     async def conquer_grey(self, ctx):
         conquer = self.get_conquer_data(ctx)
-        conquer['bb'] = False if conquer['bb'] else True
+        conquer['bb'] = False if conquer.get('bb') else True
         self.config.save()
 
         state_str = "aktiv" if not conquer['bb'] else "inaktiv"

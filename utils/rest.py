@@ -44,7 +44,7 @@ def converter(name, php=False):
 
 def keyword(options, strip=False, **kwargs, ):
     raw_input = options or ''
-    troops = re.findall(r'[A-z]*[<=>]\S*', raw_input)
+    troops = re.findall(r'[^=\W]+[<=>][^=\W]+', raw_input)
     cache = {}
 
     for troop in troops:

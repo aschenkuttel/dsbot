@@ -316,7 +316,7 @@ class DSBot(commands.Bot):
                 return list(data) if data else (0, 0)
 
     async def fetch_usage(self, amount=None):
-        statement = 'SELECT * FROM usage ORDER BY usage DESC'
+        statement = 'SELECT * FROM usage ORDER BY amount DESC'
         if amount is not None:
             statement += f' LIMIT {amount}'
 
