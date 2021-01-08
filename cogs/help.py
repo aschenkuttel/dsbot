@@ -151,12 +151,12 @@ class Help(commands.Cog):
                "Mögliche Switches: `report, request, coord, mention`"
         cmd_type = "Admin Command"
         cmd_inp = ["set world <world>",
-                   "set channel_world <world>",
+                   "set channelworld <world>",
                    "set game",
                    "set conquer",
                    "set prefix <prefix>"]
         example = ["set world de172",
-                   "set channel_world de164",
+                   "set channelworld de164",
                    "set game",
                    "set conquer",
                    "set prefix -"]
@@ -194,11 +194,11 @@ class Help(commands.Cog):
         title = ["remove"]
         desc = "Entfernt eingstellte Serverconfigs / Gegensatz zu set"
         cmd_type = "Admin Command"
-        cmd_inp = ["remove channel",
+        cmd_inp = ["remove channelworld",
                    "remove game",
                    "remove conquer",
                    "remove prefix"]
-        example = ["remove channel",
+        example = ["remove channelworld",
                    "remove game",
                    "remove conquer",
                    "remove prefix"]

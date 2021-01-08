@@ -11,15 +11,13 @@ class Bash(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 1
-        self.never = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        self.base = "https://{}/guest.php?village" \
-                    "=null&screen=ranking&mode=in_a_day&type={}"
-        self.in_a_day_value = self.bot.msg['dayValue']
-        self.bash_value = self.bot.msg['bashValue']
+        self.in_a_day = "https://{}/guest.php?village=null&" \
+                        "screen=ranking&mode=in_a_day&type={}"
 
     @commands.command(name="bash")
     async def bash(self, ctx, *, arguments):
-        if "/" not in arguments:
+        args = arguments.split("/")
+        if len(args) != 2:
             dsobj = await self.bot.fetch_both(ctx.server, arguments)
             if dsobj is None:
                 raise utils.DSUserNotFound(arguments)
@@ -27,7 +25,6 @@ class Bash(commands.Cog):
                 user = [dsobj]
 
         else:
-            args = arguments.split("/")
             player1 = args[0].strip()
             player2 = args[1].strip()
 
@@ -43,17 +40,15 @@ class Bash(commands.Cog):
                 wrong_name = player1 if s1 is None else player2
                 raise utils.DSUserNotFound(wrong_name)
 
-        embed = discord.Embed()
-
         for dsobj in user:
             if isinstance(dsobj, utils.Tribe):
-                value = 0
+                dsobj.sup_bash = 0
                 members = await self.bot.fetch_tribe_member(ctx.server, dsobj.id)
 
                 for member in members:
-                    value += member.sup_bash
+                    dsobj.sup_bash += member.sup_bash
 
-                dsobj.sup_bash = value
+        embed = discord.Embed()
 
         for dsobj in user:
             attributes = {"att_bash": "`OFF` | {}",
@@ -61,14 +56,15 @@ class Bash(commands.Cog):
                           "sup_bash": "`SUP` | {}",
                           "all_bash": "`ALL` | {}"}
 
+            user_copy = user.copy()
+            user_copy.remove(dsobj)
+            other_user = user_copy[0]
+
             result = []
             for key, represent in attributes.items():
-                value = getattr(dsobj, key, None)
+                value = getattr(dsobj, key)
 
-                user_copy = user.copy()
-                user_copy.remove(dsobj)
-
-                if len(user) == 2 and getattr(user_copy[0], key) > value:
+                if len(user) == 2 and getattr(other_user, key) > value:
                     string_value = f"{value}"
                 else:
                     string_value = f"**{value}**"
@@ -98,7 +94,8 @@ class Bash(commands.Cog):
 
         if not 31 > time > 0:
             msg = "Das Maximum für den Recap Command sind 30 Tage"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         try:
             dsobj8 = await self.bot.fetch_both(ctx.server, dsobj.id, name=False, archive=time)
@@ -106,7 +103,8 @@ class Bash(commands.Cog):
             if dsobj8 is None:
                 obj = "Spieler" if dsobj.alone else "Stamm"
                 msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
-                return await ctx.send(msg)
+                await ctx.send(msg)
+                return
 
             point1, villages1, bash1 = dsobj.points, dsobj.villages, dsobj.all_bash
             point8, villages8, bash8 = dsobj8.points, dsobj8.villages, dsobj8.all_bash
@@ -126,7 +124,8 @@ class Bash(commands.Cog):
             except (IndexError, ValueError, AttributeError):
                 obj = "Spieler" if dsobj.alone else "Stamm"
                 msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
-                return await ctx.send(msg)
+                await ctx.send(msg)
+                return
 
         p_done = sep(int(point1) - int(point8))
         if p_done.startswith("-"):
@@ -157,13 +156,13 @@ class Bash(commands.Cog):
 
     @commands.group(name="top")
     async def top_(self, ctx, state):
-        key = self.in_a_day_value.get(state.lower())
+        key = ctx.lang.top_options.get(state.lower())
 
         if key is None:
-            raise MissingRequiredKey(self.in_a_day_value)
+            raise MissingRequiredKey(ctx.lang.top_options)
 
-        res_link = self.base.format(ctx.world.url, key)
-        async with self.bot.session.get(res_link) as r:
+        url = self.in_a_day.format(ctx.world.url, key)
+        async with self.bot.session.get(url) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
 
         table = soup.find('table', id='in_a_day_ranking_table')
@@ -186,7 +185,8 @@ class Bash(commands.Cog):
                     result.append(f"`{points}` **|** {player.guest_mention}")
 
             msg = '\n'.join(result)
-            embed = discord.Embed(title=cache.text, description=msg)
+            title = f"{cache.text}\n(an einem Tag)"
+            embed = discord.Embed(title=title, description=msg)
 
         except (AttributeError, TypeError):
             msg = "Aktuell liegen noch keine Daten vor"
@@ -194,17 +194,16 @@ class Bash(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(name="daily", aliases=["aktueller"])
+    @commands.command(name="daily", aliases=["dailytribe"])
     async def daily_(self, ctx, award_type):
         award = award_type.lower()
-        award_data = self.bash_value.get(award)
+        award_data = ctx.lang.daily_options.get(award)
 
         if award_data is None:
-            raise MissingRequiredKey(self.bash_value)
+            raise MissingRequiredKey(ctx.lang.daily_options)
 
-        tribe = ctx.invoked_with.lower() == "aktueller"
-        dstype = utils.DSType(int(tribe))
-        negative = award in ["verlierer"]
+        tribe = ctx.invoked_with.lower() == "dailytribe"
+        dstype = utils.DSType('tribe' if tribe else 'player')
 
         async with self.bot.pool.acquire() as conn:
             if tribe and award == "unterstützer":
@@ -229,7 +228,7 @@ class Bash(commands.Cog):
                 value_list.sort(key=lambda tup: tup[1][0] - tup[1][1], reverse=True)
 
                 tribe_ids = [tup[0] for tup in value_list[:5]]
-                kwargs = {'table': 'tribe', 'dictionary': True}
+                kwargs = {'table': dstype.table, 'dictionary': True}
                 tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids, **kwargs)
                 data = [tribes[idc] for idc in tribe_ids]
 
@@ -238,7 +237,7 @@ class Bash(commands.Cog):
                        'WHERE {0}.world = $1 AND {1}.world = $1 ' \
                        'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
 
-                switch = "ASC" if negative else "DESC"
+                switch = "ASC" if award in ["verlierer"] else "DESC"
                 query = base.format(dstype.table, f"{dstype.table}1", award_data['value'], switch)
                 data = await conn.fetch(query, ctx.server)
 
@@ -256,7 +255,7 @@ class Bash(commands.Cog):
                 cur_value = getattr(dsobj, award_data['value'], 0)
                 old_value = getattr(old_dsobj, award_data['value'], 0)
 
-            if negative:
+            if award in ["verlierer"]:
                 value = old_value - cur_value
             else:
                 value = cur_value - old_value
@@ -273,7 +272,7 @@ class Bash(commands.Cog):
 
         if ranking:
             description = "\n".join(ranking)
-            title = f"{award.capitalize()} des Tages ({ctx.world.show(True)})"
+            title = f"{award_data['title']} des Tages ({ctx.world.show(True)})"
             footer = "Daten aufgrund von Inno nur stündlich aktualisiert"
             embed = discord.Embed(title=title, description=description)
             embed.colour = discord.Color.blue()

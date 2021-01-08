@@ -44,7 +44,7 @@ def converter(name, php=False):
 
 def keyword(options, strip=False, **kwargs, ):
     raw_input = options or ''
-    troops = re.findall(r'[^=\W]+[<=>][^=\W]+', raw_input)
+    troops = re.findall(r'[^=\W]{3,}[<=>][^=\W]+', raw_input)
     cache = {}
 
     for troop in troops:
@@ -139,16 +139,27 @@ def complete_embed(text):
     return discord.Embed(description=text, color=discord.Color.green())
 
 
-def show_list(iterable, sep=", ", line_break=2):
+def show_list(iterable, sep=", ", line_break=2, return_iter=False):
     cache = []
-    result = ""
+
+    if return_iter is True:
+        result = []
+    else:
+        result = ""
+
     for word in iterable:
         cache.append(word)
         last = word == iterable[-1]
+
         if len(cache) == line_break or last:
             enter = "" if last else "\n"
             line = f"{sep}".join(cache)
-            result += f"{line}{enter}"
+
+            if return_iter is True:
+                result.append(line)
+            else:
+                result += f"{line}{enter}"
+
             cache.clear()
 
     return result

@@ -9,8 +9,6 @@ class Config(commands.Cog):
         self.bot = bot
         self.type = 0
         self.config = self.bot.config
-        self.converter_title = self.bot.msg['converterTitle']
-        self.config_title = self.bot.msg['configTitle']
 
     async def cog_check(self, ctx):
         if ctx.guild is None:
@@ -141,6 +139,8 @@ class Config(commands.Cog):
         config_entry = self.config_title.get(entry)
 
         if config_entry is None:
+            keys = self.config_title.keys()
+            keys.extend(["channelworld", "conquer"])
             raise MissingRequiredKey(self.config_title)
 
         done = self.config.remove(entry.lower(), ctx.guild.id)
@@ -167,8 +167,8 @@ class Config(commands.Cog):
             msg = "Dieser Channel ist nicht eingespeichert"
             await ctx.send(embed=error_embed(msg))
 
-    @remove.command(name="channel_world")
-    async def remove_channel_world(self, ctx):
+    @remove.command(name="channelworld")
+    async def remove_channelworld(self, ctx):
         config = self.config.get('channel', ctx.guild.id)
         if config:
             world = config.get(str(ctx.channel.id))

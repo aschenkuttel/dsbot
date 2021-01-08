@@ -84,8 +84,6 @@ class Utils(commands.Cog):
         self.maximum = 0
         self.cap_dict = {}
         self.active_pager = {}
-        self.troops = self.bot.msg['troops']
-        self.movement = self.bot.msg['movement']
         self.base = "javascript: var settings = Array" \
                     "({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}," \
                     " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
@@ -305,7 +303,7 @@ class Utils(commands.Cog):
                 rank_stat = f"{stat.split('_')[0]}_rank"
                 rank_value = getattr(dsobj, rank_stat)
 
-            stat_title = self.bot.msg['statTitle'][stat]
+            stat_title = ctx.lang.stat_title[stat]
             represent = f"{stat_title}: `{sep(value)}`"
 
             if rank_value:
@@ -512,7 +510,7 @@ class Utils(commands.Cog):
         embed = discord.Embed(title=title, url=world.settings_url)
 
         cache = []
-        for key, data in self.bot.msg['settings'].items():
+        for key, data in ctx.lang.settings.items():
             parent, title, description = data.values()
             value = None
             if "|" in key:

@@ -3,7 +3,8 @@ from discord.ext import commands
 
 class MissingRequiredKey(commands.CheckFailure):
     def __init__(self, keys):
-        self.keys = keys
+        self.keys = list(keys)
+        super().__init__('missing required key')
 
 
 class GameChannelMissing(commands.CheckFailure):
@@ -58,7 +59,7 @@ class SilentError(commands.CheckFailure):
 
 class DontPingMe(commands.CheckFailure):
     def __init__(self):
-        super().__init__('discord mention instad of username')
+        super().__init__('discord mention instead of username')
 
 
 class DSUserNotFound(commands.CheckFailure):

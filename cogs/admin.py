@@ -12,12 +12,8 @@ class Admin(commands.Cog):
                       'Poker': ["blackjack", "videopoker"]}
 
     async def cog_check(self, ctx):
-        if ctx.guild is None:
-            raise commands.NoPrivateMessage
-
-        elif ctx.author.guild_permissions.administrator:
+        if ctx.author.guild_permissions.administrator:
             return True
-
         else:
             raise commands.MissingPermissions(['administrator'])
 
@@ -28,8 +24,8 @@ class Admin(commands.Cog):
 
     @reset.command(name="game")
     async def game_(self, ctx):
-        for game, caches in self.games.items():
-            cog = self.bot.get_cog(game)
+        for name, caches in self.games.items():
+            cog = self.bot.get_cog(name)
 
             for cache_name in caches:
                 cache = getattr(cog, cache_name)

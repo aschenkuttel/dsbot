@@ -1,0 +1,734 @@
+{
+  "unknown_command": [
+    "Der Command `{}` ist leider nur für dsBot Premium User verfügbar",
+    "Den Command `{}` kenne ich leider nicht :confused:",
+    "In was für einer Welt leben wir in der es den `{}` Command nicht gibt :sob:",
+    "Ich wünschte es würde den `{}` Command geben :no_mouth:",
+    "`{}` kann leider nur der Bot-Admin ausführen!",
+    "Seit Wochen wünsche ich mir den `{}` Command... doch niemand hört mir zu :sob:",
+    "Du hast dich vertippt oder soll `{}` etwa dein ernst sein?",
+    "Bot Cooldown aktiv. Zahle monatlich nur 10 Euro für den vollen Service!",
+    "Du nuschelst dezent oder was soll `{}` bitte sein? Noch nie gehört",
+    "Ne Sorry, dich ignorier ich heute",
+    "Dieser Command wurde gesponsert von **RAID: Shadow Legends!**",
+    "Du scheinst mir heute ein wenig verwirrt, davon hab ich noch nie gehört...",
+    "Den hast du jetzt doch schon 100 Mal versucht :/"
+  ],
+  "oracle": [
+    "Ja",
+    "Nein",
+    "Jo",
+    "Nah!",
+    "Möglicherweise",
+    "Ich tendiere zu Ja",
+    "Ich tendiere zu Nein",
+    "Das liegt `Ja` wohl auf der Hand...",
+    "Nope",
+    "Klar",
+    "42",
+    "Wir wissen beide dass du ein `Ja` hören willst :smirk:",
+    "Willst du nicht lieber anstelle dieser sinnfreien Frage ein paar Fakes verschicken?",
+    "Die magische Miesmuschel sagt Ja",
+    "Die magische Miesmuschel sagt Nein",
+    "Sicherlich",
+    "Nö",
+    "Wir wissen beide dass du ein `Nein` hören willst :smirk:",
+    "Auf jeden Fall!",
+    "Never Ever!",
+    "Die Frage kannst nur du beantworten... sei ehrlich zu dir selber.",
+    "Sorry ich hab grad ein Youtube Video geschaut, was war die Frage? \u00C4h Ja.",
+    "Five, Six, Seven, Eight, NEIN!",
+    "Ich hab gerade deine Mutter gefragt und sie meinte Ja",
+    "Ich hab gerade deine Mutter gefragt und sie meinte Nein",
+    "Erwartest du darauf echt eine Antwort?\nOkey, ich will mal nicht so sein... Ja.",
+    "Selbstverständlich.",
+    "Nein, nicht einmal wenn ich auf dem Sterbebett liegen würde.",
+    "Definitiv, aber nur weil du es bist!",
+    "Nicht in tausend Jahren.",
+    "Hoffentlich ...",
+    "Hoffentlich nicht.",
+    "Ich denke schon.",
+    "Eher weniger.",
+    "ahahaha :joy:",
+    "Zu dieser Frage darf ich mich laut meinem Anwalt nicht äußern."
+  ],
+  "scared_oracle": [
+    "Bitte schrei mich nicht so an :sob:",
+    "Ja ... JA!! Bitte schlag mich nicht wieder :fearful:",
+    "Du ... machst mir Angst :confounded:",
+    "Bi..bitte hau mich nicht wieder!!",
+    "Ich geb dir ja schon Recht :fearful:",
+    "Natürlich!!! Nicht wieder ins Gesicht :sob:",
+    ":sob:"
+  ],
+  "tribal_words": [
+    "Adelsgeschlecht",
+    "Katapult",
+    "Rammbock",
+    "Speerträger",
+    "Schwertkämpfer",
+    "Axtkämpfer",
+    "Bogenschütze",
+    "Späher",
+    "Leichte Kavallerie",
+    "Berittener Bogenschütze",
+    "Schwere Kavallerie",
+    "Paladin",
+    "Rekrutieren",
+    "Account-Manager",
+    "Farm-Assistent",
+    "Konstruktion",
+    "Forschung",
+    "Rohstofflieferungen",
+    "Angriffsgeräusch",
+    "Schnellleiste",
+    "Premium-Punkte",
+    "Premium-Features",
+    "Kirche",
+    "Hauptgebäude",
+    "Schmiede",
+    "Kaserne",
+    "Stall",
+    "Adelshof",
+    "Wall",
+    "Bauernhof",
+    "Wachturm",
+    "Erste Kirche",
+    "Werkstatt",
+    "Marktplatz",
+    "Holzfäller",
+    "Lehmgrube",
+    "Eisenmine",
+    "Speicher",
+    "Versteck",
+    "Versammlungsplatz",
+    "Statue",
+    "Stamm",
+    "Spieler",
+    "Aufadeln",
+    "Pushen",
+    "Bitchmove",
+    "Propa",
+    "Inno Games",
+    "Die Stämme",
+    "Quests",
+    "Events",
+    "Dorf",
+    "Karte",
+    "Kontinent",
+    "Kirchenradius",
+    "Moral",
+    "Wing",
+    "Persönliches Bündnis",
+    "Kriegserklärung",
+    "Erfolge",
+    "Spion",
+    "Rangliste",
+    "Serversieg",
+    "übersicht",
+    "Berichte",
+    "Karte",
+    "Nachrichten",
+    "Profil",
+    "Kartengrafik",
+    "Rang 1",
+    "Supporter",
+    "Moderator",
+    "Community Manager",
+    "Tägliche Rangliste",
+    "Angreifer des Tages",
+    "Verteidiger des Tages",
+    "Unterstützer des Tages",
+    "Räuber des Tages",
+    "Plünderer des Tages",
+    "Großmacht des Tages",
+    "Anführer",
+    "Erfolgreiche Adelsreservierung",
+    "Heldentod",
+    "Kriegsherr",
+    "Königsmörder",
+    "Plünderer",
+    "Räuber",
+    "Schlächter",
+    "Selbst-Angriff",
+    "Spionageabwehr",
+    "Verstärkung",
+    "Wallbezwinger",
+    "Eroberung",
+    "Vandale",
+    "Glückspilz",
+    "Pechvogel",
+    "Selbst-Adelung",
+    "Opfer",
+    "Waffenbruder",
+    "Treuer Freund",
+    "Wohltäter",
+    "Ausgebildet",
+    "Der Mentor",
+    "Erfolgreiche Rekrutierung",
+    "Kaufmann",
+    "Kontinentscorer",
+    "Krösus",
+    "Rekrutierung vorantreiben",
+    "Topscorer",
+    "Architekt",
+    "Punktekönig",
+    "Herr der Aufgaben",
+    "Dienstzeit",
+    "Wiederauferstehung",
+    "Workbench",
+    "Bum Bum Loser",
+    "Opera",
+    "Firefox",
+    "Chrome",
+    "twstats",
+    "dsreal",
+    "Willkommenspaket",
+    "Mentorenprogramm",
+    "Freundschaft",
+    "Schnelles Farmen",
+    "Technokratie",
+    "überstunden",
+    "Einberufung",
+    "Schlafmodus",
+    "Königswache",
+    "Einberufung",
+    "Weltendominanz",
+    "Stammestreffen",
+    "Tragekapazität",
+    "Urlaubsvertretung",
+    "Miliz",
+    "Axtwins",
+    "Grauadler",
+    "Notizblock",
+    "Spieler einladen",
+    "Ausloggen",
+    "Interne Ankündigungen",
+    "Skills",
+    "Stammeswappen",
+    "Prestige",
+    "Nicht-Angriffs-Pakt",
+    "Kriegsarchiv",
+    "Reservierungslimit",
+    "Zeitlimit",
+    "Wartezeit",
+    "Befehlsfreigabe",
+    "Dorfnotizen",
+    "Datenbank",
+    "Faule Sammler",
+    "Bescheidene Sammler",
+    "Kluge Sammler",
+    "Großartige Sammler",
+    "Angriffssperre",
+    "Techtree",
+    "SDS",
+    "Eidgenössische Hellebarde",
+    "Ullrichs Langschwert",
+    "Thorgards Kriegsaxt",
+    "Edwards Langbogen",
+    "Kalids Fernrohr",
+    "Mieszkos Lanze",
+    "Kompositbogen des Khan",
+    "Baptistes Banner",
+    "Carols Morgenstern",
+    "Aletheias Leuchtfeuer",
+    "Vascos Zepter",
+    "Angriffsgefecht",
+    "Reiterei",
+    "Zerstörung",
+    "Rammen",
+    "Motivation",
+    "überzeugung",
+    "Anweisung",
+    "Architektur",
+    "Schwertkampf",
+    "Phalanx",
+    "Befestigung",
+    "Kochendes öl",
+    "Retime",
+    "Tabben",
+    "Timing",
+    "Ag-Train",
+    "Millisekunde",
+    "Script",
+    "Stammesmitglieder",
+    "Innogames",
+    "Minimap",
+    "Diplomatie",
+    "Ausmusterung",
+    "Massen-Rekrutierung"
+  ],
+  "quiz_questions": [
+    [
+      "In welchem Jahr wurde DS veröffentlicht?",
+      "2003"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgebäude für den Bau der Kaserne haben?",
+      "3"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgebäude für den Bau des Marktplatzes haben?",
+      "3"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgebäude für den Bau der Schmiede bauen kannst?",
+      "5"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgebäude für den Bau der Werkstatt haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgebäude für den Bau des Stalls haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss dein Hauptgebäude für den Bau des Adelshofs haben?",
+      "20"
+    ],
+    [
+      "Welche Stufe muss deine Kaserne für den Bau des Stalls haben?",
+      "5"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede für den Bau des Stalls haben?",
+      "5"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede für den Bau der Werkstatt haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede für den Bau des Adelshof haben?",
+      "20"
+    ],
+    [
+      "Welche Stufe muss dein Marktplatz für den Bau des Adelshof haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss dein Stall für die Erforschung der Lkav haben?",
+      "3"
+    ],
+    [
+      "Welche Stufe muss dein Stall für die Erforschung der Skav haben?",
+      "10"
+    ],
+    [
+      "Welche Stufe muss deine Werkstatt für die Erforschung der Katapulte haben?",
+      "2"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede für die Erforschung der Schwertkämpfer haben?",
+      "1"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede für die Erforschung der Axtkämpfer haben?",
+      "2"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede für die Erforschung der Katapulte haben?",
+      "12"
+    ],
+    [
+      "Welche Stufe muss deine Schmiede für die Erforschung der Skav haben?",
+      "15"
+    ],
+    [
+      "Wie viel PP kostet der Premium-Account für 3 Tage?",
+      "30"
+    ],
+    [
+      "Wie viel PP kostet der Premium-Account für 7 Tage?",
+      "60"
+    ],
+    [
+      "Wie viel PP kostet der Premium-Account für 30 Tage?",
+      "200"
+    ],
+    [
+      "Ab wie vielen Punkten erscheint ein Dorf in der letzten Kartengrafik?",
+      "11000"
+    ],
+    [
+      "Wie viel Punkte gibt der Ausbau der ersten Stufe des Adelshofes?",
+      "512"
+    ],
+    [
+      "Mit wie vielen Spielern muss man für `Treuer Freund - Gold` befreundet sein?",
+      "100"
+    ],
+    [
+      "Wie viele Tag muss man in einem Stamm sein um `Waffenbruder - Gold` zu erhalten?",
+      "360"
+    ],
+    [
+      "Wie viele Dörfer muss man für `Plünderer - Gold` geplündert haben?",
+      "10000"
+    ],
+    [
+      "Wie viele Münzen muss man für `Krösus - Gold` geprägt haben?",
+      "50000"
+    ],
+    [
+      "Wie viele Wallstufen muss man für `Wallbezwinger - Gold` zerstört haben?",
+      "10000"
+    ],
+    [
+      "Was ist die maximale Anzahl an UVs die ein Account haben kann?",
+      "3"
+    ],
+    [
+      "Wieviel KB darf ein Profilbild nicht überschreiten?",
+      "200"
+    ],
+    [
+      "Mit welchem Programm kann man große Mengen an Angriffen schnell verschicken?",
+      "Workbench"
+    ],
+    [
+      "Wie viele Konstruktionen kann man ohne Premium Account maximal in der Schleife haben?",
+      "2"
+    ],
+    [
+      "Ab wie vielen Dörfer kann man den Account-Manager benutzen?",
+      "5"
+    ],
+    [
+      "Mit wie vielen Dörfern bekommt man das erste Mal Gratis-AM für 3 Tage?",
+      "10"
+    ],
+    [
+      "Was ist die höchstmögliche Prozentzahl Glück?",
+      "25"
+    ],
+    [
+      "Welchen Rohstoff benötigt man zur Mehrheit für Schwertkämpfer?",
+      "Eisen"
+    ],
+    [
+      "Welchen Rohstoff benötigt man zur Mehrheit für Axtkämpfer?",
+      "Holz"
+    ],
+    [
+      "Welchen Rohstoff benötigt man zur Mehrheit für Lkav?",
+      "Eisen"
+    ],
+    [
+      "Welchen Rohstoff benötigt man zur Mehrheit für berittenen Bogenschützen?",
+      "Holz"
+    ],
+    [
+      "Welchen Rohstoff benötigt man zur Mehrheit für Rammböcke?",
+      "Holz"
+    ],
+    [
+      "Welchen Rohstoff benötigt man zur Mehrheit für Katapulte?",
+      "Lehm"
+    ],
+    [
+      "Wie viel Bauernhofplätze hat der Bauernhof auf Stufe 30?",
+      "24000"
+    ],
+    [
+      "Wie viele Händler hat ein Marktplatz auf Stufe 10?",
+      "10"
+    ],
+    [
+      "Wie lautet die Abkürzung für Speedwelten?",
+      "SDS"
+    ],
+    [
+      "Wie lautet die Abkürzung für ein Barbarendorf?",
+      "BB"
+    ],
+    [
+      "Wie viele `des Tages`-Awards gibt es?",
+      "6"
+    ],
+    [
+      "Wie viel Rohstoffe pro Einheit fasst der Speicher auf Stufe 30?",
+      "400000"
+    ],
+    [
+      "Welche Farbe hat der Bericht eines Angriffs mit Verlusten?",
+      "Gelb"
+    ],
+    [
+      "Wie viel Kontinente hat eine Welt?",
+      "100"
+    ],
+    [
+      "Welche Seite ist bekannt für die Top 10 Weltenkarten (ohne www/.de)",
+      "dsreal"
+    ]
+  ],
+  "map_menue": {
+    "<:center:672875546773946369>": {
+      "title": "Zoom",
+      "default": "0"
+    },
+    "<:dsmap:672912316240756767>": {
+      "title": "Zentrum",
+      "default": "500|500"
+    },
+    "<:friend:672875516117778503>": {
+      "title": "Spieler",
+      "default": ""
+    },
+    "<:tribe:672862439074693123>": {
+      "title": "Stämme",
+      "default": ""
+    },
+    "<:report:672862439242465290>": {
+      "title": "Markierung",
+      "default": "Aus"
+    },
+    "<:old:672862439112441879>": {
+      "title": "Barbarendörfer",
+      "default": "An"
+    },
+    "<:button:672910606700904451>": {
+      "title": "Karte erstellen"
+    }
+  },
+  "vp_message": {
+    "Paar": "ein",
+    "Doppel-Paar": "ein",
+    "Drilling": "einen",
+    "Straße": "eine",
+    "Flush": "einen",
+    "Full House": "ein",
+    "Vierling": "wirklich einen",
+    "Straight Flush": "'nen fucking",
+    "Royal Flush": "legit einen..."
+  },
+  "duali_message": [
+    "Bitte schlagt eure Köpfe solange an die Wand, bis ihr Erinnerungen aneinander verliert.",
+    "Ihr beide solltet euch nicht einmal im selben Land aufhalten...",
+    "Bitte spielt niemals in einem Stamm.",
+    "Bitte spielt niemals in einem Account.",
+    "Ihr beide in einem Account? Bitte überlegt es euch.",
+    "Ihr könnt es versuchen aber es gibt bessere Dualis für euch beide...",
+    "Nice, euch zwei seh ich in einem Account :blush: ",
+    "Uff nicht schlecht. Ihr regelt auf jeden Fall :heart:",
+    "Fast das perfekte Dreamteam :heart_eyes:",
+    "Hiermit erkläre ich euch zu Duali und Dualin :heart:"
+  ],
+  "settings": {
+    "speed": {
+      "parent": null,
+      "title": "Spielgeschwindigkeit",
+      "description": null
+    },
+    "unit_speed": {
+      "parent": null,
+      "title": "Einheitengeschwindigkeit",
+      "description": null
+    },
+    "moral": {
+      "parent": null,
+      "title": "Moral",
+      "description": [
+        "Inaktiv",
+        "Aktiv",
+        "Aktiv (zeitbasiert)"
+      ]
+    },
+    "millis_arrival": {
+      "parent": "commands",
+      "title": "Millisekunden",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "fake_limit": {
+      "parent": "game",
+      "title": "Fakebegrenzung",
+      "description": [
+        "Inaktiv",
+        "{}% der Dorfpunkte"
+      ]
+    },
+    "church": {
+      "parent": "game",
+      "title": "Kirche",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "watchtower": {
+      "parent": "game",
+      "title": "Wachturm",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "end_hour|start_hour": {
+      "parent": "night",
+      "title": "Nachtbonus",
+      "description": "Aktiv von {} bis {}"
+    },
+    "hauls": {
+      "parent": "game",
+      "title": "Beute",
+      "description": [
+        "Inaktiv",
+        "Aktiv",
+        "Begrenzt",
+        "Aktiv mit Raubzügen"
+      ]
+    },
+    "archer": {
+      "parent": "game",
+      "title": "Bogenschützen",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "gold": {
+      "parent": "snob",
+      "title": "Erzeugung benötigt",
+      "description": [
+        "Einlagerungen",
+        "Goldmünzen"
+      ]
+    },
+    "limit": {
+      "parent": "ally",
+      "title": "Mitgliederlimit",
+      "description": null
+    },
+    "no_harm": {
+      "parent": "ally",
+      "title": "Stammesschutz",
+      "description": [
+        "Inaktiv",
+        "Aktiv"
+      ]
+    },
+    "check": {
+      "parent": "win",
+      "title": "Siegbedingung",
+      "description": [
+        "keine Siegbedingung gewählt",
+        "Spieler (Spieler hält x Punkte und y Dörfer für z Tage)",
+        "Stamm (Stamm hält x Punkte und y Dörfer für z Tage)",
+        "Dominanz",
+        "Runen-Dörfer",
+        "Casual-Endgame",
+        "Zeitalter der Aufklärung",
+        "Große Belagerung"
+      ]
+    }
+  },
+  "unit": {
+    "speer": "spear",
+    "schwert": "sword",
+    "axt": "axe",
+    "bogen": "archer",
+    "späher": "spy",
+    "lkav": "light",
+    "berittene": "marcher",
+    "skav": "heavy",
+    "ramme": "ram",
+    "katapult": "catapult",
+    "paladin": "knight",
+    "ag": "snob"
+  },
+  "unit_speed": {
+    "spear": 18.000000000504,
+    "sword": 21.999999999296,
+    "axe": 18.000000000504,
+    "archer": 18.000000000504,
+    "spy": 8.99999999928,
+    "light": 9.999999998,
+    "marcher": 9.999999998,
+    "heavy": 11.0000000011,
+    "ram": 29.9999999976,
+    "catapult": 29.9999999976,
+    "knight": 9.999999998,
+    "snob": 34.9999999993
+  },
+  "unit_icon": {
+    "spear": "<:tw_spear:737220483480682496>",
+    "sword": "<:tw_sword:737220483136880729>",
+    "axe": "<:tw_axe:737220483149201510>",
+    "archer": "<:tw_archer:737220483094937641>",
+    "spy": "<:tw_spy:737220483069771818>",
+    "light": "<:tw_light:737220483090481223>",
+    "marcher": "<:tw_marcher:737220483388538880>",
+    "heavy": "<:tw_heavy:737220482931359795>",
+    "ram": "<:tw_ram:737220483208052838>",
+    "catapult": "<:tw_catapult:737220483224698881>",
+    "knight": "<:tw_knight:737220483300327445>",
+    "snob": "<:tw_snob:737220483027828737>",
+    "militia": "<:tw_militia:737220482994274366>"
+  },
+  "bash_title": {
+    "all_bash": "ALL",
+    "att_bash": "OFF",
+    "def_bash": "DEF",
+    "sup_bash": "SUP"
+  },
+  "converter_title": {
+    "report": "Berichte",
+    "coord": "Koordinaten",
+    "mention": "BB-Codes"
+  },
+  "config_title": {
+    "game": "Game Channel",
+    "prefix": "Prefix"
+  },
+  "daily_options": {
+    "points": {
+      "title": "Wachstumsreichster Spieler",
+      "value": "points",
+      "item": "Punkte"
+    },
+    "basher": {
+      "title": "Angreifer",
+      "value": "att_bash",
+      "item": "Bashpoints"
+    },
+    "defender": {
+      "title": "Verteidiger",
+      "value": "def_bash",
+      "item": "Bashpoints"
+    },
+    "supporter": {
+      "title": "Unterstützer",
+      "value": "sup_bash",
+      "item": "Bashpoints"
+    },
+    "fighter": {
+      "title": "Kämpfer",
+      "value": "all_bash",
+      "item": "Bashpoints"
+    },
+    "loser": {
+      "title": "Verlierer",
+      "value": "villages",
+      "item": "Dörfer"
+    },
+    "conquerer": {
+      "title": "Eroberer",
+      "value": "villages",
+      "item": "Dörfer"
+    }
+  },
+  "top_options": {
+    "bash": "kill_att",
+    "def": "kill_def",
+    "sup": "kill_sup",
+    "farm": "loot_res",
+    "villages": "loot_vil",
+    "scavenge": "scavenge",
+    "conquer": "conquer"
+  }
+}

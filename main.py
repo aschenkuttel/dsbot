@@ -46,7 +46,13 @@ class DSBot(commands.Bot):
         self.session = None
 
         self.logger = utils.create_logger('dsbot', self.data_path)
-        self.msg = json.load(open(f"{self.data_path}/msg.json", encoding="utf-8"))
+        utils.create_logger('discord', self.data_path)
+
+        self.languages = {}
+        path = f"{self.data_path}/language"
+        for filename in os.listdir(path):
+            name = filename.split('.')[0]
+            self.languages[name] = utils.Language(path, filename)
 
         # update lock which waits for external database script and setup lock
         self._update = asyncio.Event()
@@ -54,7 +60,7 @@ class DSBot(commands.Bot):
 
         self.owner_id = 211836670666997762
         self.default_prefix = secret.default_prefix
-        self.activity = discord.Activity(type=0, name=self.msg['status'])
+        self.activity = discord.Activity(type=0, name=secret.status)
         self.add_check(self.global_check)
         self.remove_command("help")
 
@@ -157,17 +163,14 @@ class DSBot(commands.Bot):
         while not self.is_closed():
             seconds = self.get_seconds()
             await asyncio.sleep(seconds)
-
             self.logger.debug("loop per hour")
+
             try:
-                async with timeout(20, loop=self.loop):
+                async with timeout(120, loop=self.loop):
                     await self._update.wait()
                     await self.update_worlds()
-                    self.logger.debug("worlds updated")
-                    self._update.clear()
-
             except asyncio.TimeoutError:
-                self.logger.error("worlds not updated")
+                self.logger.error("update timeout")
 
             for cog in self.cogs.values():
                 loop = getattr(cog, 'called_per_hour', None)
@@ -178,6 +181,8 @@ class DSBot(commands.Bot):
 
                 except Exception as error:
                     self.logger.debug(f"{cog.qualified_name} Task Error: {error}")
+
+            self._update.clear()
 
     # current workaround since library update will support that with tasks in short future
     def get_seconds(self, added_hours=1, timestamp=False):
@@ -344,6 +349,7 @@ class DSBot(commands.Bot):
                 self.config.remove_world(server)
 
         self.worlds = cache
+        self.logger.debug("worlds updated")
 
     async def fetch_all(self, world, table=0, dictionary=False):
         dsobj = utils.DSType(table)

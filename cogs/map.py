@@ -37,7 +37,7 @@ class MapMenue:
 
     async def setup(self, restart=False):
         options = []
-        for icon, value in self.bot.msg['mapOptions'].items():
+        for icon, value in self.ctx.lang.map_menue.items():
             title = value['title']
             default = value.get('default')
             if default is not None:
@@ -240,6 +240,7 @@ class Map(commands.Cog):
         bucket.reset()
 
     async def called_per_hour(self):
+        self.top10_cache.clear()
         for key in self.menue_cache.copy():
             menue = self.menue_cache[key]
             now = datetime.utcnow()
@@ -310,13 +311,13 @@ class Map(commands.Cog):
             if (min_coord - self.borderspace) < self.minimum_size:
                 bounds.append(self.minimum_size)
             else:
-                bounds.append(min_coord)
+                bounds.append(min_coord - self.borderspace)
 
         for max_coord in (max(x_coords), max(y_coords)):
             if (max_coord + self.borderspace) > self.maximum_size:
                 bounds.append(self.maximum_size)
             else:
-                bounds.append(max_coord)
+                bounds.append(max_coord + self.borderspace)
 
         return bounds
 
@@ -413,8 +414,9 @@ class Map(commands.Cog):
         overlay = np.zeros((base.shape[0], base.shape[1], 4), dtype='uint8')
 
         label = options.get('label')
-        for vil in all_villages:
+        highlight = options.get('highlight')
 
+        for vil in all_villages:
             # repositions coords based on base crop
             x, y = vil.reposition(difference)
 
@@ -436,15 +438,18 @@ class Map(commands.Cog):
                 else:
                     color = tribe.color
 
-                overlay[y - 6:y + 10, x - 6:x + 10] = color + [75]
                 village_cache[tribe].append([y, x])
+                if highlight is True:
+                    overlay[y - 6:y + 10, x - 6:x + 10] = color + [75]
 
             base[y: y + 4, x: x + 4] = color
 
-        # append highligh overlay to base image
         result = Image.fromarray(base)
-        with Image.fromarray(overlay) as foreground:
-            result.paste(foreground, mask=foreground)
+
+        if highlight is True:
+            # append highligh overlay to base image
+            with Image.fromarray(overlay) as foreground:
+                result.paste(foreground, mask=foreground)
 
         # create legacy which is double in size for improved text quality
         if label is True and (tribes or players):
@@ -455,7 +460,7 @@ class Map(commands.Cog):
 
     @commands.command(name="map")
     async def map_(self, ctx, *, arguments=None):
-        options = {'zoom': [0, 5], 'top': [5, 10, 20], 'player': False, 'label': True}
+        options = {'zoom': [0, 5], 'top': [5, 10, 20], 'player': False, 'label': [0, 2, 3]}
         tribe_names, zoom, top, player, label = keyword(arguments, strip=True, **options)
 
         await ctx.trigger_typing()
@@ -499,7 +504,8 @@ class Map(commands.Cog):
             ds_objects = await self.bot.fetch_bulk(ctx.server, all_tribes, 1, name=True)
 
         if len(color_map) > 20:
-            return await ctx.send("Du kannst nur bis zu 20 Stämme/Gruppierungen angeben")
+            await ctx.send("Du kannst nur bis zu 20 Stämme/Gruppierungen angeben")
+            return
 
         colors = self.colors.top()
         for tribe in ds_objects.copy():
@@ -519,7 +525,8 @@ class Map(commands.Cog):
         all_villages = await self.bot.fetch_all(ctx.server, "map")
         if not all_villages:
             msg = "Auf der Welt gibt es noch keine Dörfer :/"
-            return await ctx.send(msg)
+            await ctx.send(msg)
+            return
 
         ds_dict = {dsobj.id: dsobj for dsobj in ds_objects}
         if player:
@@ -530,8 +537,9 @@ class Map(commands.Cog):
             players = {pl.id: pl for pl in result}
             args = (all_villages, ds_dict, players)
 
-        kwargs = {'zoom': zoom.value, 'label': label.value}
-
+        text = label.value in [2, 3]
+        highlight = label.value in [1, 2]
+        kwargs = {'zoom': zoom.value, 'label': text, 'highlight': highlight}
         file = await self.send_map(ctx, *args, **kwargs)
 
         if arguments is None:
@@ -541,27 +549,36 @@ class Map(commands.Cog):
 
     @commands.Cog.listener()
     async def on_reaction_add(self, *args):
-        await self.menue_handler(*args)
+        await self.menue_handler(args)
 
     @commands.Cog.listener()
-    async def on_reaction_remove(self, *args):
+    async def on_raw_reaction_remove(self, *args):
         await self.menue_handler(*args)
 
-    async def menue_handler(self, reaction, user):
-        if user == self.bot.user:
+    async def menue_handler(self, payload):
+        if isinstance(payload, tuple):
+            message_id = payload[0].message.id
+            user_id = payload[1].id
+            emoji = payload[0].emoji
+        else:
+            message_id = payload.message_id
+            user_id = payload.user_id
+            emoji = payload.emoji
+
+        if user_id == self.bot.user.id:
             return
 
-        menue = self.menue_cache.get(user.id)
+        menue = self.menue_cache.get(user_id)
         if menue is None:
             return
 
-        elif reaction.message.id != menue.message.id:
+        elif message_id != menue.message.id:
             return
 
         else:
-            resp = await menue.change(str(reaction.emoji))
+            resp = await menue.change(str(emoji))
             if resp is None:
-                await self.timeout(user.id, 300)
+                await self.timeout(user_id, 300)
 
             elif isinstance(resp, tuple):
                 await self.send_map(menue.ctx, *resp[0], **resp[1])
@@ -571,7 +588,7 @@ class Map(commands.Cog):
     async def custom_(self, ctx, world: WorldConverter = None):
         menue = self.menue_cache.get(ctx.author.id)
 
-        if menue is not None and not menue.is_dead():
+        if menue is not None and menue.dead is False:
             msg = "Du hast bereits eine offene Karte"
             self.reset_cooldown(ctx)
             return await ctx.send(msg)

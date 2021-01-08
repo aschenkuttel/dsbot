@@ -254,7 +254,7 @@ class Listen(commands.Cog):
             if len(cmd) == cmd.count(ctx.prefix):
                 return
             else:
-                data = random.choice(self.bot.msg["noCommand"])
+                data = random.choice(ctx.lang.unknown_command)
                 await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
                 return
 
@@ -263,7 +263,14 @@ class Listen(commands.Cog):
             tip = True
 
         elif isinstance(error, utils.MissingRequiredKey):
-            msg = f"`{ctx.prefix}{cmd.lower()} <{'|'.join(error.keys)}>`"
+            clean_cmd = f"{ctx.prefix}{cmd.lower()}"
+            result = []
+
+            batches = utils.show_list(error.keys, "|", 4, return_iter=True)
+            for batch in batches:
+                result.append(f"`{clean_cmd} <{batch}>`")
+
+            msg = "\n".join(result)
             tip = True
 
         elif isinstance(error, commands.NoPrivateMessage):

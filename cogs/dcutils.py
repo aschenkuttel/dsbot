@@ -20,13 +20,13 @@ class DCUtils(commands.Cog):
         # checks for both since numbers would
         # count as auppercase as well
         if args == args.upper() and not args == args.lower():
-            answer = random.choice(self.bot.msg['fearOrakel'])
+            answer = random.choice(ctx.lang.scared_oracle)
             await ctx.send(answer)
             return
 
         percentage = random.random()
         if percentage > 0.005:
-            answer = random.choice(self.bot.msg['cleanOrakel'])
+            answer = random.choice(ctx.lang.oracle)
             await ctx.send(answer)
             return
 
@@ -80,7 +80,7 @@ class DCUtils(commands.Cog):
 
             result = points % 101
             index = 9 if result >= 90 else int(result / 10)
-            answer = self.bot.msg['dualAnswer'][index]
+            answer = ctx.lang.duali_message[index]
 
             await ctx.send(f"Ihr passt zu `{result}%` zusammen.\n{answer}")
 

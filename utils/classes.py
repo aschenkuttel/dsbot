@@ -26,6 +26,10 @@ class DSContext(commands.Context):
         self.server = None
 
     @property
+    def lang(self):
+        return self.bot.languages['german']
+
+    @property
     def world(self):
         return self._world
 
@@ -439,3 +443,13 @@ class DSMember:
     @property
     def display_name(self):
         return self.nick or self.name
+
+
+class Language:
+    def __init__(self, path, name):
+        file = open(f"{path}/{name}", encoding='utf-8')
+        self._dict = json.load(file)
+        file.close()
+
+        for key, value in self._dict.items():
+            setattr(self, key, value)

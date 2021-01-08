@@ -117,7 +117,7 @@ class Card(utils.DSGames):
 
     # Module Two
     async def general_ask(self, ctx, rounds):
-        raw_question, answer = random.choice(self.bot.msg["generalQuestion"])
+        raw_question, answer = random.choice(ctx.lang.question)
         splitted = raw_question.split(" ")
         mid = int((len(splitted) + 1) / 2)
         first_half, second_half = ' '.join(splitted[:mid]), ' '.join(splitted[mid:])

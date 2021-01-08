@@ -231,7 +231,7 @@ class Poker(utils.DSGames):
         result = self.check_result(data['hand'])
 
         if result:
-            pronoun = self.bot.msg['vpMessage'][result]
+            pronoun = ctx.lang.vp_message[result]
             amount = int(data['bet'] * self.payout[result])
             base = "{0}{1}Du hast {2} **{3}**: `{4} Eisen` gewonnen!{1}(15s Cooldown)"
             msg = base.format(card_rep, os.linesep, pronoun, result, amount)

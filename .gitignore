@@ -6,6 +6,6 @@ discord.log
 cogs/dev.py
 dsbot.log
 datadb.py
-msg.json
+data/language/german.json
 lab.py
 venv
