@@ -11,25 +11,7 @@ logger = logging.getLogger('dsbot')
 class ConquerLoop(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.start = True
         self._conquer = {}
-        self.guild_timeout.start()
-
-    @tasks.loop(hours=72)
-    async def guild_timeout(self):
-        if self.start is True:
-            self.start = False
-            return
-
-        counter = 0
-        for guild in self.bot.guilds:
-            if guild.id not in self.bot.active_guilds:
-                self.bot.config.remove('conquer', guild.id, bulk=True)
-                counter += 1
-
-        self.bot.config.save()
-        self.bot.active_guilds.clear()
-        logger.debug(f"{counter} inactive guilds")
 
     @commands.is_owner()
     @commands.command(name="manual")
@@ -43,6 +25,10 @@ class ConquerLoop(commands.Cog):
 
         counter = 0
         for guild in self.bot.guilds:
+            inactive = self.bot.config.get('inactive', guild.id)
+            if inactive is True:
+                continue
+
             resp = await self.conquer_feed(guild)
             if resp is True:
                 counter += 1

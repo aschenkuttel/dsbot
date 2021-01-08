@@ -1,7 +1,10 @@
 from utils import complete_embed, error_embed, MissingRequiredKey
 from utils import WorldConverter, DSConverter, WrongChannel
-from discord.ext import commands
+from discord.ext import commands, tasks
 import discord
+import logging
+
+logger = logging.getLogger('dsbot')
 
 
 class Config(commands.Cog):
@@ -9,6 +12,7 @@ class Config(commands.Cog):
         self.bot = bot
         self.type = 0
         self.config = self.bot.config
+        self.guild_timeout.start()
 
     async def cog_check(self, ctx):
         if ctx.guild is None:
@@ -24,6 +28,21 @@ class Config(commands.Cog):
             raise WrongChannel('conquer')
         else:
             return conquer
+
+    @tasks.loop(hours=120)
+    async def guild_timeout(self):
+        if self.bot.is_locked():
+            return
+
+        counter = 0
+        for guild in self.bot.guilds:
+            if guild.id not in self.bot.active_guilds:
+                self.bot.config.update('inactive', True, guild.id, bulk=True)
+                counter += 1
+
+        self.bot.config.save()
+        self.bot.active_guilds.clear()
+        logger.debug(f"{counter} inactive guilds")
 
     @commands.group(invoke_without_command=True)
     async def set(self, _):
@@ -111,10 +130,10 @@ class Config(commands.Cog):
     @commands.group(name="switch", invoke_without_command=True)
     async def switch(self, ctx, key):
         key = key.lower()
-        name = self.converter_title.get(key)
+        name = ctx.lang.converter_title.get(key)
 
         if name is None:
-            raise MissingRequiredKey(self.converter_title)
+            raise MissingRequiredKey(ctx.lang.converter_title)
 
         new_value = self.bot.config.update_switch(key, ctx.guild.id)
         state = "aktiv" if new_value else "inaktiv"
@@ -125,7 +144,7 @@ class Config(commands.Cog):
     async def switch_list(self, ctx):
         listed = []
 
-        for key, value in self.converter_title.items():
+        for key, value in ctx.lang.converter_title.items():
             state = self.bot.config.get_switch(key, ctx.guild.id)
             represent = "aktiv" if state else "inaktiv"
             listed.append(f"**{value} ({key}):** `{represent}`")
@@ -136,12 +155,12 @@ class Config(commands.Cog):
     @commands.group(invoke_without_command=True)
     async def remove(self, ctx, entry):
         entry = entry.lower()
-        config_entry = self.config_title.get(entry)
+        config_entry = ctx.lang.config_title.get(entry)
 
         if config_entry is None:
-            keys = self.config_title.keys()
+            keys = ctx.lang.config_title.keys()
             keys.extend(["channelworld", "conquer"])
-            raise MissingRequiredKey(self.config_title)
+            raise MissingRequiredKey(keys)
 
         done = self.config.remove(entry.lower(), ctx.guild.id)
         if not done:
@@ -154,7 +173,7 @@ class Config(commands.Cog):
 
     @remove.command(name="conquer")
     async def remove_conquer(self, ctx):
-        channels = self.config.get('conquer', ctx.guild.id)
+        channels = self.config.get('conquer', ctx.guild.id, {})
 
         if str(ctx.channel.id) in channels:
             channels.pop(str(ctx.channel.id))
@@ -170,6 +189,7 @@ class Config(commands.Cog):
     @remove.command(name="channelworld")
     async def remove_channelworld(self, ctx):
         config = self.config.get('channel', ctx.guild.id)
+
         if config:
             world = config.get(str(ctx.channel.id))
             state = bool(world)

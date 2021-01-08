@@ -10,6 +10,7 @@ import aiohttp
 import imgkit
 import random
 import utils
+import math
 import sys
 import io
 import re
@@ -266,7 +267,8 @@ class Listen(commands.Cog):
             clean_cmd = f"{ctx.prefix}{cmd.lower()}"
             result = []
 
-            batches = utils.show_list(error.keys, "|", 4, return_iter=True)
+            index = math.ceil(len(error.keys) / 2)
+            batches = utils.show_list(error.keys, "|", index, return_iter=True)
             for batch in batches:
                 result.append(f"`{clean_cmd} <{batch}>`")
 

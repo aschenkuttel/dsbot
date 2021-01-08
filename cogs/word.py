@@ -64,7 +64,7 @@ class Word(utils.DSGames):
 
         word = ""
         while not word:
-            cache = random.choice(ctx.lang.hangman)
+            cache = random.choice(ctx.lang.tribal_words)
             if cache.count(" ") == 0:
                 word = cache.strip()
 
@@ -119,7 +119,7 @@ class Word(utils.DSGames):
         data = self.get_game_data(ctx)
 
         if data is None:
-            word = random.choice(ctx.lang.hangman)
+            word = random.choice(ctx.lang.tribal_words)
             blanks = list(re.sub(r'[\w]', '_', word))
             data = {'guessed': [], 'blanks': blanks, 'solution': word, 'life': 8}
             self.hangman[ctx.guild.id] = data

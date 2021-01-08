@@ -360,7 +360,7 @@ class Map(commands.Cog):
 
     def label_map(self, result, village_cache, zoom=0):
         reservation = []
-        font_size = int(self.max_font_size * ((result.size[0] - 50) / self.maximum_size))
+        base_size = int(self.max_font_size * ((result.size[0] - 50) / self.maximum_size))
         sorted_cache = sorted(village_cache.items(), key=lambda l: len(l[1]))
         most_villages = len(sorted_cache[-1][1])
 
@@ -368,12 +368,18 @@ class Map(commands.Cog):
         legacy = Image.new('RGBA', bound_size, (255, 255, 255, 0))
         image = ImageDraw.Draw(legacy)
 
+        just_player = bool([d for d in village_cache if d.alone])
+
         for dsobj, villages in village_cache.items():
             if not villages:
                 continue
 
+            font_size = base_size
             if isinstance(dsobj, Player):
-                font_size *= 0.4
+                if not just_player:
+                    font_size *= 0.4
+                else:
+                    font_size *= 0.7
 
             vil_x = [int(v[0] * 1.5) for v in villages]
             vil_y = [int(v[1] * 1.5) for v in villages]

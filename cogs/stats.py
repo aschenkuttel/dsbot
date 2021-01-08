@@ -69,7 +69,7 @@ class Bash(commands.Cog):
                 else:
                     string_value = f"**{value}**"
 
-                result.append(attributes[key].format(string_value))
+                result.append(represent.format(string_value))
 
             embed.add_field(name=f"{dsobj}", value="\n".join(result))
 

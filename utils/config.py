@@ -23,10 +23,12 @@ class Config:
         else:
             return config.get(item, default)
 
-    def update(self, item, value, guild_id):
+    def update(self, item, value, guild_id, bulk=False):
         config = self.get_config(guild_id, setup=True)
         config[item] = value
-        self.save()
+
+        if bulk is False:
+            self.save()
 
     def remove(self, item, guild_id, bulk=False):
         config = self.get_config(guild_id)

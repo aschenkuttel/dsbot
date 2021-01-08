@@ -5,7 +5,6 @@ from discord.ext import commands
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from datetime import datetime
-import parsedatetime
 import pandas as pd
 import discord
 import utils
@@ -89,6 +88,18 @@ class Utils(commands.Cog):
                     " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
                     "('https://media.innogamescdn.com/com_DS_DE/" \
                     "scripts/qb_main/scriptgenerator.js'); void(0);"
+        self.units = {'speer': "spear",
+                      'schwert': "sword",
+                      'axt': "axe",
+                      'bogen': "archer",
+                      'späher': "spy",
+                      'lkav': "light",
+                      'berittene': "marcher",
+                      'skav': "heavy",
+                      'ramme': "ram",
+                      'katapult': "catapult",
+                      'paladin': "knight",
+                      'ag': "snob"}
 
     async def called_per_hour(self):
         now = datetime.utcnow()
@@ -395,18 +406,18 @@ class Utils(commands.Cog):
             await ctx.send(msg)
             return
 
+        wiki = list(self.units)
         data = [0 for _ in range(12)]
         for kwarg in troops:
             name, amount = kwarg.split("=")
             try:
-                wiki = list(self.troops.keys())
                 index = wiki.index(name.lower())
                 data[index] = int(amount)
             except ValueError:
                 continue
 
         if not sum(data):
-            troops = ', '.join([o.capitalize() for o in self.troops])
+            troops = ', '.join([o.capitalize() for o in wiki])
             msg = f"Du musst einen gültigen Truppennamen angeben:\n`{troops}`"
             await ctx.send(msg)
             return
@@ -458,50 +469,6 @@ class Utils(commands.Cog):
             cache.append(f"**Raubzug {index + 1}:** `[{', '.join(ele)}]`")
         em = discord.Embed(description='\n'.join(cache))
         await ctx.send(embed=em)
-
-    @commands.command(name="retime")
-    async def retime_(self, ctx, *, inc):
-        coords = re.findall(r'\d{3}\|\d{3}', inc)
-        datestring = re.findall(r'\d{2}:\d{2}:\d{2}:\d{3}', inc)
-
-        if not datestring or len(coords) != 2:
-            msg = "**Ungültiger Input** - Gesamte Angriffszeile kopieren:\n" \
-                  "`?retime Ramme Dorf (335|490) K43 Dorf (338|489) K43 " \
-                  "Knueppel-Kutte 3.2 heute um 21:09:56:099`"
-            await ctx.send(msg)
-            return
-
-        now = datetime.now()
-        calendar = parsedatetime.Calendar()
-        date, status = calendar.parseDT(datestring[0])
-
-        if now > date:
-            date = date.replace(day=now.day + 1)
-
-        args = inc.split()
-
-        value = args[0].lower()
-        unit = self.troops.get(value)
-
-        if unit is None:
-            value = args[-1].lower()
-            unit = self.troops.get(value, 'ram')
-
-        unit_speed = self.movement.get(unit)
-
-        origin, target = coords
-        target = list(map(int, f"{origin}|{target}".split("|")))
-        x, y = abs(target[0] - target[2]), abs(target[1] - target[3])
-
-        diff = (x * x + y * y) ** 0.5
-        raw_seconds = diff * unit_speed
-        seconds = round(raw_seconds * 60)
-
-        target_date = datetime.fromtimestamp(date.timestamp() + seconds)
-        time = target_date.strftime('%H:%M:%S')
-        name = value.upper() if value in self.troops else "RAMME"
-        msg = f"**Rückkehr:** {time} `[{name}]`"
-        await ctx.send(msg)
 
     @commands.command(name="settings")
     async def settings_(self, ctx, world: utils.WorldConverter = None):

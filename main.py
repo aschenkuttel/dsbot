@@ -93,6 +93,9 @@ class DSBot(commands.Bot):
 
         print("Erfolgreich Verbunden!")
 
+    def is_locked(self):
+        return not self._lock.is_set()
+
     async def wait_until_unlocked(self):
         return await self._lock.wait()
 

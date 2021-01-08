@@ -127,8 +127,9 @@ class Casino(utils.DSGames):
                 data = {'amount': argument, 'challenger': ctx.author, 'time': stamp}
                 self.dice[ctx.guild.id] = data
 
+                iron = utils.seperator(argument)
                 base = "{} möchte eine Runde um `{} Eisen` spielen, akzeptiere mit `{}dice accept`"
-                msg = base.format(f"**{ctx.author.display_name}**", argument, ctx.prefix)
+                msg = base.format(f"**{ctx.author.display_name}**", iron, ctx.prefix)
                 begin = await ctx.send(msg)
 
                 await asyncio.sleep(60)
@@ -151,7 +152,8 @@ class Casino(utils.DSGames):
             else:
 
                 if ctx.author == data['challenger']:
-                    return await ctx.send("Bro... c'mon")
+                    await ctx.send("Bro... c'mon")
+                    return
 
                 await self.bot.subtract_iron(ctx.author.id, data['amount'])
 
@@ -171,9 +173,10 @@ class Casino(utils.DSGames):
                     winner, loser = players
                     players.remove(loser)
 
-                    price = data['amount'] * 2
+                    data['amount'] = data['amount'] * 2
+                    iron = utils.seperator(data['amount'])
                     base = "{}**{}** hat beide Einsätze in Höhe von `{} Eisen` gewonnen."
-                    msg = base.format(arena, winner.display_name, price)
+                    msg = base.format(arena, winner.display_name, iron)
 
                 else:
                     base = "{}**Unentschieden**, die Einsätze gehen an die Spieler zurück."

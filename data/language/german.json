@@ -627,55 +627,6 @@
       ]
     }
   },
-  "unit": {
-    "speer": "spear",
-    "schwert": "sword",
-    "axt": "axe",
-    "bogen": "archer",
-    "späher": "spy",
-    "lkav": "light",
-    "berittene": "marcher",
-    "skav": "heavy",
-    "ramme": "ram",
-    "katapult": "catapult",
-    "paladin": "knight",
-    "ag": "snob"
-  },
-  "unit_speed": {
-    "spear": 18.000000000504,
-    "sword": 21.999999999296,
-    "axe": 18.000000000504,
-    "archer": 18.000000000504,
-    "spy": 8.99999999928,
-    "light": 9.999999998,
-    "marcher": 9.999999998,
-    "heavy": 11.0000000011,
-    "ram": 29.9999999976,
-    "catapult": 29.9999999976,
-    "knight": 9.999999998,
-    "snob": 34.9999999993
-  },
-  "unit_icon": {
-    "spear": "<:tw_spear:737220483480682496>",
-    "sword": "<:tw_sword:737220483136880729>",
-    "axe": "<:tw_axe:737220483149201510>",
-    "archer": "<:tw_archer:737220483094937641>",
-    "spy": "<:tw_spy:737220483069771818>",
-    "light": "<:tw_light:737220483090481223>",
-    "marcher": "<:tw_marcher:737220483388538880>",
-    "heavy": "<:tw_heavy:737220482931359795>",
-    "ram": "<:tw_ram:737220483208052838>",
-    "catapult": "<:tw_catapult:737220483224698881>",
-    "knight": "<:tw_knight:737220483300327445>",
-    "snob": "<:tw_snob:737220483027828737>",
-    "militia": "<:tw_militia:737220482994274366>"
-  },
-  "bash_title": {
-    "all_bash": "ALL",
-    "att_bash": "OFF",
-    "def_bash": "DEF",
-    "sup_bash": "SUP"
-  },
   "converter_title": {
     "report": "Berichte",
     "coord": "Koordinaten",
