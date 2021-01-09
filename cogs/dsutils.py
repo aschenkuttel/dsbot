@@ -101,6 +101,11 @@ class Utils(commands.Cog):
                       'paladin': "knight",
                       'ag': "snob"}
 
+        self.yada = {'all_bash': "ALL",
+                     'att_bash': "OFF",
+                     'def_bash': "DEF",
+                     'sup_bash': "SUP"}
+
     async def called_per_hour(self):
         now = datetime.utcnow()
         tmp = self.active_pager.copy()
@@ -282,16 +287,20 @@ class Utils(commands.Cog):
             data = [ds_type.Class(rec) for rec in records]
             data.reverse()
 
-        rows = [f"**{dsobj.name}** | {ctx.world.show(clean=True)} {ctx.world.icon}"]
+        rows = [f"**{dsobj.name}** | {ctx.world.show(True)} {ctx.world.icon}"]
 
         urls = []
-        for url_type in ["ingame", "guest", "twstats"]:
+        for url_type in ["ingame", "guest", "twstats", "ds_ultimate"]:
+            if "_" in url_type:
+                parts = url_type.split("_")
+                name = f"{parts[0].upper()}-{parts[1].capitalize()}"
+            else:
+                name = url_type.capitalize()
+
             url = getattr(dsobj, f"{url_type}_url")
-            urls.append(f"[{url_type.capitalize()}]({url})")
+            urls.append(f"[{name}]({url})")
 
         rows.append(" | ".join(urls))
-
-        points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | **Rang:** `{dsobj.rank}`"
 
         if hasattr(dsobj, 'tribe_id'):
             tribe = await self.bot.fetch_tribe(ctx.server, dsobj.tribe_id)
@@ -301,6 +310,7 @@ class Utils(commands.Cog):
             villages = f"**Mitglieder:** `{dsobj.member}`"
 
         villages += f" | **Dörfer:** `{utils.seperator(dsobj.villages)}`"
+        points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | **Rang:** `{dsobj.rank}`"
         rows.extend(["", points, villages, "", "**Besiegte Gegner:**"])
 
         bash_rows = OrderedDict()
@@ -314,7 +324,7 @@ class Utils(commands.Cog):
                 rank_stat = f"{stat.split('_')[0]}_rank"
                 rank_value = getattr(dsobj, rank_stat)
 
-            stat_title = ctx.lang.stat_title[stat]
+            stat_title = self.yada[stat]
             represent = f"{stat_title}: `{sep(value)}`"
 
             if rank_value:

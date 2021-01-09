@@ -1,5 +1,6 @@
 from discord.ext import commands
 from utils import MemberConverter
+import datetime
 import discord
 import asyncio
 import random
@@ -12,6 +13,18 @@ class DCUtils(commands.Cog):
         self.duration = 300
         self.url = "http://media1.tenor.com/images/561e3f9a9c6c" \
                    "1912e2edc4c1055ff13e/tenor.gif?itemid=9601551"
+
+    @commands.command(name="speedrun")
+    async def speedrun(self, ctx):
+        date = datetime.datetime(2021, 1, 6, 8)
+        now = datetime.datetime.now()
+
+        difference = (now - date).total_seconds()
+        m, s = divmod(difference, 60)
+        h, m = divmod(m, 60)
+
+        rep = f'{int(h)} : {int(m)} : {int(s)}'
+        await ctx.send(rep)
 
     @commands.command(name="orakel")
     async def orakel_(self, ctx, *, args):

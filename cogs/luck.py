@@ -12,8 +12,9 @@ class Casino(utils.DSGames):
         self.type = 3
         self.dice = {}
         self.slots = []
-        self.number = 0
         self.pot = 0
+        self.winning_number = None
+        self.numbers = list(range(1, 10000))
         self.slot_lock = asyncio.Event()
         self.slot_lock.set()
         self.dices = {
@@ -36,12 +37,21 @@ class Casino(utils.DSGames):
                 number = random.randint(1, 9999)
                 query = 'INSERT INTO slot(id, amount) VALUES($1, $2)'
                 await conn.execute(query, number, 5000)
-                self.number = number
+                self.winning_number = number
                 self.pot = 5000
 
             else:
-                self.number = cache['id']
+                self.winning_number = cache['id']
                 self.pot = cache['amount']
+
+            amount = (self.pot - 5000) / 1000
+            if amount > 9499:
+                amount = 9499
+
+            while len(self.numbers) != 9999 - amount:
+                number = random.choice(self.numbers)
+                if number != self.winning_number:
+                    self.numbers.remove(number)
 
     @utils.game_channel_only()
     @commands.command(name="slots")
@@ -49,8 +59,8 @@ class Casino(utils.DSGames):
         await self.bot.subtract_iron(ctx.author.id, 1000)
         await self.slot_lock.wait()
 
-        number = random.randint(1, 9999)
-        if number == self.number:
+        number = random.choice(self.numbers)
+        if number == self.winning_number:
             self.slot_lock.clear()
 
             await self.bot.update_iron(ctx.author.id, self.pot)
@@ -63,24 +73,25 @@ class Casino(utils.DSGames):
                 await conn.execute(query, new_number, 5000)
 
             self.pot = 5000
-            self.number = new_number
+            self.winning_number = new_number
             base = "Glückwunsch, du hast `{} Eisen` gewonnen!\nNeue Gewinnzahl: **{}**"
-            msg = base.format(self.pot, self.number)
+            msg = base.format(self.pot, self.winning_number)
             self.slot_lock.set()
 
         else:
             self.pot += 1000
+            self.numbers.remove(number)
 
             query = 'INSERT INTO slot(id, amount) VALUES($1, $2) ' \
                     'ON CONFLICT (id) DO UPDATE SET amount = slot.amount + $2'
 
-            arguments = [(ctx.author.id, 1000), (self.number, 1000)]
+            arguments = [(ctx.author.id, 1000), (self.winning_number, 1000)]
             async with self.bot.ress.acquire() as conn:
                 await conn.executemany(query, arguments)
 
             base = "Leider die falsche Zahl: **{}**\n" \
                    "Aktueller Pot: `{}`\nGewinnzahl: **{}**"
-            msg = base.format(number, utils.seperator(self.pot), self.number)
+            msg = base.format(number, utils.seperator(self.pot), self.winning_number)
 
         async with self.end_game(ctx, time=10):
             await ctx.send(msg)
@@ -173,7 +184,7 @@ class Casino(utils.DSGames):
                     winner, loser = players
                     players.remove(loser)
 
-                    data['amount'] = data['amount'] * 2
+                    data['amount'] *= 2
                     iron = utils.seperator(data['amount'])
                     base = "{}**{}** hat beide Einsätze in Höhe von `{} Eisen` gewonnen."
                     msg = base.format(arena, winner.display_name, iron)
