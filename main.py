@@ -396,8 +396,8 @@ class DSBot(commands.Bot):
 
         return result[0] if amount == 1 else result
 
-    async def fetch_player(self, world, searchable, *, name=False, archive=''):
-        table = f"player{archive}"
+    async def fetch_player(self, world, searchable, *, name=False, archive=None):
+        table = f"player{archive}" if archive else "player"
 
         if name:
             searchable = utils.converter(searchable, True)
@@ -440,7 +440,7 @@ class DSBot(commands.Bot):
 
         return utils.Village(result) if result else None
 
-    async def fetch_both(self, world, searchable, *, name=True, archive=''):
+    async def fetch_both(self, world, searchable, *, name=True, archive=None):
         kwargs = {'name': name, 'archive': archive}
         player = await self.fetch_player(world, searchable, **kwargs)
         if player:
@@ -449,22 +449,18 @@ class DSBot(commands.Bot):
         tribe = await self.fetch_tribe(world, searchable, **kwargs)
         return tribe
 
-    async def fetch_top(self, world, table=None, till=10, balanced=False):
+    async def fetch_top(self, world, table=None, **kwargs):
         dsobj = utils.DSType(table or 0)
-        till = 100 if balanced else till
-        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2 ORDER BY rank'
+        attribute = kwargs.get('attribute', 'rank')
+        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 ORDER BY {attribute} DESC LIMIT $2'
 
         async with self.pool.acquire() as conn:
-            top10 = await conn.fetch(query, world, till)
-            dsobj_list = [dsobj.Class(rec) for rec in top10]
+            top10 = await conn.fetch(query, world, kwargs.get('top'))
 
-        if not balanced:
-            return dsobj_list
-
-        else:
-            cache = sorted(dsobj_list, key=lambda t: t.points, reverse=True)
-            balenciaga = [ds for ds in cache if (cache[0].points / 12) < ds.points]
-            return balenciaga
+            if kwargs.get('dictionary') is True:
+                return {rec[1]: dsobj.Class(rec) for rec in top10}
+            else:
+                return [dsobj.Class(rec) for rec in top10]
 
     async def fetch_tribe_member(self, world, allys, name=False):
         if not isinstance(allys, (tuple, list)):
@@ -478,11 +474,11 @@ class DSBot(commands.Bot):
             res = await conn.fetch(query, world, allys)
             return [utils.Player(rec) for rec in res]
 
-    async def fetch_bulk(self, world, iterable, table=None, *, name=False, dictionary=False):
-        dsobj = utils.DSType(table or 0)
+    async def fetch_bulk(self, world, iterable, table=None, **kwargs):
+        dsobj = utils.DSType(table or 0, archive=kwargs.get('archive'))
         base = f'SELECT * FROM {dsobj.table} WHERE world = $1'
 
-        if not name:
+        if not kwargs.get('name'):
             query = f'{base} AND id = ANY($2)'
         else:
             if dsobj.table == "village":
@@ -498,7 +494,7 @@ class DSBot(commands.Bot):
 
         async with self.pool.acquire() as conn:
             res = await conn.fetch(query, world, iterable)
-            if dictionary:
+            if kwargs.get('dictionary'):
                 return {rec[1]: dsobj.Class(rec) for rec in res}
             else:
                 return [dsobj.Class(rec) for rec in res]

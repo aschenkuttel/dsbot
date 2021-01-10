@@ -195,86 +195,131 @@ class Bash(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name="daily", aliases=["dailytribe"])
-    async def daily_(self, ctx, award_type):
-        award = award_type.lower()
-        award_data = ctx.lang.daily_options.get(award)
+    async def daily_(self, ctx, award_type=None):
+        if award_type is not None:
+            award = award_type.lower()
 
-        if award_data is None:
-            raise MissingRequiredKey(ctx.lang.daily_options)
+            if award not in ctx.lang.daily_options:
+                raise MissingRequiredKey(ctx.lang.daily_options)
+            else:
+                ds_types = [award]
 
+        else:
+            ds_types = ("points", "conquerer", "loser", "basher", "defender")
+
+        amount = 3 if award_type is None else 5
         tribe = ctx.invoked_with.lower() == "dailytribe"
         dstype = utils.DSType('tribe' if tribe else 'player')
+        batch = []
 
         async with self.bot.pool.acquire() as conn:
-            if tribe and award == "unterstützer":
-                query = '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player WHERE ' \
-                        'world = $1 GROUP BY tribe_id ORDER BY sup DESC) ' \
-                        'UNION ALL ' \
-                        '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player1 WHERE ' \
-                        'world = $1 GROUP BY tribe_id ORDER BY sup DESC)'
+            for award in ds_types:
+                award_data = ctx.lang.daily_options.get(award)
 
-                cache = await conn.fetch(query, ctx.server)
-                all_values = {rec['tribe_id']: [] for rec in cache}
-                all_values.pop(0)
+                if tribe and award == "supporter":
+                    query = '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player WHERE ' \
+                            f'world = $1 GROUP BY tribe_id ORDER BY sup DESC LIMIT {amount}) ' \
+                            'UNION ALL ' \
+                            '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player1 WHERE ' \
+                            f'world = $1 GROUP BY tribe_id ORDER BY sup DESC LIMIT {amount})'
 
-                for record in cache:
-                    arguments = list(record.values())
-                    tribe_id = arguments[0]
-                    points = arguments[1]
-                    if tribe_id != 0:
-                        all_values[tribe_id].append(points)
+                    cache = await conn.fetch(query, ctx.server)
+                    all_values = {rec['tribe_id']: [] for rec in cache}
+                    all_values.pop(0)
 
-                value_list = [(k, v) for k, v in all_values.items() if len(v) == 2]
-                value_list.sort(key=lambda tup: tup[1][0] - tup[1][1], reverse=True)
+                    for record in cache:
+                        arguments = list(record.values())
+                        tribe_id = arguments[0]
+                        points = arguments[1]
+                        if tribe_id != 0:
+                            all_values[tribe_id].append(points)
 
-                tribe_ids = [tup[0] for tup in value_list[:5]]
-                kwargs = {'table': dstype.table, 'dictionary': True}
-                tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids, **kwargs)
-                data = [tribes[idc] for idc in tribe_ids]
+                    value_list = [(k, v) for k, v in all_values.items() if len(v) == 2]
+                    value_list.sort(key=lambda tup: tup[1][0] - tup[1][1], reverse=True)
 
+                    tribe_ids = [tup[0] for tup in value_list]
+                    kwargs = {'table': dstype.table, 'dictionary': True}
+                    tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids, **kwargs)
+                    data = [tribes[idc] for idc in tribe_ids]
+
+                else:
+                    base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
+                           'WHERE {0}.world = $1 AND {1}.world = $1 ' \
+                           'ORDER BY ({0}.{2} - {1}.{2}{5}) {3} LIMIT {4}'
+
+                    switch = "ASC" if award in ["loser"] else "DESC"
+                    args = [dstype.table, f"{dstype.table}1",
+                            award_data['value'], switch, amount]
+
+                    if tribe and award in ("loser", "conquerer"):
+                        if award == "loser":
+                            head = " + "
+                        else:
+                            head = " - "
+
+                        member_loss = f"{head}({dstype.table}.member - {dstype.table}1.member)"
+                        args.append(member_loss)
+                    else:
+                        args.append('')
+
+                    query = base.format(*args)
+                    data = await conn.fetch(query, ctx.server)
+
+                ranking = []
+                for record in data:
+                    if isinstance(record, utils.Tribe):
+                        values = all_values[record.id]
+                        cur_value, old_value = values
+                        dsobj = record
+
+                    else:
+                        records = utils.unpack_join(record)
+                        dsobj = dstype.Class(records[0])
+                        old_dsobj = dstype.Class(records[1])
+                        cur_value = getattr(dsobj, award_data['value'], 0)
+                        old_value = getattr(old_dsobj, award_data['value'], 0)
+
+                    if award in ["loser"]:
+                        value = old_value - cur_value
+                    else:
+                        value = cur_value - old_value
+
+                    if tribe and award in ("loser", "conquerer"):
+                        if award == "loser":
+                            value += dsobj.member - old_dsobj.member
+                        else:
+                            value -= dsobj.member - old_dsobj.member
+
+                    if value < 1:
+                        continue
+
+                    item = award_data['item']
+                    if value == 1 and item == "Dörfer":
+                        item = "Dorf"
+
+                    line = f"`{sep(value)} {item}` | {dsobj.guest_mention}"
+                    ranking.append(line)
+
+                if ranking:
+                    title = f"{award_data['title']} des Tages"
+                    body = "\n".join(ranking)
+
+                    if award_type is None:
+                        body = f"**{title}**\n{body}"
+
+                    batch.append(body)
+
+        if batch:
+            world_title = ctx.world.show(plain=True)
+
+            if award_type is None:
+                batch.insert(0, f"**Ranglisten des Tages der {world_title}**")
             else:
-                base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
-                       'WHERE {0}.world = $1 AND {1}.world = $1 ' \
-                       'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
+                batch.insert(0, f"**{award_data['title']} des Tages {world_title}**")
 
-                switch = "ASC" if award in ["verlierer"] else "DESC"
-                query = base.format(dstype.table, f"{dstype.table}1", award_data['value'], switch)
-                data = await conn.fetch(query, ctx.server)
-
-        ranking = []
-        for record in data:
-            if isinstance(record, utils.Tribe):
-                values = all_values[record.id]
-                cur_value, old_value = values
-                dsobj = record
-
-            else:
-                records = utils.unpack_join(record)
-                dsobj = dstype.Class(records[0])
-                old_dsobj = dstype.Class(records[1])
-                cur_value = getattr(dsobj, award_data['value'], 0)
-                old_value = getattr(old_dsobj, award_data['value'], 0)
-
-            if award in ["verlierer"]:
-                value = old_value - cur_value
-            else:
-                value = cur_value - old_value
-
-            if value < 1:
-                continue
-
-            item = award_data['item']
-            if value == 1 and item == "Dörfer":
-                item = "Dorf"
-
-            line = f"`{sep(value)} {item}` | {dsobj.guest_mention}"
-            ranking.append(line)
-
-        if ranking:
-            description = "\n".join(ranking)
-            title = f"{award_data['title']} des Tages ({ctx.world.show(True)})"
+            description = "\n\n".join(batch)
+            embed = discord.Embed(description=description)
             footer = "Daten aufgrund von Inno nur stündlich aktualisiert"
-            embed = discord.Embed(title=title, description=description)
             embed.colour = discord.Color.blue()
             embed.set_footer(text=footer)
 

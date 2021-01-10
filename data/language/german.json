@@ -638,7 +638,12 @@
   },
   "daily_options": {
     "points": {
-      "title": "Wachstumsreichster Spieler",
+      "title": "Wachstum",
+      "value": "points",
+      "item": "Punkte"
+    },
+    "minus": {
+      "title": "Abfall",
       "value": "points",
       "item": "Punkte"
     },

@@ -275,11 +275,14 @@ class DSWorld:
     def __eq__(self, other):
         return self.server == other
 
-    def show(self, clean=False):
-        if clean:
-            return f"{self.title} {self.number}"
+    def show(self, clean=False, plain=True):
+        name = f"{self.title} {self.number}"
+        if clean is True:
+            return name
+        elif plain is True:
+            return f"{name} {self.icon}"
         else:
-            return f"`{self.title} {self.number}` {self.icon}"
+            return f"`{name}` {self.icon}"
 
     @property
     def guest_url(self):
@@ -300,13 +303,15 @@ class DSWorld:
 class DSType:
     classes = {'player': Player, 'tribe': Tribe, 'village': Village, 'map': MapVillage}
 
-    def __init__(self, arg):
+    def __init__(self, arg, archive=None):
         self.arg = arg
         self.Class = None
         self.table = None
         res = self.try_convers(self.arg)
         if not res:
             raise ValueError(f"argument: {self.arg} needs to be either enum or tablename")
+        elif archive:
+            self.table += str(archive)
 
     def try_convers(self, arg):
         if isinstance(arg, int):

@@ -481,7 +481,7 @@ class Map(commands.Cog):
                 return
 
             ds_type = "player" if player else "tribe"
-            ds_objects = await self.bot.fetch_top(ctx.server, ds_type, till=top.value)
+            ds_objects = await self.bot.fetch_top(ctx.server, ds_type, top=top.value)
 
         else:
             all_tribes = []

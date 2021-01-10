@@ -267,8 +267,12 @@ class Listen(commands.Cog):
             clean_cmd = f"{ctx.prefix}{cmd.lower()}"
             result = []
 
-            index = math.ceil(len(error.keys) / 2)
-            batches = utils.show_list(error.keys, "|", index, return_iter=True)
+            if len(error.keys) < 5:
+                batches = ["|".join(error.keys)]
+            else:
+                index = math.ceil(len(error.keys) / 2)
+                batches = utils.show_list(error.keys, "|", index, return_iter=True)#
+
             for batch in batches:
                 result.append(f"`{clean_cmd} <{batch}>`")
 
