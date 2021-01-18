@@ -1,10 +1,12 @@
-from utils import WorldConverter, DSColor, MapVillage, Player, silencer, keyword
 from PIL import Image, ImageFont, ImageDraw
 from discord.ext import commands
 from datetime import datetime
+from zipfile import ZipFile
+from utils import keyword
 import numpy as np
 import discord
 import asyncio
+import utils
 import io
 import re
 
@@ -32,7 +34,7 @@ class MapMenue:
         self.player = []
         self.highlight = 0
         self.bb = True
-        self.color = DSColor()
+        self.color = utils.DSColor()
         self.dead = False
 
     async def setup(self, restart=False):
@@ -127,13 +129,13 @@ class MapMenue:
                         self.tribes = data[:10]
 
                 listen.blacklist.remove(self.ctx.author.id)
-                await silencer(result.delete())
+                await utils.silencer(result.delete())
 
             except asyncio.TimeoutError:
                 return
 
             finally:
-                await silencer(guide_msg.delete())
+                await utils.silencer(guide_msg.delete())
 
         # index 4 highlight: none, mark, label + mark, label
         elif index == 4:
@@ -213,6 +215,7 @@ class MapMenue:
 
 class Map(commands.Cog):
     def __init__(self, bot):
+        self.fuck = None
         self.bot = bot
         self.type = 1
         self.minimum_size = 0
@@ -220,24 +223,14 @@ class Map(commands.Cog):
         self.borderspace = 20
         self.top10_cache = {}
         self.menue_cache = {}
-        self.colors = DSColor()
+        self.colors = utils.DSColor()
         self.max_font_size = 300
         self.img = Image.open(f"{self.bot.data_path}/map.png")
-        user = commands.BucketType.user
-        self._cd = commands.CooldownMapping.from_cooldown(1.0, 60.0, user)
-
-    async def cog_check(self, ctx):
-        bucket = self._cd.get_bucket(ctx.message)
-        retry_after = bucket.update_rate_limit()
-
-        if retry_after:
-            raise commands.CommandOnCooldown(self._cd, retry_after)
-        else:
-            return True
-
-    def reset_cooldown(self, ctx):
-        bucket = self._cd.get_bucket(ctx.message)
-        bucket.reset()
+        self.default_options = {'zoom': [0, 5],
+                                'top': [5, 10, 20],
+                                'player': False,
+                                'label': [0, 2, 3],
+                                'center': (500, 500)}
 
     async def called_per_hour(self):
         self.top10_cache.clear()
@@ -268,8 +261,8 @@ class Map(commands.Cog):
         current.dead = True
         embed = current.message.embeds[0]
         embed.title = f"**Timeout:** Zeitüberschreitung({time}s)"
-        await silencer(current.message.edit(embed=embed))
-        await silencer(current.message.clear_reactions())
+        await utils.silencer(current.message.edit(embed=embed))
+        await utils.silencer(current.message.clear_reactions())
 
     def convert_to_255(self, iterable):
         result = []
@@ -306,18 +299,30 @@ class Map(commands.Cog):
             if self.minimum_size < vil.y < self.maximum_size:
                 y_coords.append(vil.y)
 
+        iterable = [min(x_coords), min(y_coords),
+                    max(x_coords), max(y_coords)]
+        return self.calculate_bounds(iterable, self.borderspace)
+
+    def calculate_bounds(self, iterable, space):
         bounds = []
-        for min_coord in (min(x_coords), min(y_coords)):
-            if (min_coord - self.borderspace) < self.minimum_size:
+
+        if isinstance(space, tuple):
+            min_space, max_space = space
+        else:
+            min_space = space
+            max_space = space
+
+        for min_coord in iterable[:2]:
+            if (min_coord - min_space) < self.minimum_size:
                 bounds.append(self.minimum_size)
             else:
-                bounds.append(min_coord - self.borderspace)
+                bounds.append(min_coord - min_space)
 
-        for max_coord in (max(x_coords), max(y_coords)):
-            if (max_coord + self.borderspace) > self.maximum_size:
+        for max_coord in iterable[2:]:
+            if (max_coord + max_space) > self.maximum_size:
                 bounds.append(self.maximum_size)
             else:
-                bounds.append(max_coord + self.borderspace)
+                bounds.append(max_coord + max_space)
 
         return bounds
 
@@ -330,17 +335,28 @@ class Map(commands.Cog):
             return True
 
     def create_base(self, villages, **kwargs):
-        bounds = self.get_bounds(villages)
-        zoom = kwargs.get('zoom', 0)
-        center = kwargs.get('center', (500, 500))
+        if self.fuck is None:
+            bounds = self.get_bounds(villages)
+            self.fuck = bounds
+        else:
+            bounds = self.fuck
 
-        if zoom != 0:
-            # 1, 2, 3, 4, 5 | 80% ,65%, 50%, 35%, 20%
-            percentages = [0.8, 0.65, 0.5, 0.35, 0.2]
-            length = int((bounds[2] - bounds[0]) * percentages[zoom - 1] / 2)
+        center = kwargs.get('center', (500, 500))
+        zoom = kwargs.get('zoom')
+
+        if zoom or center != (500, 500):
+            if zoom != 0:
+                # 1, 2, 3, 4, 5 | 80% ,65%, 50%, 35%, 20%
+                percentages = [0.8, 0.65, 0.5, 0.35, 0.2]
+                percentage = percentages[zoom - 1]
+            else:
+                percentage = 1
+
+            length = int((bounds[2] - bounds[0]) * percentage / 2)
             shell = {'id': 0, 'player': 0, 'x': center[0], 'y': center[1], 'rank': 0}
-            vil = MapVillage(shell)
-            bounds = [vil.x - length, vil.y - length, vil.x + length, vil.y + length]
+            vil = utils.MapVillage(shell)
+            iterable = [vil.x, vil.y, vil.x, vil.y]
+            bounds = self.calculate_bounds(iterable, length)
 
         with self.img.copy() as cache:
             img = cache.crop(bounds)
@@ -375,7 +391,7 @@ class Map(commands.Cog):
                 continue
 
             font_size = base_size
-            if isinstance(dsobj, Player):
+            if isinstance(dsobj, utils.Player):
                 if not just_player:
                     font_size *= 0.4
                 else:
@@ -391,11 +407,20 @@ class Map(commands.Cog):
             font_width, font_height = image.textsize(str(dsobj), font=font)
             position = [int(centroid[0] - font_width / 2), int(centroid[1] - font_height / 2)]
 
+            fwd = True
             while True:
                 args = [*position, font_width, font_height]
                 response = self.overlap(reservation, *args)
+
                 if response is True:
-                    position[1] -= 5
+                    if fwd:
+                        position[1] -= 5
+                    else:
+                        position[1] += 5
+
+                    if position[1] < self.minimum_size:
+                        fwd = False
+
                 else:
                     reservation.append(response)
                     break
@@ -444,7 +469,9 @@ class Map(commands.Cog):
                 else:
                     color = tribe.color
 
+                # if color != [112, 128, 144]:
                 village_cache[tribe].append([y, x])
+
                 if highlight is True:
                     overlay[y - 6:y + 10, x - 6:x + 10] = color + [75]
 
@@ -459,15 +486,15 @@ class Map(commands.Cog):
 
         # create legacy which is double in size for improved text quality
         if label is True and (tribes or players):
-            self.label_map(result, village_cache, options['zoom'])
+            self.label_map(result, village_cache, options.get('zoom', 0))
 
         self.watermark(result)
         return result
 
+    @commands.cooldown(60, 1, commands.BucketType.guild)
     @commands.command(name="map")
     async def map_(self, ctx, *, arguments=None):
-        options = {'zoom': [0, 5], 'top': [5, 10, 20], 'player': False, 'label': [0, 2, 3]}
-        tribe_names, zoom, top, player, label = keyword(arguments, strip=True, **options)
+        tribe_names, options, = keyword(arguments, strip=True, dct=True, **self.default_options)
 
         await ctx.trigger_typing()
 
@@ -480,8 +507,8 @@ class Map(commands.Cog):
                 await ctx.send(file=discord.File(file, 'map.png'))
                 return
 
-            ds_type = "player" if player else "tribe"
-            ds_objects = await self.bot.fetch_top(ctx.server, ds_type, top=top.value)
+            ds_type = "player" if options['player'] else "tribe"
+            ds_objects = await self.bot.fetch_top(ctx.server, options['top'].value, ds_type)
 
         else:
             all_tribes = []
@@ -535,7 +562,7 @@ class Map(commands.Cog):
             return
 
         ds_dict = {dsobj.id: dsobj for dsobj in ds_objects}
-        if player:
+        if options['player']:
             args = (all_villages, {}, ds_dict)
 
         else:
@@ -543,9 +570,11 @@ class Map(commands.Cog):
             players = {pl.id: pl for pl in result}
             args = (all_villages, ds_dict, players)
 
-        text = label.value in [2, 3]
-        highlight = label.value in [1, 2]
-        kwargs = {'zoom': zoom.value, 'label': text, 'highlight': highlight}
+        zoom = options['zoom'].value
+        center = options['center'].value
+        label = options['label'].value in (2, 3)
+        hightlight = options['label'].value in (1, 2)
+        kwargs = {'zoom': zoom, 'label': label, 'highlight': hightlight, 'center': center}
         file = await self.send_map(ctx, *args, **kwargs)
 
         if arguments is None:
@@ -590,19 +619,18 @@ class Map(commands.Cog):
                 await self.send_map(menue.ctx, *resp[0], **resp[1])
                 menue.dead = True
 
+    @commands.cooldown(60, 1, commands.BucketType.guild)
     @commands.command(name="custom", aliases=["last"])
-    async def custom_(self, ctx, world: WorldConverter = None):
+    async def custom_(self, ctx, world: utils.WorldConverter = None):
         menue = self.menue_cache.get(ctx.author.id)
 
         if menue is not None and menue.dead is False:
             msg = "Du hast bereits eine offene Karte"
-            self.reset_cooldown(ctx)
             return await ctx.send(msg)
 
         elif ctx.invoked_with.lower() == "last":
             if menue is None:
                 msg = "Du hast keine alte Karte mehr im Cache"
-                self.reset_cooldown(ctx)
                 return await ctx.send(msg)
 
             elif menue.is_dead():
@@ -624,6 +652,85 @@ class Map(commands.Cog):
 
         if ctx.message.id == menue.ctx.message.id:
             await self.timeout(ctx.author.id, 600)
+
+    @commands.cooldown(3600, 1, commands.BucketType.guild)
+    @commands.command(name="timelapse")
+    async def timelapse(self, ctx, *, options=None):
+        rest, days = keyword(options, strip=True, days=[7, 7, 60])
+
+        if rest:
+            world = await utils.WorldConverter().convert(ctx, rest)
+            ctx.world = world
+
+        await ctx.send("Daten werden geladen...")
+
+        day_rankings = {}
+        async with self.bot.pool.acquire() as conn:
+            for n in range(1, days.value + 1):
+                query = f'SELECT * FROM tribe{n} WHERE world = $1 ORDER BY rank LIMIT 10'
+                cache = await conn.fetch(query, ctx.server)
+                tribes = {rec[1]: utils.Tribe(rec) for rec in cache}
+
+                query = f'SELECT * FROM player{n} WHERE world = $1 AND tribe_id = ANY($2)'
+                cache = await conn.fetch(query, ctx.server, list(tribes))
+                player = {rec[1]: utils.Player(rec) for rec in cache}
+
+                query = f'SELECT * FROM village{n} WHERE world = $1'
+                cache = await conn.fetch(query, ctx.server)
+                villages = [utils.MapVillage(rec) for rec in cache]
+
+                if len(villages) != 0:
+                    day_rankings[n] = {'village': villages,
+                                       'tribe': tribes,
+                                       'player': player}
+
+        self.bot.loop.create_task(self.zip_task(ctx, day_rankings, days.value))
+        await ctx.send("Bilder werden generiert...")
+
+    async def zip_task(self, ctx, *args):
+        files = await self.bot.execute(self.zip_timelapse, *args)
+        for file in files:
+            await ctx.send(file=file)
+            await asyncio.sleep(2)
+
+    def zip_timelapse(self, day_rankings, last_day):
+        palette = {}
+        colors = self.colors.top()
+
+        for tribe in day_rankings[1]['tribe'].values():
+            palette[tribe.id] = colors.pop(0)
+
+        files = []
+        archive = io.BytesIO()
+        zip_archive = ZipFile(archive, 'w')
+        for day, package in day_rankings.items():
+
+            for tribe in package['tribe'].values():
+                color = palette.get(tribe.id, [112, 128, 144])
+                tribe.color = color
+
+            args = list(package.values())
+            kwargs = {'label': True, 'highlight': True, 'base': True}
+            image = self.draw_map(*args, **kwargs)
+
+            shell = io.BytesIO()
+            image.save(shell, "png", quality=100)
+            image.close()
+            shell.seek(0)
+            zip_archive.writestr(f"day_{day}.png", shell.read())
+
+            if day % 10 == 0 or day == last_day:
+                zip_archive.close()
+                archive.seek(0)
+
+                num = len(files) + 1
+                file = discord.File(archive, f'images_{num}.zip')
+                files.append(file)
+
+                archive = io.BytesIO()
+                zip_archive = ZipFile(archive, 'w')
+
+        return files
 
 
 def setup(bot):
