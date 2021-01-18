@@ -366,11 +366,10 @@ class Map(commands.Cog):
         watermark = Image.new('RGBA', image.size, (255, 255, 255, 0))
         board = ImageDraw.Draw(watermark)
 
-        percentage = int(image.size[0] / self.maximum_size)
-        font = ImageFont.truetype(f'{self.bot.data_path}/water.otf', 150 * percentage)
-        position = image.size[0] - 400 * percentage, image.size[1] - 232 * percentage
+        percentage = image.size[0] / self.maximum_size
+        font = ImageFont.truetype(f'{self.bot.data_path}/water.otf', int(150 * percentage))
+        position = int(image.size[0] - 400 * percentage), int(image.size[1] - 232 * percentage)
         board.text(position, "dsBot", (255, 255, 255, 50), font)
-
         image.paste(watermark, mask=watermark)
         watermark.close()
 
