@@ -21,7 +21,6 @@ class MapMenue:
         '<:old:672862439112441879>',
         '<:button:672910606700904451>',
     ]
-    default_values = [0, "500|500", [], [], 0, True]
 
     def __init__(self, ctx):
         self.ctx = ctx
@@ -81,27 +80,23 @@ class MapMenue:
 
         # index 1,2,3: center, player, tribe
         elif index in (1, 2, 3):
-            values = [self.center, self.player, self.tribes]
+            name = ('center', 'player', 'tribes')[index - 1]
 
-            if values[index - 1] is False:
+            if getattr(self, name) is False:
                 return
+            else:
+                setattr(self, name, False)
 
             listen = self.bot.get_cog('Listen')
             listen.blacklist.append(self.ctx.author.id)
 
             if index == 1:
                 msg = "**Gebe bitte die gewünschte Koordinate an:**"
-                self.center = False
 
             else:
                 obj = "Spieler" if index == 2 else "Stämme"
                 msg = f"**Gebe jetzt bis zu 10 {obj} an:**\n" \
                       f"(Mit neuer Zeile getrennt | Shift Enter)"
-
-                if index == 2:
-                    self.player = False
-                else:
-                    self.tribes = False
 
             guide_msg = await self.ctx.send(msg)
 
@@ -113,20 +108,13 @@ class MapMenue:
 
                 if index == 1:
                     coords = re.findall(r'\d\d\d\|\d\d\d', result.content)
-                    if coords:
-                        self.center = coords[0]
-                    else:
-                        self.center = self.default_values[index]
+                    self.center = coords[0] if coords else "500|500"
 
                 else:
                     iterable = result.content.split("\n")
                     args = (self.ctx.server, iterable, index - 2)
                     data = await self.bot.fetch_bulk(*args, name=True)
-
-                    if index == 2:
-                        self.player = data[:10]
-                    else:
-                        self.tribes = data[:10]
+                    setattr(self, name, data[:10])
 
                 listen.blacklist.remove(self.ctx.author.id)
                 await utils.silencer(result.delete())
