@@ -42,9 +42,9 @@ def converter(name, php=False):
         return unquote_plus(name)
 
 
-def keyword(options, strip=False, **kwargs, ):
+def keyword(options, strip=False, dct=False, **kwargs):
     raw_input = options or ''
-    troops = re.findall(r'[^=\W]{3,}[<=>][^=\W]+', raw_input)
+    troops = re.findall(r'[^=\W]{3,}[<=>][^=\s]+', raw_input)
     cache = {}
 
     for troop in troops:
@@ -57,8 +57,13 @@ def keyword(options, strip=False, **kwargs, ):
 
         orig_key, input_value = troop.split(sign)
         key, value = orig_key.lower(), input_value.lower()
+        coords = re.findall(r'(\d{3})\|(\d{3})', value)
 
-        if input_value.isdigit():
+        if coords:
+            x, y = coords[0]
+            true_value = int(x), int(y)
+
+        elif input_value.isdigit():
             true_value = int(value)
 
         elif value in ["true", "false"]:
@@ -84,8 +89,12 @@ def keyword(options, strip=False, **kwargs, ):
             sign, user_input = input_pkg
 
         new_value = user_input
-        if default_value in [False, True]:
+        if default_value is True or default_value is False:
             if not isinstance(user_input, bool):
+                new_value = default_value
+
+        elif isinstance(default_value, tuple):
+            if not isinstance(user_input, tuple):
                 new_value = default_value
 
         elif isinstance(default_value, list):
@@ -102,16 +111,25 @@ def keyword(options, strip=False, **kwargs, ):
 
         kwargs[argument] = Keyword(new_value, sign)
 
-    keywords = list(kwargs.values())
+    result = []
     if strip:
-        keywords.insert(0, raw_input.strip())
+        result.append(raw_input.strip())
 
-    return keywords
+    if dct:
+        result.append(kwargs)
+    else:
+        values = list(kwargs.values())
+        result.extend(values)
+
+    if len(result) == 1:
+        return result[0]
+    else:
+        return result
 
 
 def parse_integer(user_input, default, boundaries=None):
     if not isinstance(user_input, int):
-        result = default
+        return default
     else:
         result = user_input
 

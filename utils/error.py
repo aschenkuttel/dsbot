@@ -2,9 +2,16 @@ from discord.ext import commands
 
 
 class MissingRequiredKey(commands.CheckFailure):
-    def __init__(self, keys):
+    def __init__(self, keys, arg=None):
         self.keys = list(keys)
+        self.pos_arg = arg
         super().__init__('missing required key')
+
+
+class MissingRequiredArgument(commands.CheckFailure):
+    def __init__(self, argument):
+        self.arg = argument
+        super().__init__('missing required arg')
 
 
 class GameChannelMissing(commands.CheckFailure):

@@ -10,7 +10,6 @@ import aiohttp
 import asyncio
 import random
 import utils
-import json
 import os
 
 
@@ -34,7 +33,6 @@ class DSBot(commands.Bot):
         # internal world cache of active worlds with settings
         self.worlds = {}
         self.members = {}
-        self.active_guilds = set()
         self.config = utils.Config(self)
 
         # tribal wars and user database pools
@@ -168,6 +166,9 @@ class DSBot(commands.Bot):
             await asyncio.sleep(seconds)
             self.logger.debug("loop per hour")
 
+            task_cog = self.get_cog('Tasks')
+            await task_cog.task_engine()
+
             try:
                 async with timeout(120, loop=self.loop):
                     await self._update.wait()
@@ -183,7 +184,7 @@ class DSBot(commands.Bot):
                         await loop()
 
                 except Exception as error:
-                    self.logger.debug(f"{cog.qualified_name} Task Error: {error}")
+                    self.logger.debug(f"{cog.qualified_name} Cog Error: {error}")
 
             self._update.clear()
 
@@ -238,7 +239,13 @@ class DSBot(commands.Bot):
                  '(id BIGINT, guild_id BIGINT, name TEXT, nick TEXT, ' \
                  'last_update TIMESTAMP, PRIMARY KEY (id, guild_id))'
 
-        querys = [reminder, iron, usage, slot, member]
+        tasks = 'CREATE TABLE IF NOT EXISTS tasks' \
+                '(id SERIAL PRIMARY KEY, guild_id BIGINT,' \
+                'channel_id BIGINT, command TEXT,' \
+                'arguments TEXT, time TIME)'
+
+        querys = [reminder, iron, usage,
+                  slot, member, tasks]
 
         async with self.ress.acquire() as conn:
             await conn.execute(";".join(querys))
@@ -449,13 +456,16 @@ class DSBot(commands.Bot):
         tribe = await self.fetch_tribe(world, searchable, **kwargs)
         return tribe
 
-    async def fetch_top(self, world, table=None, **kwargs):
+    async def fetch_top(self, world, top, table=None, **kwargs):
         dsobj = utils.DSType(table or 0)
         attribute = kwargs.get('attribute', 'rank')
-        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 ORDER BY {attribute} DESC LIMIT $2'
+        way = "ASC" if attribute == "rank" else "DESC"
+
+        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 ' \
+                f'ORDER BY {attribute} {way} LIMIT $2'
 
         async with self.pool.acquire() as conn:
-            top10 = await conn.fetch(query, world, kwargs.get('top'))
+            top10 = await conn.fetch(query, world, top)
 
             if kwargs.get('dictionary') is True:
                 return {rec[1]: dsobj.Class(rec) for rec in top10}

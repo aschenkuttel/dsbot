@@ -8,10 +8,8 @@ import json
 import re
 
 twstats = "https://{0.lang}.twstats.com/{0.world}/index.php?page={0.type}&id={0.id}"
-ds_ultimate = "https://www.ds-ultimate.de/{0.lang}/{0.world_number}/{1}/{0.id}"
+ds_ultimate = "https://www.ds-ultimate.de/{0.lang}/{1}/{2}/{0.id}"
 ingame = "https://{}/{}.php?screen=info_{}&id={}"
-
-# https://www.ds-ultimate.de/de/187/player/1576931752
 
 world_title = {'def': "Welt", 'p': "Casual", 'c': "Sonderwelt", 's': "SDS"}
 world_data = {
@@ -69,7 +67,6 @@ class DSObject:
         self.id = data['id']
         self.world = data['world']
         self.lang = self.world[:2]
-        self.world_number = int(self.world[2:])
         self.name = utils.converter(data['name'])
         self.points = data['points']
         self.rank = data['rank']
@@ -103,7 +100,7 @@ class DSObject:
     @property
     def ds_ultimate_url(self):
         dstype = "ally" if self.type == "tribe" else self.type
-        return ds_ultimate.format(self, dstype)
+        return ds_ultimate.format(self, self.world[2:], dstype)
 
     @property
     def mention(self):

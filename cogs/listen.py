@@ -1,5 +1,5 @@
+from discord.ext import commands, tasks
 from PIL import Image, ImageChops
-from discord.ext import commands
 from collections import Counter
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -30,11 +30,28 @@ class Listen(commands.Cog):
                          discord.Forbidden,
                          utils.IngameError,
                          utils.SilentError)
+        self.active_guilds = set()
+        self.guild_timeout.start()
 
     async def called_per_hour(self):
         async with self.bot.ress.acquire() as conn:
             await self.update_usage(conn)
             await self.update_members(conn)
+
+    @tasks.loop(hours=120)
+    async def guild_timeout(self):
+        if self.bot.is_locked():
+            return
+
+        counter = 0
+        for guild in self.bot.guilds:
+            if guild.id not in self.active_guilds:
+                self.bot.config.update('inactive', True, guild.id, bulk=True)
+                counter += 1
+
+        self.bot.config.save()
+        self.active_guilds.clear()
+        logger.debug(f"{counter} inactive guilds")
 
     async def update_usage(self, conn):
         query = 'INSERT INTO usage(name, amount) VALUES($1, $2) ' \
@@ -108,7 +125,7 @@ class Listen(commands.Cog):
             return
 
         guild_id = message.guild.id
-        self.bot.active_guilds.add(guild_id)
+        self.active_guilds.add(guild_id)
 
         world = self.bot.config.get_world(message.channel)
         if world is None:
@@ -237,8 +254,25 @@ class Listen(commands.Cog):
             self.cmd_counter[cmd] += 1
 
     @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        self.active_guilds.add(guild.id)
+
+    @commands.Cog.listener()
     async def on_guild_remove(self, guild):
         self.bot.config.remove_config(guild.id)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel):
+        for config in ('conquer', 'channel'):
+            subconfig = self.bot.config.get(config, channel.guild.id)
+            if subconfig and str(channel.id) in subconfig:
+                subconfig.pop(str(channel.id))
+
+        game_channel_id = self.bot.config.get('game', channel.guild.id)
+        if game_channel_id == channel.id:
+            self.bot.config.remove('game', channel.guild.id, bulk=True)
+
+        self.bot.config.save()
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -259,22 +293,31 @@ class Listen(commands.Cog):
                 await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
                 return
 
-        elif isinstance(error, commands.MissingRequiredArgument):
-            msg = "Dem Command fehlt ein benötigtes Argument"
+        elif isinstance(error, utils.MissingRequiredArgument):
+            msg = f"Dem Command fehlt ein benötigtes Argument"
             tip = True
+
+            if error.arg is not None:
+                msg += f": {error.arg}"
 
         elif isinstance(error, utils.MissingRequiredKey):
             clean_cmd = f"{ctx.prefix}{cmd.lower()}"
+
+            if error.pos_arg:
+                cmd = f"{clean_cmd} <{error.pos_arg}>"
+            else:
+                cmd = clean_cmd
+
             result = []
 
             if len(error.keys) < 5:
                 batches = ["|".join(error.keys)]
             else:
                 index = math.ceil(len(error.keys) / 2)
-                batches = utils.show_list(error.keys, "|", index, return_iter=True)#
+                batches = utils.show_list(error.keys, "|", index, return_iter=True)
 
             for batch in batches:
-                result.append(f"`{clean_cmd} <{batch}>`")
+                result.append(f"`{cmd} <{batch}>`")
 
             msg = "\n".join(result)
             tip = True
