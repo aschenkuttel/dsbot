@@ -22,7 +22,6 @@ def prefix(bot, message):
         return custom
 
 
-# implementation of own class / overwrites
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -39,7 +38,7 @@ class DSBot(commands.Bot):
         self.pool = None
         self.ress = None
 
-        # active connection for discord callback if database fails
+        # active connection listening for database callbacks
         self._conn = None
         self.session = None
 
@@ -109,8 +108,8 @@ class DSBot(commands.Bot):
         else:
             self.update_member(ctx.author)
 
-        server = self.config.get_world(ctx.channel)
-        world = self.worlds.get(server)
+        world_prefix = self.config.get_world(ctx.channel)
+        world = self.worlds.get(world_prefix)
 
         if world:
             ctx.world = world
@@ -123,7 +122,7 @@ class DSBot(commands.Bot):
         if not self._lock.is_set():
             return
 
-        if message.author.bot is True:
+        if message.author.bot:
             return
 
         ctx = await self.get_context(message, cls=utils.DSContext)
@@ -291,6 +290,7 @@ class DSBot(commands.Bot):
 
     def update_member(self, member):
         cache = self.members.get(member.guild.id)
+
         if cache is None:
             cache = self.members[member.guild.id] = {}
 

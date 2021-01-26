@@ -1,6 +1,6 @@
 from utils import complete_embed, error_embed, MissingRequiredKey
 from utils import WorldConverter, DSConverter, WrongChannel
-from discord.ext import commands, tasks
+from discord.ext import commands
 import discord
 import logging
 
@@ -12,7 +12,6 @@ class Config(commands.Cog):
         self.bot = bot
         self.type = 0
         self.config = self.bot.config
-        self.guild_timeout.start()
 
     async def cog_check(self, ctx):
         if ctx.guild is None:
@@ -28,21 +27,6 @@ class Config(commands.Cog):
             raise WrongChannel('conquer')
         else:
             return conquer
-
-    @tasks.loop(hours=120)
-    async def guild_timeout(self):
-        if self.bot.is_locked():
-            return
-
-        counter = 0
-        for guild in self.bot.guilds:
-            if guild.id not in self.bot.active_guilds:
-                self.bot.config.update('inactive', True, guild.id, bulk=True)
-                counter += 1
-
-        self.bot.config.save()
-        self.bot.active_guilds.clear()
-        logger.debug(f"{counter} inactive guilds")
 
     @commands.group(invoke_without_command=True)
     async def set(self, _):
@@ -172,14 +156,17 @@ class Config(commands.Cog):
             await ctx.send(embed=complete_embed(msg))
 
     @remove.command(name="conquer")
-    async def remove_conquer(self, ctx):
+    async def remove_conquer(self, ctx, channel_id=None):
         channels = self.config.get('conquer', ctx.guild.id, {})
+        channel_id = channel_id or str(ctx.channel.id)
 
-        if str(ctx.channel.id) in channels:
-            channels.pop(str(ctx.channel.id))
+        if channel_id in channels:
+            channels.pop(channel_id)
             self.config.save()
 
-            msg = f"{ctx.channel.mention} ist kein Eroberungschannel mehr"
+            channel = ctx.guild.get_channel(int(channel_id))
+            mention = channel.mention if channel else f"{channel_id}"
+            msg = f"{mention} ist nun kein Eroberungschannel mehr"
             await ctx.send(embed=complete_embed(msg))
 
         else:
@@ -250,6 +237,25 @@ class Config(commands.Cog):
         state_str = "aktiv" if not conquer['bb'] else "inaktiv"
         msg = f"Der Filter für Barbarendörfer ist nun {state_str}"
         await ctx.send(embed=complete_embed(msg))
+
+    @conquer.command(name="channel")
+    async def conquer_channel(self, ctx):
+        conquer = self.config.get('conquer', ctx.guild.id)
+
+        if not conquer:
+            embed = error_embed("Der Server hat keine Eroberungschannel")
+        else:
+            conquer_channel = []
+            for channel_id in conquer:
+                channel = ctx.guild.get_channel(int(channel_id))
+                if channel:
+                    conquer_channel.append(channel.mention)
+                else:
+                    conquer_channel.append(f"Deleted Channel ({channel_id})")
+
+            embed = complete_embed("\n".join(conquer_channel))
+
+        await ctx.send(embed=embed)
 
     @conquer.command(name="list")
     async def conquer_list(self, ctx):

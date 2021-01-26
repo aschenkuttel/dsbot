@@ -66,10 +66,7 @@ class Config:
 
         channel_config = config.get('channel', {})
         channel_world = channel_config.get(str(channel.id))
-        if channel_world is None:
-            return main_world
-        else:
-            return channel_world
+        return channel_world or main_world
 
     def get_related_world(self, obj):
         if isinstance(obj, discord.Guild):
@@ -84,9 +81,8 @@ class Config:
             if config is None:
                 return
 
-            chan = config.get('channel')
-            if chan:
-                return chan.get(str(obj.id))
+            chan = config.get('channel', {})
+            return chan.get(str(obj.id))
 
     def remove_world(self, world):
         for config in self._config.values():

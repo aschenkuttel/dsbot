@@ -1,5 +1,5 @@
-from discord.ext import commands, tasks
 from utils import Conquer, silencer
+from discord.ext import commands
 import datetime
 import logging
 import discord
