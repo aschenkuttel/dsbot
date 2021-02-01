@@ -160,14 +160,15 @@ class ConquerLoop(commands.Cog):
                 if conquer.self_conquer:
                     continue
 
-                prior_conquer = conquer_cache[index - 1]
-                if prior_conquer.village_id == conquer.village_id:
+                if index and not conquer.grey_conquer:
+                    prior_conquer = conquer_cache[index - 1]
+                    if prior_conquer.village_id == conquer.village_id:
 
-                    stamp = int(prior_conquer.time.timestamp())
-                    window = list(range(stamp - 5, stamp + 6))
+                        stamp = int(prior_conquer.time.timestamp())
+                        window = list(range(stamp - 5, stamp + 6))
 
-                    if int(conquer.time.timestamp()) in window:
-                        continue
+                        if int(conquer.time.timestamp()) in window:
+                            continue
 
                 conquer.village = villages.get(conquer.village_id)
                 conquer.old_player = players.get(conquer.old_player_id)
@@ -223,13 +224,13 @@ class ConquerLoop(commands.Cog):
                 tribe = f" **{conquer.new_tribe}**" if conquer.new_tribe else ""
                 new = f"{conquer.new_player.mention}{tribe}"
             else:
-                new = "[Barbarendorf]"
+                new = "Barbarendorf"
 
             if conquer.old_player:
                 tribe = f" **{conquer.old_tribe}**" if conquer.old_tribe else ""
                 old = f"{conquer.old_player.mention}{tribe}"
             else:
-                old = "[Barbarendorf]"
+                old = "Barbarendorf"
 
             now = conquer.time.strftime('%H:%M')
             village_hyperlink = f"[{conquer.coords}]({conquer.village.ingame_url})"
