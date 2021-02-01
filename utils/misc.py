@@ -1,4 +1,4 @@
-from utils.error import WrongChannel, GameChannelMissing
+from utils.error import WrongChannel, GameChannelMissing, ArgumentOutOfRange
 from urllib.parse import quote_plus, unquote_plus
 from discord.ext import commands
 from utils import Keyword
@@ -33,13 +33,14 @@ async def silencer(coro):
 
 
 # quote_plus doesn't convert tildes somehow :(
-def converter(name, php=False):
-    if php:
-        encoded = quote_plus(name)
-        encoded = encoded.replace('~', '%7E')
-        return encoded.lower()
-    else:
-        return unquote_plus(name)
+def encode(name):
+    encoded = quote_plus(name)
+    encoded = encoded.replace('~', '%7E')
+    return encoded.lower()
+
+
+def decode(name):
+    return unquote_plus(name)
 
 
 def keyword(options, strip=False, dct=False, **kwargs):
@@ -245,3 +246,8 @@ def sort_list(iterable):
             cache.append(value)
 
     return result
+
+
+def valid_range(value, low, high, item):
+    if not low <= value <= high:
+        raise ArgumentOutOfRange(low, high, item)

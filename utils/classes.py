@@ -7,11 +7,6 @@ import utils
 import json
 import re
 
-twstats = "https://{0.lang}.twstats.com/{0.world}/index.php?page={0.type}&id={0.id}"
-ds_ultimate = "https://www.ds-ultimate.de/{0.lang}/{1}/{2}/{0.id}"
-ingame = "https://{}/{}.php?screen=info_{}&id={}"
-
-world_title = {'def': "Welt", 'p': "Casual", 'c': "Sonderwelt", 's': "SDS"}
 world_data = {
     'de': {'domain': "die-staemme.de", 'icon': ":flag_de:"},
     'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"},
@@ -39,9 +34,9 @@ class DSContext(commands.Context):
         self._world = world
         self.server = world.server
 
-    async def safe_send(self, content=None, *, embed=None, file=None, delete_after=None):
+    async def safe_send(self, *args, **kwargs):
         try:
-            await self.send(content, embed=embed, file=file, delete_after=delete_after)
+            await self.send(*args, **kwargs)
         except discord.Forbidden:
             return
 
@@ -63,11 +58,15 @@ class DSContext(commands.Context):
 
 # default tribal wars classes
 class DSObject:
+    twstats = "https://{0.lang}.twstats.com/{0.world}/index.php?page={0.type}&id={0.id}"
+    ds_ultimate = "https://www.ds-ultimate.de/{0.lang}/{1}/{2}/{0.id}"
+    ingame = "https://{}/{}.php?screen=info_{}&id={}"
+
     def __init__(self, data):
         self.id = data['id']
         self.world = data['world']
         self.lang = self.world[:2]
-        self.name = utils.converter(data['name'])
+        self.name = utils.decode(data['name'])
         self.points = data['points']
         self.rank = data['rank']
 
@@ -95,12 +94,12 @@ class DSObject:
 
     @property
     def twstats_url(self):
-        return twstats.format(self)
+        return self.twstats.format(self)
 
     @property
     def ds_ultimate_url(self):
         dstype = "ally" if self.type == "tribe" else self.type
-        return ds_ultimate.format(self, self.world[2:], dstype)
+        return self.ds_ultimate.format(self, self.world[2:], dstype)
 
     @property
     def mention(self):
@@ -118,7 +117,7 @@ class DSObject:
         url_type = 'guest' if visit else 'game'
         header = f"{self.world}.{world_data[self.lang]['domain']}"
         dstype = "ally" if self.type == "tribe" else self.type
-        return ingame.format(header, url_type, dstype, self.id)
+        return self.ingame.format(header, url_type, dstype, self.id)
 
 
 class Player(DSObject):
@@ -141,7 +140,7 @@ class Tribe(DSObject):
     def __init__(self, data):
         super().__init__(data)
         self.alone = False
-        self.tag = utils.converter(data['tag'])
+        self.tag = utils.decode(data['tag'])
         self.member = data['member']
         self.villages = data['villages']
         self.all_points = data['all_points']
@@ -187,7 +186,7 @@ class MapVillage:
 class Conquer:
     def __init__(self, world, data):
         self.world = world
-        self.id = data[0]
+        self.village_id = data[0]
         self.unix = data[1]
         self.new_player_id = data[2]
         self.old_player_id = data[3]
@@ -205,9 +204,11 @@ class Conquer:
     def coords(self):
         return f"{self.village.x}|{self.village.y}"
 
+    @property
     def grey_conquer(self):
         return self.old_player_id == 0
 
+    @property
     def self_conquer(self):
         return self.old_player_id == self.new_player_id
 
@@ -255,24 +256,34 @@ class DSColor:
 
 
 class DSWorld:
+    world_title = {
+        'def': "Welt",
+        'p': "Casual",
+        'c': "Sonderwelt",
+        's': "SDS"
+    }
+
     def __init__(self, data=None):
         self.server = data['world']
         self.speed = data['speed']
         self.unit_speed = data['unit_speed']
         self.moral = data['moral']
         self.config = json.loads(data['config'])
-        self.lang, self.number, self.title = self.parse(self.server)
+
+        self.lang, self.type, self.number = self.parse(self.server)
+        self.title = self.world_title.get(self.type)
+
         pkg = world_data.get(self.lang)
-        self.icon, self.domain = pkg['icon'], pkg['domain']
+        self.domain, self.icon = pkg.values()
         self.url = f"{self.server}.{self.domain}"
 
     def __str__(self):
-        return self.show()
+        return self.represent()
 
     def __eq__(self, other):
         return self.server == other
 
-    def show(self, clean=False, plain=True):
+    def represent(self, clean=False, plain=True):
         name = f"{self.title} {self.number}"
         if clean is True:
             return name
@@ -293,8 +304,7 @@ class DSWorld:
     def parse(argument):
         result = re.findall(r'([a-z]{2})([a-z]?)(\d+)', argument)
         lang, world_type, number = result[0]
-        title = world_title.get(world_type or 'def')
-        return lang, int(number), title
+        return lang, world_type or "def", int(number)
 
 
 class DSType:
@@ -361,7 +371,7 @@ class DSGames(commands.Cog):
         return True
 
     @asynccontextmanager
-    async def end_game(self, ctx, time=15):
+    async def end_game(self, ctx, time=10):
         container = self.get_container(ctx)
         if isinstance(container, list):
             container.append(ctx.guild.id)

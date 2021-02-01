@@ -22,6 +22,9 @@ class ConquerLoop(commands.Cog):
     # main loop called from main
     async def called_per_hour(self):
         await self.update_conquer()
+        unix = self.bot.get_seconds(added_hours=-1, timestamp=True)
+        date = datetime.datetime.fromtimestamp(unix)
+        date_string = date.strftime('%d.%m.%Y')
 
         counter = 0
         for guild in self.bot.guilds:
@@ -29,13 +32,15 @@ class ConquerLoop(commands.Cog):
             if inactive is True:
                 continue
 
-            resp = await self.conquer_feed(guild)
+            resp = await self.conquer_feed(guild, date_string)
             if resp is True:
                 counter += 1
 
+            await asyncio.sleep(0.5)
+
         logger.debug(f"conquer feed complete ({counter} guilds)")
 
-    async def conquer_feed(self, guild):
+    async def conquer_feed(self, guild, date_string):
         conquer = self.bot.config.get('conquer', guild.id)
         if not conquer:
             return
@@ -43,37 +48,33 @@ class ConquerLoop(commands.Cog):
         response = False
         for channel_id, conquer_config in conquer.items():
             channel = guild.get_channel(int(channel_id))
-            if not channel:
+            if channel is None:
                 continue
 
             world = self.bot.config.get_world(channel)
-            if not world:
+            if world is None:
                 continue
 
             data = await self.conquer_parse(world, conquer_config)
             if not data:
                 continue
 
-            date, conquer_feed = data
-            if not conquer_feed:
-                continue
-
             response = True
             conquer_pkg = []
-            embed = discord.Embed(title=date)
-            conquer_feed.append("")
+            data.append("")
+            title = f"Eroberungen am {date_string}"
+            embed = discord.Embed(title=title)
 
-            for line in conquer_feed:
+            for line in data:
 
                 if len(embed.fields) == 4 or not line:
 
                     if not conquer_pkg or len(embed.fields) == 4:
                         await silencer(channel.send(embed=embed))
                         embed = discord.Embed()
-                        await asyncio.sleep(1)
 
                     else:
-                        conquer_feed.append("")
+                        data.append("")
 
                 cache = "\n".join(conquer_pkg)
                 length = len(embed.description)
@@ -107,15 +108,15 @@ class ConquerLoop(commands.Cog):
         return response
 
     async def update_conquer(self):
+        old_unix = self.bot.get_seconds(added_hours=0, timestamp=True)
+        sec = self.bot.get_seconds(added_hours=-1)
+
         for world, world_obj in self.bot.worlds.items():
 
-            if "s" in world:
+            if world_obj.type == "s":
                 continue
 
-            self._conquer[world] = []
-
             try:
-                sec = self.bot.get_seconds(added_hours=-1)
                 data = await self.fetch_conquer(world_obj, sec)
             except Exception as error:
                 logger.warning(f"{world} skipped: {error}")
@@ -134,14 +135,13 @@ class ConquerLoop(commands.Cog):
             player_ids = []
             village_ids = []
             conquer_cache = []
-            old_unix = self.bot.get_seconds(added_hours=0, timestamp=True)
 
             for entry in cache:
                 vil_id, unix_time, new_owner, old_owner = entry
 
                 # skips conquers after conquer timeframe which
                 # would count for the next iteration
-                if unix_time > old_unix:
+                if unix_time >= old_unix:
                     continue
 
                 village_ids.append(vil_id)
@@ -157,19 +157,19 @@ class ConquerLoop(commands.Cog):
 
             conquer_cache.reverse()
             for index, conquer in enumerate(conquer_cache):
-                if conquer.self_conquer():
+                if conquer.self_conquer:
                     continue
 
-                last = conquer_cache[index - 1]
-                if last.id == conquer.id and not last.self_conquer():
+                prior_conquer = conquer_cache[index - 1]
+                if prior_conquer.village_id == conquer.village_id:
 
-                    stamp = int(last.time.timestamp())
+                    stamp = int(prior_conquer.time.timestamp())
                     window = list(range(stamp - 5, stamp + 6))
 
                     if int(conquer.time.timestamp()) in window:
                         continue
 
-                conquer.village = villages.get(conquer.id)
+                conquer.village = villages.get(conquer.village_id)
                 conquer.old_player = players.get(conquer.old_player_id)
                 conquer.new_player = players.get(conquer.new_player_id)
 
@@ -195,8 +195,8 @@ class ConquerLoop(commands.Cog):
         if not data:
             return
 
+        bb_conquer = config.get('bb')
         filter_ids = {}
-        bbs = config.get('bb')
 
         tribe_filter = config.get('tribe')
         if tribe_filter:
@@ -208,14 +208,13 @@ class ConquerLoop(commands.Cog):
             players = await self.bot.fetch_bulk(world, player_filter)
             filter_ids.update({obj.id: obj for obj in players})
 
-        date = None
         result = []
         for conquer in data:
 
             if filter_ids and not bool(set(filter_ids) & set(conquer.player_ids)):
                 continue
 
-            if not bbs and conquer.grey_conquer():
+            if not bb_conquer and conquer.grey_conquer:
                 continue
 
             if not conquer.village:
@@ -241,10 +240,10 @@ class ConquerLoop(commands.Cog):
 
                 old = f"{old.mention} {tribe}"
 
-            date, now = conquer.time.strftime('%d-%m-%Y'), conquer.time.strftime('%H:%M')
+            now = conquer.time.strftime('%H:%M')
             result.append(f"``{now}`` | {new} adelt {village_hyperlink} von {old}")
 
-        return date, result
+        return result
 
 
 def setup(bot):
