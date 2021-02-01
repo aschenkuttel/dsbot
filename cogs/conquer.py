@@ -210,7 +210,6 @@ class ConquerLoop(commands.Cog):
 
         result = []
         for conquer in data:
-
             if filter_ids and not bool(set(filter_ids) & set(conquer.player_ids)):
                 continue
 
@@ -220,27 +219,20 @@ class ConquerLoop(commands.Cog):
             if not conquer.village:
                 continue
 
-            old = conquer.old_player or "[Barbarendorf]"
-            new = conquer.new_player or "[Barbarendorf]"
-            village_hyperlink = f"[{conquer.coords}]({conquer.village.ingame_url})"
-
             if conquer.new_player:
-                if conquer.new_tribe:
-                    tribe = f"**{conquer.new_tribe}**"
-                else:
-                    tribe = "**N/A**"
-
-                new = f"{new.mention} {tribe}"
+                tribe = f" **{conquer.new_tribe}**" if conquer.new_tribe else ""
+                new = f"{conquer.new_player.mention}{tribe}"
+            else:
+                new = "[Barbarendorf]"
 
             if conquer.old_player:
-                if conquer.old_tribe:
-                    tribe = f" **{conquer.old_tribe}**"
-                else:
-                    tribe = "**N/A**"
-
-                old = f"{old.mention} {tribe}"
+                tribe = f" **{conquer.old_tribe}**" if conquer.old_tribe else ""
+                old = f"{conquer.old_player.mention}{tribe}"
+            else:
+                old = "[Barbarendorf]"
 
             now = conquer.time.strftime('%H:%M')
+            village_hyperlink = f"[{conquer.coords}]({conquer.village.ingame_url})"
             result.append(f"``{now}`` | {new} adelt {village_hyperlink} von {old}")
 
         return result
