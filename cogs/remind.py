@@ -23,6 +23,7 @@ class Timer:
     def from_arguments(cls, bot, arguments):
         self = cls.__new__(cls)
         self.bot = bot
+        self.id = 0
         self.author_id, self.channel_id = arguments[:2]
         self.creation, self.expiration = arguments[2:4]
         self.reason = arguments[4]
@@ -56,8 +57,8 @@ class Reminder(commands.Cog):
         self.bot = bot
         self.type = 2
         self.char_limit = 200
-        self.preset = "%d/%m/%Y | %H:%M:%S Uhr"
         self.set = {'PREFER_DATES_FROM': 'future'}
+        self.preset = "%d.%m.%Y | %H:%M:%S Uhr"
         self._task = self.bot.loop.create_task(self.remind_loop())
         self._lock = asyncio.Event(loop=bot.loop)
         self.current_reminder = None
@@ -117,15 +118,19 @@ class Reminder(commands.Cog):
     async def remind(self, ctx, *, argument: commands.clean_content):
         args = argument.split("\n")
         time = args.pop(0)
+
         if args:
             reason = "\n".join(args).strip()[:self.char_limit]
         else:
             reason = "Kein Grund angegeben"
 
-        expected_date = dateparser.parse(time, settings=self.set)
+        kwargs = {'locales': ["de-BE"], 'settings': self.set}
+        expected_date = dateparser.parse(time, **kwargs)
+
         if expected_date is None:
             msg = "Es konnte kein gültiges Zeitformat erkannt werden"
-            return await ctx.send(embed=utils.error_embed(msg))
+            await ctx.send(embed=utils.error_embed(msg))
+            return
 
         current_date = datetime.now()
         difference = (expected_date - current_date).total_seconds()
@@ -137,7 +142,8 @@ class Reminder(commands.Cog):
 
         if difference < 0:
             msg = "Der Zeitpunkt ist bereits vergangen"
-            return await ctx.send(embed=utils.error_embed(msg))
+            await ctx.send(embed=utils.error_embed(msg))
+            return
 
         arguments = [ctx.author.id, ctx.channel.id, current_date, expected_date, reason]
         reminder = Timer.from_arguments(self.bot, arguments)

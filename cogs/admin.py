@@ -17,6 +17,19 @@ class Admin(commands.Cog):
         else:
             raise commands.MissingPermissions(['administrator'])
 
+    @commands.command(name="enable")
+    async def enable_(self, ctx):
+        inactive = self.bot.config.get('inactive', ctx.guild.id)
+        if inactive is True:
+            self.bot.config.remove('inactive', ctx.guild.id)
+            msg = "Der Server ist nun wieder als aktiv marktiert"
+            embed = utils.complete_embed(msg)
+        else:
+            msg = "Der Server ist bereits aktiv"
+            embed = utils.error_embed(msg)
+
+        await ctx.send(embed=embed)
+
     @commands.group(name="reset", invoke_without_command=True)
     async def reset(self, ctx):
         msg = f"`{ctx.prefix} <game|conquer|config>`"

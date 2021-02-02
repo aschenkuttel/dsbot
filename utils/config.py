@@ -4,9 +4,8 @@ import json
 
 class Config:
     def __init__(self, bot):
-        self.bot = bot
         self._config = {}
-        self.path = f"{self.bot.data_path}/config.json"
+        self.path = f"{bot.data_path}/config.json"
         self.setup()
 
     def setup(self):
@@ -120,11 +119,11 @@ class Config:
 
     def get_prefix(self, guild_id):
         config = self._config.get(guild_id)
-        default = self.bot.default_prefix
+
         if config is None:
-            return default
+            return
         else:
-            return config.get('prefix', default)
+            return config.get('prefix')
 
     def get_conquer(self, ctx):
         conquer = self.get('conquer', ctx.guild.id)

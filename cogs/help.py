@@ -8,8 +8,12 @@ class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cache = {}
-        self.categories = ["Administratives", "Stämme Features",
-                           "Utilities and Fun", "Minigames"]
+        self.categories = [
+            "Administratives",
+            "Stämme Features",
+            "Utilities and Fun",
+            "Minigames"
+        ]
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -111,9 +115,7 @@ class Help(commands.Cog):
         return emb
 
     async def send_embed(self, ctx, embed):
-        pin = "pin" in ctx.message.content.lower()
-
-        if pin is True:
+        if "pin" in ctx.message.content:
             await ctx.send(embed=embed)
 
         else:
@@ -185,6 +187,17 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
+    @help.command(name="enable")
+    async def enable_(self, ctx):
+        title = ["enable"]
+        cmd_type = "Admin Command"
+        cmd_inp = ["enable"]
+        example = ["enable"]
+
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
     @help.command(name="remove")
     async def remove_(self, ctx):
         title = ["remove"]
@@ -192,10 +205,12 @@ class Help(commands.Cog):
         cmd_inp = ["remove channelworld",
                    "remove game",
                    "remove conquer",
+                   "remove conquer <channel_id>",
                    "remove prefix"]
         example = ["remove channelworld",
                    "remove game",
                    "remove conquer",
+                   "remove conquer 123456789",
                    "remove prefix"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
@@ -250,10 +265,16 @@ class Help(commands.Cog):
         cmd_type = "Server Command"
         cmd_inp = ["map",
                    "map <tribe> <tribe> <tribe>",
-                   "map <tribe> <tribe> & <tribe> <tribe>"]
+                   "map <tribe> <tribe> & <tribe> <tribe>",
+                   "map <top=5-20> <player=true/false>",
+                   "map <label=0-3> <center=coord> <zoom=0-5>",
+                   "map <tribe> & <tribe> <tribe> <label=0-3>"]
         example = ["map",
-                   "map <300> <W-Inc>",
-                   "map 300 W-Inc & SPARTA"]
+                   "map 300 W-Inc",
+                   "map 300 W-Inc & SPARTA",
+                   "map top=5 player=true",
+                   "map center=450|450 zoom=3 label=0",
+                   "map 300 & W-Inc SPARTA label=3"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
@@ -363,8 +384,12 @@ class Help(commands.Cog):
     async def inactive_(self, ctx):
         title = ["inactive", "graveyard"]
         cmd_type = "Server Command"
-        cmd_inp = ["inactive <coord> <radius=10, points=none, since=3, tribe=none>"]
-        example = ["inactive 500|500 radius=20 since=7",
+        cmd_inp = ["inactive <coord>",
+                   "inactive <coord> <radius=1-25> <since=1-14>",
+                   "inactive <coord> <radius=1-25> <points<=>yourvalue>",
+                   "inactive <coord> <tribe=true/false>"]
+        example = ["inactive 500|500",
+                   "inactive 500|500 radius=20 since=7",
                    "inactive 500|500 radius=5 points<500",
                    "inactive 500|500 tribe=true"]
         data = title, cmd_type, cmd_inp, example
@@ -375,7 +400,7 @@ class Help(commands.Cog):
     async def villages_(self, ctx):
         title = ["villages"]
         cmd_type = "Server Command"
-        cmd_inp = ["villages <amount> <playername/tribename> <optional continent>"]
+        cmd_inp = ["villages <amount> <playername/tribename>"]
         example = ["villages 20 madberg",
                    "villages all madberg k55"]
         data = title, cmd_type, cmd_inp, example
@@ -386,9 +411,13 @@ class Help(commands.Cog):
     async def bb_(self, ctx):
         title = ["bb"]
         cmd_type = "Server Command"
-        cmd_inp = ["bb <coord> <options>"]
+        cmd_inp = ["bb <coord>",
+                   "bb <coord> <radius=1-25>",
+                   "bb <coord> <radius=1-25> <points<=>yourvalue>"]
         example = ["bb 555|555",
-                   "bb 555|555 radius=50 points=100"]
+                   "bb 555|555 radius=25",
+                   "bb 555|555 radius=20 points<100",
+                   "bb 555|555 radius=10 points>200"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
@@ -492,18 +521,6 @@ class Help(commands.Cog):
         cmd_type = "Server Command"
         cmd_inp = ["duali <discord username>"]
         example = ["duali Neel x Kutte"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="mirror")
-    async def mirror_(self, ctx):
-        title = ["mirror"]
-        cmd_type = "Server Command"
-        cmd_inp = ["mirror",
-                   "mirror <discord username>"]
-        example = ["mirror",
-                   "mirror mettberg"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)

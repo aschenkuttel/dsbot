@@ -66,6 +66,7 @@ class Casino(utils.DSGames):
             await self.bot.update_iron(ctx.author.id, self.pot)
 
             new_number = random.randint(1, 9999)
+            self.numbers = list(range(1, 10000))
             query = 'INSERT INTO slot(id, amount) VALUES($1, $2);'
 
             async with self.bot.ress.acquire() as conn:
@@ -93,7 +94,7 @@ class Casino(utils.DSGames):
                    "Aktueller Pot: `{}`\nGewinnzahl: **{}**"
             msg = base.format(number, utils.seperator(self.pot), self.winning_number)
 
-        async with self.end_game(ctx, time=10):
+        async with self.end_game(ctx):
             await ctx.send(msg)
 
     @utils.game_channel_only()
@@ -129,9 +130,7 @@ class Casino(utils.DSGames):
 
         if isinstance(argument, int):
             if not data:
-                if not 1000 <= argument <= 500000:
-                    raise utils.InvalidBet(1000, 500000)
-
+                utils.valid_range(argument, 1000, 500000, "bet")
                 await self.bot.subtract_iron(ctx.author.id, argument)
 
                 stamp = ctx.message.created_at.timestamp()

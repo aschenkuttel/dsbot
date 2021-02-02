@@ -1,6 +1,6 @@
 from PIL import Image, ImageFont, ImageDraw
+from datetime import datetime, timedelta
 from discord.ext import commands
-from datetime import datetime
 from zipfile import ZipFile
 from utils import keyword
 import numpy as np
@@ -203,7 +203,6 @@ class MapMenue:
 
 class Map(commands.Cog):
     def __init__(self, bot):
-        self.fuck = None
         self.bot = bot
         self.type = 1
         self.minimum_size = 0
@@ -211,6 +210,7 @@ class Map(commands.Cog):
         self.borderspace = 20
         self.top10_cache = {}
         self.menue_cache = {}
+        self.bound_cache = {}
         self.colors = utils.DSColor()
         self.max_font_size = 300
         self.img = Image.open(f"{self.bot.data_path}/map.png")
@@ -222,6 +222,7 @@ class Map(commands.Cog):
 
     async def called_per_hour(self):
         self.top10_cache.clear()
+
         for key in self.menue_cache.copy():
             menue = self.menue_cache[key]
             now = datetime.utcnow()
@@ -323,11 +324,14 @@ class Map(commands.Cog):
             return True
 
     def create_base(self, villages, **kwargs):
-        if self.fuck is None:
+        base_id = kwargs.get('base')
+        bounds = self.bound_cache.get(base_id)
+
+        if bounds is None:
             bounds = self.get_bounds(villages)
-            self.fuck = bounds
-        else:
-            bounds = self.fuck
+
+            if base_id is not None:
+                self.bound_cache[base_id] = bounds
 
         center = kwargs.get('center', (500, 500))
         zoom = kwargs.get('zoom')
@@ -473,7 +477,8 @@ class Map(commands.Cog):
 
         # create legacy which is double in size for improved text quality
         if label is True and (tribes or players):
-            self.label_map(result, village_cache, options.get('zoom', 0))
+            zoom = options.get('zoom', 0)
+            self.label_map(result, village_cache, zoom)
 
         self.watermark(result)
         return result
@@ -570,37 +575,28 @@ class Map(commands.Cog):
             file.close()
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, *args):
-        await self.menue_handler(args)
+    async def on_raw_reaction_add(self, payload):
+        await self.menue_handler(payload)
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, *args):
-        await self.menue_handler(*args)
+    async def on_raw_reaction_remove(self, payload):
+        await self.menue_handler(payload)
 
     async def menue_handler(self, payload):
-        if isinstance(payload, tuple):
-            message_id = payload[0].message.id
-            user_id = payload[1].id
-            emoji = payload[0].emoji
-        else:
-            message_id = payload.message_id
-            user_id = payload.user_id
-            emoji = payload.emoji
-
-        if user_id == self.bot.user.id:
+        if payload.user_id == self.bot.user.id:
             return
 
-        menue = self.menue_cache.get(user_id)
+        menue = self.menue_cache.get(payload.user_id)
         if menue is None:
             return
 
-        elif message_id != menue.message.id:
+        elif payload.message_id != menue.message.id:
             return
 
         else:
-            resp = await menue.change(str(emoji))
+            resp = await menue.change(str(payload.emoji))
             if resp is None:
-                await self.timeout(user_id, 300)
+                await self.timeout(payload.user_id, 300)
 
             elif isinstance(resp, tuple):
                 await self.send_map(menue.ctx, *resp[0], **resp[1])
@@ -640,7 +636,7 @@ class Map(commands.Cog):
         if ctx.message.id == menue.ctx.message.id:
             await self.timeout(ctx.author.id, 600)
 
-    @commands.cooldown(3600, 1, commands.BucketType.guild)
+    @commands.cooldown(1800, 1, commands.BucketType.guild)
     @commands.command(name="timelapse")
     async def timelapse(self, ctx, *, options=None):
         rest, days = keyword(options, strip=True, days=[7, 7, 60])
@@ -678,7 +674,7 @@ class Map(commands.Cog):
         files = await self.bot.execute(self.zip_timelapse, *args)
         for file in files:
             await ctx.send(file=file)
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
 
     def zip_timelapse(self, day_rankings, last_day):
         palette = {}
@@ -690,33 +686,38 @@ class Map(commands.Cog):
         files = []
         archive = io.BytesIO()
         zip_archive = ZipFile(archive, 'w')
-        for day, package in day_rankings.items():
+        today = datetime.now()
+
+        for index, (day, package) in enumerate(day_rankings.items(), start=1):
 
             for tribe in package['tribe'].values():
                 color = palette.get(tribe.id, [112, 128, 144])
                 tribe.color = color
 
             args = list(package.values())
-            kwargs = {'label': True, 'highlight': True, 'base': True}
+            kwargs = {'label': True, 'highlight': True, 'base': today.timestamp()}
             image = self.draw_map(*args, **kwargs)
 
             shell = io.BytesIO()
             image.save(shell, "png", quality=100)
             image.close()
             shell.seek(0)
-            zip_archive.writestr(f"day_{day}.png", shell.read())
+
+            date = today - timedelta(days=index)
+            date_pars = date.strftime('%d.%m.%Y')
+            zip_archive.writestr(f"{date_pars}.png", shell.read())
 
             if day % 10 == 0 or day == last_day:
                 zip_archive.close()
                 archive.seek(0)
 
-                num = len(files) + 1
-                file = discord.File(archive, f'images_{num}.zip')
+                file = discord.File(archive, f'images_{len(files) + 1}.zip')
                 files.append(file)
 
                 archive = io.BytesIO()
                 zip_archive = ZipFile(archive, 'w')
 
+        self.bound_cache.pop(today.timestamp())
         return files
 
 

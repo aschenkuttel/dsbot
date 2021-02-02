@@ -169,8 +169,7 @@ class Poker(utils.DSGames):
     @utils.game_channel_only()
     @commands.command(name="videopoker", aliases=["vp"])
     async def videopoker_(self, ctx, bet: int = 2000):
-        if not 100 <= bet <= 2000:
-            raise utils.InvalidBet(100, 2000)
+        utils.valid_range(bet, 100, 2000, "bet")
 
         data = self.get_game_data(ctx)
         if data:
@@ -247,8 +246,7 @@ class Poker(utils.DSGames):
     @utils.game_channel_only()
     @commands.command(name="blackjack", aliases=["bj"])
     async def blackjack_(self, ctx, bet: int = 50000):
-        if not 100 <= bet <= 50000:
-            raise utils.InvalidBet(100, 50000)
+        utils.valid_range(bet, 100, 50000, "bet")
 
         game = self.get_game_data(ctx)
         if game is not None:

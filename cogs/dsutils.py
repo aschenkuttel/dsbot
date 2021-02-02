@@ -8,7 +8,6 @@ from datetime import datetime
 import pandas as pd
 import discord
 import utils
-import math
 import re
 import io
 
@@ -101,10 +100,16 @@ class Utils(commands.Cog):
                       'paladin': "knight",
                       'ag': "snob"}
 
-        self.yada = {'all_bash': "ALL",
-                     'att_bash': "OFF",
-                     'def_bash': "DEF",
-                     'sup_bash': "SUP"}
+        self.bash_names = {'all_bash': "ALL",
+                           'att_bash': "OFF",
+                           'def_bash': "DEF",
+                           'sup_bash': "SUP"}
+
+        self.same_scavenge_2 = (0.714285, 0.285714)
+        self.same_scavenge_3 = (0.625, 0.25, 0.125)
+        self.same_scavenge_4 = (0.5765, 0.231, 0.1155, 0.077)
+        # self.best_scavenge_4 = (0.223, 0.244, 0.261, 0.272)
+        # (((factor * loot) ** 2 * 100) ** 0.45 + 1800) * 0.8845033719
 
     async def called_per_hour(self):
         now = datetime.utcnow()
@@ -205,7 +210,7 @@ class Utils(commands.Cog):
 
     @commands.command(name="members")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def members_(self, ctx, tribe: utils.DSConverter("tribe"), url_type="ingame"):
+    async def members_(self, ctx, tribe: utils.DSConverter('tribe'), url_type="ingame"):
         members = await self.bot.fetch_tribe_member(ctx.server, tribe.id)
         sorted_members = sorted(members, key=lambda obj: obj.rank)
 
@@ -248,10 +253,10 @@ class Utils(commands.Cog):
         self.active_pager[msg.id] = pager
         await pager.add_buttons()
 
-    @commands.command(name="rundmail", aliases=["rm"])
+    @commands.command(name="circular", aliases=["rm"])
     async def rundmail_(self, ctx, *tribes: str):
         if not tribes:
-            raise commands.MissingRequiredArgument
+            raise utils.MissingRequiredArgument("tribes")
 
         if len(tribes) > 10:
             msg = "Nur bis zu `10 Stämme` aufgrund der maximalen Zeichenlänge"
@@ -287,7 +292,7 @@ class Utils(commands.Cog):
             data = [ds_type.Class(rec) for rec in records]
             data.reverse()
 
-        rows = [f"**{dsobj.name}** | {ctx.world.show(True)} {ctx.world.icon}"]
+        rows = [f"**{dsobj.name}** | {ctx.world.represent(True)} {ctx.world.icon}"]
 
         urls = []
         for url_type in ["ingame", "guest", "twstats", "ds_ultimate"]:
@@ -324,7 +329,7 @@ class Utils(commands.Cog):
                 rank_stat = f"{stat.split('_')[0]}_rank"
                 rank_value = getattr(dsobj, rank_stat)
 
-            stat_title = self.yada[stat]
+            stat_title = self.bash_names[stat]
             represent = f"{stat_title}: `{sep(value)}`"
 
             if rank_value:
@@ -402,7 +407,7 @@ class Utils(commands.Cog):
         if world is None:
             world = ctx.world
 
-        description = f"[{world.show(True)}]({world.guest_url})"
+        description = f"[{world.represent(True)}]({world.guest_url})"
         await ctx.send(embed=discord.Embed(description=description))
 
     @commands.command(name="quickbar", aliases=["sl"])
@@ -453,37 +458,34 @@ class Utils(commands.Cog):
         if ctx.guild is not None:
             await ctx.private_hint()
 
-    @commands.command(name="scavenge", aliases=["rz"])
+    @commands.command(name="scavenge", aliases=["rz", "rz2", "rz3", "rz4"])
     async def scavenge_(self, ctx, *args: int):
-        if len(args) > 7:
-            msg = "Das Maximum von 7 verschiedenen Truppentypen wurde überschritten"
-            return await ctx.send(msg)
-
-        three = ctx.invoked_with.lower() == "rz3"
-
-        sca1, sca2, sca3, sca4 = [], [], [], []
-        if three:
-            for element in args:
-                sca1.append(str(math.floor((5 / 8) * element)))
-                sca2.append(str(math.floor((2 / 8) * element)))
-                sca3.append(str(math.floor((1 / 8) * element)))
+        last = ctx.invoked_with[-1]
+        if last.isdigit():
+            factors = getattr(self, f"same_scavenge_{last}")
         else:
-            for element in args:
-                sca1.append(str(math.floor(0.5765 * element)))
-                sca2.append(str(math.floor(0.23 * element)))
-                sca3.append(str(math.floor(0.1155 * element)))
-                sca4.append(str(math.floor(0.077 * element)))
+            factors = getattr(self, "same_scavenge_4")
 
-        cache = []
-        for index, ele in enumerate([sca1, sca2, sca3, sca4]):
-            cache.append(f"**Raubzug {index + 1}:** `[{', '.join(ele)}]`")
-        em = discord.Embed(description='\n'.join(cache))
-        await ctx.send(embed=em)
+        scavenge_batches = ([], [], [], [])
+
+        for troop_amount in args[:10]:
+            for index, appendix in enumerate(factors):
+                troops = str(round(appendix * troop_amount))
+                scavenge_batches[index].append(troops)
+
+        result = []
+        for index, troops in enumerate(scavenge_batches, start=1):
+            if troops:
+                troop_str = ", ".join(troops)
+                result.append(f"`Raubzug {index}:` **[{troop_str}]**")
+
+        embed = discord.Embed(description="\n".join(result))
+        await ctx.send(embed=embed)
 
     @commands.command(name="settings")
     async def settings_(self, ctx, world: utils.WorldConverter = None):
         world = world or ctx.world
-        title = f"Settings der {world.show(clean=True)} {world.icon}"
+        title = f"Settings der {world.represent(clean=True)} {world.icon}"
         embed = discord.Embed(title=title, url=world.settings_url)
 
         cache = []

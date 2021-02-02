@@ -727,5 +727,31 @@
     "videopoker": "Du erhältst 5 Karten aus einem klassischen Karten-Set. Nun hast du die Möglichkeit einmal Karten auszutauschen um einer der typischen Pokerhände zu bekommen. Man spielt um einen gewünschten Einsatz, der je nach Hand einen immer größeren Gewinn ergibt",
     "dice": "Starte ein 1vs1 Würfelspiel, das größere Auge gewinnt beide Einsätze, bei Unentschieden erhalten beide den Einsatz zurück",
     "iron": "Beim Gewinnen der meisten Spiele erhält man Eisen. Hiermit kann man sich seinen Speicher anzeigen lassen, die serverinterne Rangliste, seine aktuelle Position + die seiner Nachbarn, die globale Top 5 oder anderen Spielern Eisen schicken"
+  },
+  "commands": {
+    "recap": [
+      [
+        "Punkte verloren,",
+        "Punkte gemacht,"
+      ],
+      [
+        "Dörfer verschenkt und",
+        "Dörfer geholt und"
+      ],
+      [
+        "Bashpoints verloren",
+        "Bashpoints erkämpft"
+      ],
+      [
+        "hat seit gestern",
+        "hat in den letzten {} Tagen"
+      ]
+    ]
+  },
+  "error": {
+    "out_of_range": {
+      "bet": "Der Einsatz",
+      "day": "Der Tag"
+    }
   }
 }

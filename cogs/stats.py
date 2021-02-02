@@ -7,12 +7,16 @@ import discord
 import utils
 
 
-class Bash(commands.Cog):
+class Stats(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 1
         self.in_a_day = "https://{}/guest.php?village=null&" \
                         "screen=ranking&mode=in_a_day&type={}"
+        self.bashtypes = {'offensive': "att_bash",
+                          'overall': "all_bash",
+                          'defensive': "def_bash",
+                          'support': "sup_bash"}
 
     @commands.command(name="bash")
     async def bash(self, ctx, *, arguments):
@@ -75,27 +79,45 @@ class Bash(commands.Cog):
 
         await ctx.send(embed=embed)
 
+    @commands.command(name="bashrank")
+    async def bashrank_(self, ctx, tribe: utils.DSConverter('tribe'), bashtype=None):
+        bashtype = bashtype.lower() or 'offensive'
+
+        if bashtype not in self.bashtypes:
+            raise MissingRequiredKey(self.bashtypes.keys(), "tribe")
+
+        bashstat = self.bashtypes.get(bashtype)
+        members = await self.bot.fetch_tribe_member(ctx.server, tribe.id)
+        members.sort(key=lambda m: getattr(m, bashstat), reverse=True)
+
+        result = [f"**Stammesinterne Rangliste {tribe.mention}**",
+                  f"**Bashtype:** `{bashtype.capitalize()}`", ""]
+        for member in members[:15]:
+            value = getattr(member, bashstat)
+            line = f"`{utils.seperator(value)}` | {member}"
+            result.append(line)
+
+        embed = discord.Embed(description="\n".join(result))
+        await ctx.send(embed=embed)
+
     @commands.command(name="recap")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def recap(self, ctx, *, args):
-        time = 7
-        args = args.split(' ')
-        if args[-1].isdigit():
-            dsobj = await self.bot.fetch_both(ctx.server, ' '.join(args[:-1]))
-            if dsobj:
-                time = int(args[-1])
-            else:
-                dsobj = await self.bot.fetch_both(ctx.server, ' '.join(args))
+        dsobj = None
+        parts = args.split(' ')
+        if parts[-1].isdigit():
+            dsobj = await self.bot.fetch_both(ctx.server, ' '.join(parts[:-1]))
+
+        if dsobj is None:
+            dsobj = await self.bot.fetch_both(ctx.server, args)
+            time = 7
         else:
-            dsobj = await self.bot.fetch_both(ctx.server, ' '.join(args))
+            time = int(parts[-1])
 
         if not dsobj:
-            raise DSUserNotFound(' '.join(args))
-
-        if not 31 > time > 0:
-            msg = "Das Maximum für den Recap Command sind 30 Tage"
-            await ctx.send(msg)
-            return
+            raise DSUserNotFound(args)
+        else:
+            utils.valid_range(time, 1, 30, "day")
 
         try:
             dsobj8 = await self.bot.fetch_both(ctx.server, dsobj.id, name=False, archive=time)
@@ -106,20 +128,19 @@ class Bash(commands.Cog):
                 await ctx.send(msg)
                 return
 
-            point1, villages1, bash1 = dsobj.points, dsobj.villages, dsobj.all_bash
-            point8, villages8, bash8 = dsobj8.points, dsobj8.villages, dsobj8.all_bash
+            current_day = dsobj.points, dsobj.villages, dsobj.all_bash
+            day_in_past = dsobj8.points, dsobj8.villages, dsobj8.all_bash
 
         # upon database reset we use twstats as temporary workaround
         except asyncpg.UndefinedTableError:
-            time = 29
-            page_link = f"{dsobj.twstats_url}&mode=history"
-            async with self.bot.session.get(page_link) as r:
+            history_url = f"{dsobj.twstats_url}&mode=history"
+            async with self.bot.session.get(history_url) as r:
                 soup = BeautifulSoup(await r.read(), "html.parser")
 
             try:
                 data = soup.find(id='export').text.split("\n")
-                point1, villages1, bash1 = data[0].split(",")[4:7]
-                point8, villages8, bash8 = data[time].split(",")[4:7]
+                current_day = data[0].split(",")[4:7]
+                day_in_past = data[time].split(",")[4:7]
 
             except (IndexError, ValueError, AttributeError):
                 obj = "Spieler" if dsobj.alone else "Stamm"
@@ -127,31 +148,19 @@ class Bash(commands.Cog):
                 await ctx.send(msg)
                 return
 
-        p_done = sep(int(point1) - int(point8))
-        if p_done.startswith("-"):
-            points_done = f"`{p_done[1:]}` Punkte verloren,"
-        else:
-            points_done = f"`{p_done}` Punkte gemacht,"
+        result = []
+        lang_pkg = ctx.lang.commands['recap']
 
-        v_done = int(villages1) - int(villages8)
-        vil = "Dorf" if v_done == 1 or v_done == -1 else "Dörfer"
-        if v_done < 0:
-            villages_done = f"`{str(v_done)[1:]}` {vil} verschenkt"
-        else:
-            villages_done = f"`{v_done}` {vil} geholt"
+        for index, current in enumerate(current_day):
+            past = int(day_in_past[index])
 
-        b_done = sep(int(bash1) - int(bash8))
-        if b_done.startswith("-"):
-            bashpoints_done = f"`{b_done[1:]}` Bashpoints verloren"
-        else:
-            bashpoints_done = f"sich `{b_done}` Bashpoints erkämpft"
+            if (value := sep(int(current) - past)).startswith("-"):
+                result.append(f"`{value[1:]}` {lang_pkg[index][0]}")
+            else:
+                result.append(f"`{value}` {lang_pkg[index][1]}")
 
-        has = "hat" if dsobj.alone else "haben"
-        since = "seit gestern" if time == 1 else f"in den letzten {time} Tagen:"
-
-        answer = f"`{dsobj.name}` {has} {since} {points_done} " \
-                 f"{villages_done} und {bashpoints_done}"
-
+        since = "seit gestern" if time == 1 else f"in den letzten {time} Tagen"
+        answer = f"`{dsobj.name}` {since} {' '.join(result)}"
         await ctx.send(answer)
 
     @commands.group(name="top")
@@ -217,22 +226,20 @@ class Bash(commands.Cog):
                 award_data = ctx.lang.daily_options.get(award)
 
                 if tribe and award == "supporter":
-                    query = '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player WHERE ' \
-                            f'world = $1 GROUP BY tribe_id ORDER BY sup DESC LIMIT {amount}) ' \
+                    query = '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player ' \
+                            'WHERE world = $1 AND tribe_id != 0 GROUP BY tribe_id ' \
+                            f'ORDER BY sup DESC LIMIT {amount}) ' \
                             'UNION ALL ' \
-                            '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player1 WHERE ' \
-                            f'world = $1 GROUP BY tribe_id ORDER BY sup DESC LIMIT {amount})'
+                            '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player1 ' \
+                            'WHERE world = $1 AND tribe_id != 0 GROUP BY tribe_id ' \
+                            f'ORDER BY sup DESC LIMIT {amount})'
 
                     cache = await conn.fetch(query, ctx.server)
                     all_values = {rec['tribe_id']: [] for rec in cache}
-                    all_values.pop(0)
 
                     for record in cache:
-                        arguments = list(record.values())
-                        tribe_id = arguments[0]
-                        points = arguments[1]
-                        if tribe_id != 0:
-                            all_values[tribe_id].append(points)
+                        tribe_id, points = list(record.values())
+                        all_values[tribe_id].append(points)
 
                     value_list = [(k, v) for k, v in all_values.items() if len(v) == 2]
                     value_list.sort(key=lambda tup: tup[1][0] - tup[1][1], reverse=True)
@@ -310,7 +317,7 @@ class Bash(commands.Cog):
                     batch.append(body)
 
         if batch:
-            world_title = ctx.world.show(plain=True)
+            world_title = ctx.world.represent(plain=True)
 
             if award_type is None:
                 batch.insert(0, f"**Ranglisten des Tages der {world_title}**")
@@ -331,4 +338,4 @@ class Bash(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Bash(bot))
+    bot.add_cog(Stats(bot))

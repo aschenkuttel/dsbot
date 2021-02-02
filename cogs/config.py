@@ -76,16 +76,16 @@ class Config(commands.Cog):
             await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="prefix")
-    async def set_prefix(self, ctx, prefix):
-        current_prefix = self.config.get_prefix(ctx.guild.id)
+    async def set_prefix(self, ctx, new_prefix):
+        prefix = self.config.get_prefix(ctx.guild.id)
 
-        if current_prefix == prefix:
+        if new_prefix == prefix:
             msg = "`{}` ist bereits der aktuelle Prefix dieses Servers"
             await ctx.send(embed=error_embed(msg.format(prefix)))
 
         else:
-            self.config.update('prefix', prefix, ctx.guild.id)
-            msg = f"Der Prefix `{prefix}` ist nun aktiv"
+            self.config.update('prefix', new_prefix, ctx.guild.id)
+            msg = f"Der Prefix `{new_prefix}` ist nun aktiv"
             await ctx.send(embed=complete_embed(msg))
 
     @set.command(name="channelworld")
@@ -195,6 +195,7 @@ class Config(commands.Cog):
 
     @commands.group(name="conquer", invoke_without_command=True)
     async def conquer(self, ctx):
+        self.get_conquer_data(ctx)
         cmd = self.bot.get_command("help conquer")
         await ctx.invoke(cmd)
 
@@ -234,28 +235,9 @@ class Config(commands.Cog):
         conquer['bb'] = False if conquer.get('bb') else True
         self.config.save()
 
-        state_str = "aktiv" if not conquer['bb'] else "inaktiv"
-        msg = f"Der Filter für Barbarendörfer ist nun {state_str}"
+        state_str = "ausgeblendet" if not conquer['bb'] else "angezeigt"
+        msg = f"Die Eroberungen von Barbarendörfern werden nun {state_str}"
         await ctx.send(embed=complete_embed(msg))
-
-    @conquer.command(name="channel")
-    async def conquer_channel(self, ctx):
-        conquer = self.config.get('conquer', ctx.guild.id)
-
-        if not conquer:
-            embed = error_embed("Der Server hat keine Eroberungschannel")
-        else:
-            conquer_channel = []
-            for channel_id in conquer:
-                channel = ctx.guild.get_channel(int(channel_id))
-                if channel:
-                    conquer_channel.append(channel.mention)
-                else:
-                    conquer_channel.append(f"Deleted Channel ({channel_id})")
-
-            embed = complete_embed("\n".join(conquer_channel))
-
-        await ctx.send(embed=embed)
 
     @conquer.command(name="list")
     async def conquer_list(self, ctx):

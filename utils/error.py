@@ -1,20 +1,36 @@
 from discord.ext import commands
 
 
-class MissingRequiredKey(commands.CheckFailure):
+class EmbedFailure(commands.CheckFailure):
+    pass
+
+
+class HelpFailure(commands.CheckFailure):
+    pass
+
+
+class MissingRequiredKey(HelpFailure):
     def __init__(self, keys, arg=None):
         self.keys = list(keys)
         self.pos_arg = arg
         super().__init__('missing required key')
 
 
-class MissingRequiredArgument(commands.CheckFailure):
+class MissingRequiredArgument(HelpFailure):
     def __init__(self, argument):
         self.arg = argument
         super().__init__('missing required arg')
 
 
-class GameChannelMissing(commands.CheckFailure):
+class ArgumentOutOfRange(commands.CheckFailure):
+    def __init__(self, low, high, item):
+        self.min = low
+        self.max = high
+        self.item = item
+        super().__init__('out of range')
+
+
+class GameChannelMissing(EmbedFailure):
     def __init__(self):
         super().__init__('missing game channel')
 
@@ -30,7 +46,7 @@ class WorldMissing(commands.CheckFailure):
         super().__init__('no guild world')
 
 
-class UnknownWorld(commands.CheckFailure):
+class UnknownWorld(HelpFailure):
     def __init__(self, possible):
         self.possible_world = possible
         super().__init__('unknown world')
@@ -47,13 +63,6 @@ class MissingGucci(commands.CheckFailure):
         super().__init__('not enough iron')
 
 
-class InvalidBet(commands.CheckFailure):
-    def __init__(self, low, high):
-        self.min = low
-        self.max = high
-        super().__init__('bad bet')
-
-
 class IngameError(commands.CheckFailure):
     def __init__(self, ingame):
         self.ingame = not ingame
@@ -64,7 +73,7 @@ class SilentError(commands.CheckFailure):
     pass
 
 
-class DontPingMe(commands.CheckFailure):
+class DontPingMe(HelpFailure):
     def __init__(self):
         super().__init__('discord mention instead of username')
 

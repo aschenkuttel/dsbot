@@ -13,21 +13,20 @@ import utils
 import os
 
 
-# gets called every message to gather the custom prefix
 def prefix(bot, message):
     if message.guild is None:
         return secret.default_prefix
-    else:
-        custom = bot.config.get_prefix(message.guild.id)
-        return custom
+
+    guild_prefix = bot.config.get_prefix(message.guild.id)
+    return guild_prefix or secret.default_prefix
 
 
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.path = os.path.dirname(__file__)
-        self.data_path = f"{self.path}/data"
+        path = os.path.dirname(__file__)
+        self.data_path = f"{path}/data"
 
         # internal world cache of active worlds with settings
         self.worlds = {}
@@ -328,19 +327,18 @@ class DSBot(commands.Bot):
                         'amount >= (SELECT amount FROM iron WHERE id = $1)) ' \
                         'AS count FROM iron WHERE id = $1'
                 data = await conn.fetchrow(query, user_id)
-                return list(data) if data else (0, 0)
+                return data or (0, 0)
 
     async def fetch_usage(self, amount=None):
         statement = 'SELECT * FROM usage ORDER BY amount DESC'
+
         if amount is not None:
             statement += f' LIMIT {amount}'
 
         async with self.ress.acquire() as conn:
             data = await conn.fetch(statement)
+            return [r.values() for r in data]
 
-        return [tuple(r.values()) for r in data]
-
-    # DS Database Methods
     async def update_worlds(self):
         query = 'SELECT * FROM world GROUP BY world'
         async with self.pool.acquire() as conn:
@@ -407,7 +405,7 @@ class DSBot(commands.Bot):
         table = f"player{archive}" if archive else "player"
 
         if name:
-            searchable = utils.converter(searchable, True)
+            searchable = utils.encode(searchable)
             query = f'SELECT * FROM {table} WHERE world = $1 AND LOWER(name) = $2'
         else:
             query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
@@ -420,7 +418,7 @@ class DSBot(commands.Bot):
         table = f"tribe{archive}" if archive else "tribe"
 
         if name:
-            searchable = utils.converter(searchable, True)
+            searchable = utils.encode(searchable)
             query = f'SELECT * FROM {table} WHERE world = $1 ' \
                     f'AND (LOWER(tag) = $2 OR LOWER(name) = $2)'
         else:
@@ -496,7 +494,7 @@ class DSBot(commands.Bot):
                 query = f'{base} AND CAST(x AS TEXT)||CAST(y as TEXT) = ANY($2)'
 
             else:
-                iterable = [utils.converter(obj, True) for obj in iterable]
+                iterable = [utils.encode(obj) for obj in iterable]
                 if dsobj.table == "tribe":
                     query = f'{base} AND ARRAY[LOWER(name), LOWER(tag)] && $2'
                 else:
@@ -528,6 +526,5 @@ intents = discord.Intents.default()
 intents.presences = False
 intents.typing = False
 
-# instance creation and bot start
 dsbot = DSBot(command_prefix=prefix, intents=intents)
 dsbot.run(secret.TOKEN)

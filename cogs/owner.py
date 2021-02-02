@@ -39,8 +39,7 @@ class Owner(commands.Cog):
 
     @commands.command(name="stats")
     async def stats_(self, ctx):
-        async with self.bot.ress.acquire() as conn:
-            cache = await conn.fetch('SELECT * FROM usage')
+        cache = await self.bot.fetch_usage()
 
         data = []
         for record in cache:

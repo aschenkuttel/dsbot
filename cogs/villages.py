@@ -14,7 +14,7 @@ class Villages(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 1
-        self.base_options = {'radius': [1, 10, 25], 'points': None}
+        self.base_options = {'radius': [1, 10, 25], 'points': 0}
 
     async def send_result(self, ctx, result, object_name):
         if not result:
@@ -76,69 +76,76 @@ class Villages(commands.Cog):
             return [utils.Village(rec) for rec in result]
 
     @commands.command(name="villages")
-    async def villages_(self, ctx, amount: typing.Union[int, str], *args):
-        if isinstance(amount, str) and amount.lower() != "all":
+    async def villages(self, ctx, *, arguments):
+        base_options = {'points': 0, 'continent': None}
+        rest, points, continent = utils.keyword(arguments, strip=True, **base_options)
+        user_arguments = rest.split()
+
+        if len(user_arguments) < 2:
+            raise utils.MissingRequiredArgument(None)
+
+        amount = user_arguments.pop(-1)
+        if not amount.isdigit() or amount == "all":
             msg = "Die Anzahl muss entweder eine Zahl oder `all` sein."
             await ctx.send(msg)
             return
 
-        if not args:
-            raise commands.MissingRequiredArgument
-
-        con = None
-        if len(args) == 1:
-            name = args[0]
-        elif re.match(r'[k, K]\d\d', args[-1]):
-            con = args[-1]
-            name = ' '.join(args[:-1])
-        else:
-            name = ' '.join(args)
-
+        name = ' '.join(user_arguments)
         dsobj = await self.bot.fetch_both(ctx.server, name)
-        if not dsobj:
-            if con:
-                dsobj = await self.bot.fetch_both(ctx.server, f"{name} {con}")
-                if not dsobj:
-                    raise utils.DSUserNotFound(name)
-            else:
-                raise utils.DSUserNotFound(name)
+
+        if dsobj is None:
+            raise utils.DSUserNotFound(name)
 
         if isinstance(dsobj, utils.Tribe):
-            query = "SELECT * FROM player WHERE world = $1 AND tribe_id = $2;"
-            async with self.bot.pool.acquire() as conn:
-                cache = await conn.fetch(query, ctx.server, dsobj.id)
-                id_list = [rec['id'] for rec in cache]
-
+            member = await self.bot.fetch_tribe_member(ctx.server, dsobj.id)
+            ids = [m.id for m in member]
         else:
-            id_list = [dsobj.id]
+            ids = [dsobj.id]
 
-        arguments = [ctx.server, id_list]
+        if re.match(r'[k, K]\d\d', str(continent.value)):
+            conti_str = continent.value
+        else:
+            conti_str = None
+
+        arguments = [ctx.server, ids]
         query = "SELECT * FROM village WHERE world = $1 AND player = ANY($2)"
-        if con:
+
+        if conti_str is not None:
             query = query + ' AND LEFT(CAST(x AS TEXT), 1) = $3' \
                             ' AND LEFT(CAST(y AS TEXT), 1) = $4'
-            arguments.extend([con[2], con[1]])
+            arguments.extend([conti_str[2], conti_str[1]])
 
         async with self.bot.pool.acquire() as conn:
             cache = await conn.fetch(query, *arguments)
             result = [utils.Village(rec) for rec in cache]
+            random.shuffle(result)
 
-        random.shuffle(result)
-        if isinstance(amount, int):
-            if len(result) < amount:
+        if points.value != 0:
+            for vil in result.copy():
+                if not points.compare(vil.points):
+                    result.remove(vil)
+
+        if amount.isdigit():
+            limit = int(amount)
+
+            if len(result) < limit:
                 ds_type = "Spieler" if dsobj.alone else "Stamm"
-                raw = "Der {} `{}` hat leider nur `{}` Dörfer"
+                raw = "Der {} `{}` hat nur `{}` Dörfer"
                 args = [ds_type, dsobj.name, len(result)]
 
-                if con:
-                    raw += "auf dem Kontinent `{}`"
-                    args.append(con)
+                if points.value:
+                    raw += " in dem Punktebereich"
 
-                await ctx.send(raw.format(*args))
+                if continent:
+                    raw += " auf Kontinent `{}`"
+                    args.append(continent.value)
+
+                msg = raw.format(*args)
+                await ctx.send(msg)
                 return
 
             else:
-                result = result[:amount]
+                result = result[:limit]
 
         await self.send_result(ctx, result, "Dörfer")
 

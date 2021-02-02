@@ -14,7 +14,7 @@ class DCUtils(commands.Cog):
         self.url = "http://media1.tenor.com/images/561e3f9a9c6c" \
                    "1912e2edc4c1055ff13e/tenor.gif?itemid=9601551"
 
-    @commands.command(name="speedrun")
+    @commands.command(name="speedrun", hidden=True)
     async def speedrun(self, ctx):
         date = datetime.datetime(2021, 1, 6, 8)
         now = datetime.datetime.now()
@@ -148,19 +148,14 @@ class DCUtils(commands.Cog):
         wimbed.set_footer(text="Abstimmung beendet")
         await poll.edit(embed=wimbed)
 
-    @commands.command(name="mirror")
-    async def mirror_(self, ctx, *, member: MemberConverter = None):
-        embed = discord.Embed()
-        member = member or ctx.author
-        embed.set_image(url=member.avatar_url)
-        await ctx.send(embed=embed)
-
     @commands.command(name="info")
     async def info_(self, ctx):
-        result = [f"Aktuell in `{len(self.bot.guilds)}` Servern",
-                  "**Die 5 meist benutzen Commands:**"]
+        result = [f"Aktuell in `{len(self.bot.guilds)}` Servern!"]
 
-        data = await self.bot.fetch_usage(amount=5)
+        data = await self.bot.fetch_usage(amount=10)
+
+        if data:
+            result.append("**Die 10 meist benutzen Commands:**")
 
         for cmd, usage in data:
             result.append(f"`{usage}` **|** {cmd}")
@@ -168,8 +163,9 @@ class DCUtils(commands.Cog):
         embed = discord.Embed()
         embed.description = "\n".join(result)
         embed.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
-        name = "dsBot | Die Stämme x Discord"
-        embed.set_author(icon_url=self.bot.user.avatar_url, name=name)
+        name = "dsBot | Einladungslink"
+        url = "http://discordapp.com/oauth2/authorize?&client_id=344191195981021185&scope=bot"
+        embed.set_author(icon_url=self.bot.user.avatar_url, name=name, url=url)
         await ctx.send(embed=embed)
 
 
