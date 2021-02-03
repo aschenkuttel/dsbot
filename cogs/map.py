@@ -375,18 +375,13 @@ class Map(commands.Cog):
         legacy = Image.new('RGBA', bound_size, (255, 255, 255, 0))
         image = ImageDraw.Draw(legacy)
 
-        just_player = bool([d for d in village_cache if d.alone])
-
         for dsobj, villages in village_cache.items():
             if not villages:
                 continue
 
             font_size = base_size
             if isinstance(dsobj, utils.Player):
-                if not just_player:
-                    font_size *= 0.4
-                else:
-                    font_size *= 0.7
+                font_size *= 0.4
 
             vil_x = [int(v[0] * 1.5) for v in villages]
             vil_y = [int(v[1] * 1.5) for v in villages]
@@ -483,7 +478,7 @@ class Map(commands.Cog):
         self.watermark(result)
         return result
 
-    @commands.cooldown(60, 1, commands.BucketType.guild)
+    @commands.cooldown(1, 30, commands.BucketType.guild)
     @commands.command(name="map")
     async def map_(self, ctx, *, arguments=None):
         tribe_names, options, = keyword(arguments, strip=True, dct=True, **self.default_options)
@@ -602,7 +597,7 @@ class Map(commands.Cog):
                 await self.send_map(menue.ctx, *resp[0], **resp[1])
                 menue.dead = True
 
-    @commands.cooldown(60, 1, commands.BucketType.guild)
+    @commands.cooldown(1, 60, commands.BucketType.guild)
     @commands.command(name="custom", aliases=["last"])
     async def custom_(self, ctx, world: utils.WorldConverter = None):
         menue = self.menue_cache.get(ctx.author.id)
@@ -636,7 +631,7 @@ class Map(commands.Cog):
         if ctx.message.id == menue.ctx.message.id:
             await self.timeout(ctx.author.id, 600)
 
-    @commands.cooldown(1800, 1, commands.BucketType.guild)
+    @commands.cooldown(2, 1800, commands.BucketType.guild)
     @commands.command(name="timelapse")
     async def timelapse(self, ctx, *, options=None):
         rest, days = keyword(options, strip=True, days=[7, 7, 60])

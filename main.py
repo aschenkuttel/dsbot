@@ -97,10 +97,9 @@ class DSBot(commands.Bot):
 
     # global check and ctx.world inject
     async def global_check(self, ctx):
-        parent = ctx.command.parent
-        cmd = str(ctx.command)
+        cmds = {str(ctx.command), str(ctx.command.parent)}
 
-        if bool({str(parent), cmd} & secret.pm_commands):
+        if bool(cmds & secret.pm_commands):
             return True
         elif ctx.guild is None:
             raise commands.NoPrivateMessage()
@@ -249,19 +248,16 @@ class DSBot(commands.Bot):
             await conn.execute(";".join(querys))
 
     async def load_members(self):
-        cache = {g.id: {} for g in self.guilds}
+        for guild in self.guilds:
+            self.members[guild.id] = {}
 
         async with self.ress.acquire() as conn:
             data = await conn.fetch('SELECT * FROM member')
 
             for record in data:
                 member = utils.DSMember(record)
-                if member.guild_id not in cache:
-                    continue
-                else:
-                    cache[member.guild_id][member.id] = member
-
-            self.members = cache
+                if member.guild_id in self.members:
+                    self.members[member.guild_id][member.id] = member
 
     def get_member(self, member_id):
         for members in self.members.values():
@@ -288,14 +284,15 @@ class DSBot(commands.Bot):
                 return member
 
     def update_member(self, member):
+        dc_member = utils.DSMember.from_object(member)
         cache = self.members.get(member.guild.id)
 
         if cache is None:
-            cache = self.members[member.guild.id] = {}
-
-        old = cache.get(member.id)
-        if not old or old != member:
-            cache[member.id] = utils.DSMember.from_object(member)
+            self.members[member.guild.id] = {member.id: dc_member}
+        else:
+            old = cache.get(member.id)
+            if not old or old != member:
+                cache[member.id] = dc_member
 
     async def update_iron(self, user_id, iron):
         async with self.ress.acquire() as conn:
