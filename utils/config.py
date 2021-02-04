@@ -126,9 +126,4 @@ class Config:
             return config.get('prefix')
 
     def get_conquer(self, ctx):
-        conquer = self.get('conquer', ctx.guild.id)
-
-        if conquer is None:
-            return
-        else:
-            return conquer.get(str(ctx.channel.id))
+        return self.get('conquer', ctx.guild.id)

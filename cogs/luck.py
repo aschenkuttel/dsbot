@@ -65,8 +65,8 @@ class Casino(utils.DSGames):
 
             await self.bot.update_iron(ctx.author.id, self.pot)
 
-            new_number = random.randint(1, 9999)
             self.numbers = list(range(1, 10000))
+            new_number = random.choice(self.numbers)
             query = 'INSERT INTO slot(id, amount) VALUES($1, $2);'
 
             async with self.bot.ress.acquire() as conn:
@@ -94,7 +94,7 @@ class Casino(utils.DSGames):
                    "Aktueller Pot: `{}`\nGewinnzahl: **{}**"
             msg = base.format(number, utils.seperator(self.pot), self.winning_number)
 
-        async with self.end_game(ctx):
+        async with self.end_game(ctx, time=8):
             await ctx.send(msg)
 
     @utils.game_channel_only()

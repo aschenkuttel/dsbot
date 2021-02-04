@@ -35,6 +35,11 @@ class GameChannelMissing(EmbedFailure):
         super().__init__('missing game channel')
 
 
+class ConquerChannelMissing(EmbedFailure):
+    def __init__(self):
+        super().__init__('missing conquer channel')
+
+
 class WrongChannel(commands.CheckFailure):
     def __init__(self, channeltype):
         self.type = channeltype

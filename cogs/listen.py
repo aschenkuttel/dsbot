@@ -305,15 +305,14 @@ class Listen(commands.Cog):
                 msg += f": {error.arg}"
 
         elif isinstance(error, utils.MissingRequiredKey):
-            clean_cmd = f"{ctx.prefix}{cmd.lower()} fehlt ein benötigter Key:\n"
+            cmd = f"{ctx.prefix}{cmd.lower()}"
 
             if error.pos_arg:
-                cmd = f"{clean_cmd} <{error.pos_arg}>"
-            else:
-                cmd = clean_cmd
+                cmd += f" <{error.pos_arg}>"
 
-            result = []
+            title = f"**{cmd}** fehlt ein benötigter Key:"
 
+            result = [title]
             if len(error.keys) < 5:
                 batches = ["|".join(error.keys)]
             else:
@@ -321,7 +320,7 @@ class Listen(commands.Cog):
                 batches = utils.show_list(error.keys, "|", index, return_iter=True)
 
             for batch in batches:
-                result.append(f"`{cmd} <{batch}>`")
+                result.append(f"`<{batch}>`")
 
             msg = "\n".join(result)
 
@@ -335,8 +334,8 @@ class Listen(commands.Cog):
             msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
 
         elif isinstance(error, utils.WorldMissing):
-            msg = "Der Server hat noch keine zugeordnete Welt\n" \
-                  f"Dies kann nur der Admin mit `{ctx.prefix}set world`"
+            msg = "Der Server hat keine zugeordnete Welt\n" \
+                  f"Dies kann ein Admin mit `{ctx.prefix}set world <world>`"
 
         elif isinstance(error, utils.UnknownWorld):
             msg = "Diese Welt existiert leider nicht"
@@ -355,8 +354,10 @@ class Listen(commands.Cog):
                 raw_ids = self.bot.config.get('conquer', ctx.guild.id)
                 channel_ids = [int(channel_id) for channel_id in raw_ids]
 
-            base = []
+            if not channel_ids:
+                raise utils.ConquerChannelMissing()
 
+            base = []
             for channel_id in channel_ids:
                 channel = self.bot.get_channel(channel_id)
 
@@ -368,8 +369,12 @@ class Listen(commands.Cog):
             msg = "\n".join(base)
 
         elif isinstance(error, utils.GameChannelMissing):
-            msg = "Der Server hat keinen Game-Channel\n" \
-                  f"Nutze `{ctx.prefix}set game` um einen festzulegen"
+            msg = "Der Server hat noch keinen Game Channel eingerichtet,\n" \
+                  f"dies kann ein Admin mit `{ctx.prefix}set game` im gewünschten Channel"
+
+        elif isinstance(error, utils.ConquerChannelMissing):
+            msg = "Der Server hat noch keinen Conquer Channel eingerichtet,\n" \
+                  f"dies kann ein Admin mit `{ctx.prefix}set conquer` im gewünschten Channel"
 
         elif isinstance(error, utils.MissingGucci):
             base = "Du hast nur `{} Eisen` auf dem Konto"
