@@ -168,7 +168,7 @@ class Help(commands.Cog):
     async def reset_(self, ctx):
         title = ["reset"]
         cmd_type = "Admin Command"
-        cmd_inp = ["reset <game|conquer|config>`"]
+        cmd_inp = ["reset <game|conquer|config>"]
         example = ["reset game",
                    "reset conquer",
                    "reset config"]

@@ -4,7 +4,6 @@ import discord
 import logging
 import utils
 
-
 logger = logging.getLogger('dsbot')
 
 
@@ -116,30 +115,30 @@ class Config(commands.Cog):
             msg = f"Der Prefix `{new_prefix}` ist nun aktiv"
             await ctx.send(embed=complete_embed(msg))
 
-    @commands.group(name="switch", invoke_without_command=True)
-    async def switch(self, ctx, key):
-        key = key.lower()
-        name = ctx.lang.converter_title.get(key)
+    @commands.command(name="convert")
+    async def convert_(self, ctx, key=None):
+        if key is None:
+            listed = []
 
-        if name is None:
-            raise utils.MissingRequiredKey(ctx.lang.converter_title)
+            for key, value in ctx.lang.converter_title.items():
+                state = self.bot.config.get_switch(key, ctx.guild.id)
+                represent = "aktiv" if state else "inaktiv"
+                listed.append(f"**{value} ({key}):** `{represent}`")
 
-        new_value = self.bot.config.update_switch(key, ctx.guild.id)
-        state = "aktiv" if new_value else "inaktiv"
-        msg = f"Die Konvertierung der `{name}` ist nun **{state}**"
+            msg = "\n".join(listed)
+
+        else:
+            key = key.lower()
+            name = ctx.lang.converter_title.get(key)
+
+            if name is None:
+                raise utils.MissingRequiredKey(ctx.lang.converter_title)
+
+            new_value = self.bot.config.update_switch(key, ctx.guild.id)
+            state = "aktiv" if new_value else "inaktiv"
+            msg = f"Die Konvertierung der {name} ist nun {state}"
+
         await ctx.send(embed=complete_embed(msg))
-
-    @switch.command(name="list")
-    async def switch_list(self, ctx):
-        listed = []
-
-        for key, value in ctx.lang.converter_title.items():
-            state = self.bot.config.get_switch(key, ctx.guild.id)
-            represent = "aktiv" if state else "inaktiv"
-            listed.append(f"**{value} ({key}):** `{represent}`")
-
-        embed = complete_embed("\n".join(listed))
-        await ctx.send(embed=embed)
 
     @commands.group(invoke_without_command=True)
     async def remove(self, ctx, entry):

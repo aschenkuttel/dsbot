@@ -628,8 +628,8 @@
     }
   },
   "converter_title": {
-    "report": "Berichte",
     "coord": "Koordinaten",
+    "report": "Berichte",
     "mention": "BB-Codes"
   },
   "config_title": {
@@ -688,11 +688,11 @@
     "conquer": "conquer"
   },
   "help": {
-    "set": "Legt die servergebundene oder channelgebundene Welt fest, einen \"Game Channel\" welchen die meisten Game Commands benötigen, einen Conquer Channel für stündliche Eroberungen oder einen neuen Prefix.\nMögliche Switches: `report, request, coord, mention`",
-    "reset": "Setzt einen gewünschten Teil oder die gesamten Serverconfigs zurück",
-    "world": "Erhalte die Welt des Textchannels oder des Servers falls beim Channel keine Welt hinterlegt ist",
-    "remove": "Entfernt eingstellte Serverconfigs / Gegensatz zu set",
-    "switch": "Aktiviert oder deaktiviert einen der 3 Konverter:\nKoordinaten, Berichte oder BB-Codes",
+    "set": "Legt die Welt des Servers oder eines Channels fest, weißt dem Server einen Game oder Conquer Channel zu, oder legt einen neuen Prefix fest.",
+    "reset": "Setzt entweder alle Spiele, die Conquereinstellungen oder die kompletten Servereinstellungen zurück.",
+    "world": "Erhalte die hinterlegte Welt des Textchannels im welchem der Command ausgeführt wird, der Titel hinter der erhaltenen Welt deutet darauf hin ob dies die grundlegende Welt des Servers oder nur die des Channels ist.",
+    "remove": "Entfernt einen der gewünschten Serverconfigs. Falls ein Conquer Channel bereits gelöscht ist kann dieser auch per ID entfernt werden.",
+    "convert": "Deaktiviert oder aktiviert einen der 3 Konverter:\nKoordinaten, Berichte oder BB-Codes.",
     "worlds": "Erhalte alle momentan aktive Welten",
     "conquer": "Fügt dem Conquer-Filter einen Stamm hinzu oder entfernt ihn, blendet zukünftig alle Barbarendörfer aus/ein, zeigt alle Stämme im Filter an oder löscht diesen komplett",
     "map": "Erstellt eine Karte und markiert entweder die angegebenen Stämme oder die aktuelle Top 10 der Welt. Des weiteren können mehrere Stämme mit einem & Zeichen gruppiert und einheitlich in einer Farbe angezeigt werden. Aufgrund der Möglichkeit von Leerzeichen in Stammesnamen sind nur Stammestags unterstützt, falls jedoch auch dieser ein Leerzeichen enthält muss besagter Stammestag mit \\\"Anführungszeichen\\\" umrandet werden.\n\n**Der Command unterstützt folgende Keywords:**\n**zoom [0-5, default: 0]**\nMöglichkeit um die Karte näher darzustellen\n**top [5-20, default: 10]**\nDie Anzahl der Stämme/Spieler bei Topkarten\n**player [true/false, default: false]**\nMarkiert bei true statt Stämmen die Top Spieler\n**label [0-3, default: 2]**\nDie Markierung der Stämme/Spieler\n0=aus 1=an 2=mit Text 3=nur Text\n**center [Koordinate, default: 500|500]**\nBestimmt den Mittelpunkt der Karte\n",
