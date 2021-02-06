@@ -287,6 +287,8 @@ class Listen(commands.Cog):
         error = getattr(error, 'original', error)
         if isinstance(error, self.silenced):
             return
+        elif isinstance(error, commands.MissingRequiredArgument):
+            error = utils.MissingRequiredArgument()
 
         logger.debug(f"command error [{ctx.message.id}]: {error}")
         cmd = ctx.invoked_with
@@ -300,9 +302,6 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.MissingRequiredArgument):
             msg = f"Dem Command fehlt ein benötigtes Argument"
-
-            if error.arg is not None:
-                msg += f": {error.arg}"
 
         elif isinstance(error, utils.MissingRequiredKey):
             cmd = f"{ctx.prefix}{cmd.lower()}"

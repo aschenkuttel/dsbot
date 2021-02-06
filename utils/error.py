@@ -17,8 +17,7 @@ class MissingRequiredKey(HelpFailure):
 
 
 class MissingRequiredArgument(HelpFailure):
-    def __init__(self, argument):
-        self.arg = argument
+    def __init__(self):
         super().__init__('missing required arg')
 
 

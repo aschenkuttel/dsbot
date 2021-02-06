@@ -487,8 +487,8 @@ class Map(commands.Cog):
 
         color_map = []
         if not tribe_names:
-
             file = self.top10_cache.get(ctx.server)
+
             if arguments is None and file is not None:
                 file.seek(0)
                 await ctx.send(file=discord.File(file, 'map.png'))

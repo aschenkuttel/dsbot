@@ -220,7 +220,7 @@ class Utils(commands.Cog):
             return
 
         elif url_type not in ["ingame", "guest", "twstats"]:
-            msg = "Der angegebene URL-Typ ist nicht vorhanden:\n" \
+            msg = "Der angegebene Url Typ ist nicht vorhanden:\n" \
                   "`(ingame[default], guest, twstats)`"
             await ctx.send(msg)
             return
@@ -256,7 +256,7 @@ class Utils(commands.Cog):
     @commands.command(name="circular", aliases=["rm"])
     async def rundmail_(self, ctx, *tribes: str):
         if not tribes:
-            raise utils.MissingRequiredArgument("tribes")
+            raise utils.MissingRequiredArgument()
 
         if len(tribes) > 10:
             msg = "Nur bis zu `10 Stämme` aufgrund der maximalen Zeichenlänge"

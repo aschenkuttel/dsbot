@@ -216,20 +216,6 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
-    @help.command(name="switch")
-    async def switch_(self, ctx):
-        title = ["switch"]
-        cmd_type = "Admin Command"
-        cmd_inp = ["switch <coord|report|mention>",
-                   "switch list"]
-        example = ["switch coord",
-                   "switch report",
-                   "switch mention",
-                   "switch list"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
     @help.command(name="worlds")
     async def worlds_(self, ctx):
         title = ["worlds"]
@@ -254,6 +240,20 @@ class Help(commands.Cog):
                    "conquer grey",
                    "conquer list",
                    "conquer clear"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="convert")
+    async def convert_(self, ctx):
+        title = ["convert"]
+        cmd_type = "Admin Command"
+        cmd_inp = ["convert",
+                   "convert <coord|report|mention>"]
+        example = ["convert",
+                   "convert coord",
+                   "convert report",
+                   "convert mention"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
@@ -313,14 +313,14 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
-    @help.command(name="daily", aliases=["aktueller"])
+    @help.command(name="daily", aliases=["dailytribe"])
     async def daily_(self, ctx):
         title = ["daily", "aktueller"]
         cmd_type = "Server Command"
-        cmd_inp = ["daily <angreifer/verteidiger/unterstützer>",
-                   "aktueller <kämpfer/eroberer/verlierer/>"]
-        example = ["daily eroberer",
-                   "aktueller angreifer"]
+        cmd_inp = ["daily <points|minus|basher|defender>",
+                   "dailytribe <supporter|fighter|loser|conquerer>"]
+        example = ["daily supporter",
+                   "dailytribe minus"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
@@ -380,6 +380,18 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
+    @help.command(name="bashrank")
+    async def bashrank_(self, ctx):
+        title = ["bashrank"]
+        cmd_type = "Server Command"
+        cmd_inp = ["bashrank <tribetag>",
+                   "bashrank <tribetag> <bashtype>"]
+        example = ["bashrank W-Inc",
+                   "bashrank W-Inc support"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
     @help.command(name="inactive", aliases=["graveyard"])
     async def inactive_(self, ctx):
         title = ["inactive", "graveyard"]
@@ -396,6 +408,18 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
+    @help.command(name="settings")
+    async def settings_(self, ctx):
+        title = ["settings"]
+        cmd_type = "Server Command"
+        cmd_inp = ["settings",
+                   "settings <world>"]
+        example = ["settings",
+                   "settings de186"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
     @help.command(name="villages")
     async def villages_(self, ctx):
         title = ["villages"]
@@ -403,6 +427,18 @@ class Help(commands.Cog):
         cmd_inp = ["villages <amount> <playername/tribename>"]
         example = ["villages 20 madberg",
                    "villages all madberg k55"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="timelapse")
+    async def timelapse_(self, ctx):
+        title = ["timelapse"]
+        cmd_type = "Server Command"
+        cmd_inp = ["timelapse <world>"]
+        example = ["timelapse",
+                   "timelapse de186",
+                   "timelapse de186 days=20"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
@@ -454,22 +490,12 @@ class Help(commands.Cog):
         await self.send_embed(ctx, embed)
 
     # Utilities
-    @help.command(name="avatar")
-    async def avatar_(self, ctx):
-        title = ["avatar"]
-        cmd_type = "PM Command"
-        cmd_inp = ["avatar <url with (png, jpg, gif ending)>"]
-        example = ["avatar https://homepage/beispielbild.png"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="emoji")
-    async def emoji_(self, ctx):
-        title = ["emoji"]
-        cmd_type = "Admin Command"
-        cmd_inp = ["emoji"]
-        example = ["emoji"]
+    @help.command(name="info")
+    async def info_(self, ctx):
+        title = ["info"]
+        cmd_type = "Server Command"
+        cmd_inp = ["info"]
+        example = ["info"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
@@ -484,14 +510,42 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
-    @help.command(name="pin")
-    async def pin_(self, ctx):
-        title = ["pin"]
+    @help.command(name="duali")
+    async def duali_(self, ctx):
+        title = ["duali"]
+        cmd_type = "Server Command"
+        cmd_inp = ["duali <discord username>"]
+        example = ["duali Neel x Kutte"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="emoji")
+    async def emoji_(self, ctx):
+        title = ["emoji"]
         cmd_type = "Admin Command"
-        cmd_inp = ["pin",
-                   "pin <command>"]
-        example = ["pin",
-                   "pin player"]
+        cmd_inp = ["emoji"]
+        example = ["emoji"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="avatar")
+    async def avatar_(self, ctx):
+        title = ["avatar"]
+        cmd_type = "PM Command"
+        cmd_inp = ["avatar <url with (png, jpg, gif ending)>"]
+        example = ["avatar https://homepage/beispielbild.png"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="orakel")
+    async def orakel_(self, ctx):
+        title = ["orakel"]
+        cmd_type = "Server Command"
+        cmd_inp = ["orakel <question>"]
+        example = ["orakel Werde ich bald geadelt?"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
@@ -515,111 +569,19 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
-    @help.command(name="duali")
-    async def duali_(self, ctx):
-        title = ["duali"]
-        cmd_type = "Server Command"
-        cmd_inp = ["duali <discord username>"]
-        example = ["duali Neel x Kutte"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="orakel")
-    async def orakel_(self, ctx):
-        title = ["orakel"]
-        cmd_type = "Server Command"
-        cmd_inp = ["orakel <question>"]
-        example = ["orakel Werde ich bald geadelt?"]
+    @help.command(name="pin")
+    async def pin_(self, ctx):
+        title = ["pin"]
+        cmd_type = "Admin Command"
+        cmd_inp = ["pin",
+                   "pin <command>"]
+        example = ["pin",
+                   "pin player"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
     # Minigames
-    @help.command(name="anagram", aliases=["ag"])
-    async def anagram_(self, ctx):
-        title = ["anagram", "ag"]
-        cmd_type = "Server Command"
-        cmd_inp = ["ag",
-                   "<guess>"]
-        example = ["ag",
-                   "Späher"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="tribalcards", aliases=["tc"])
-    async def tribalcards_(self, ctx):
-        title = ["tribalcards", "tc", "play"]
-        cmd_type = "Server Command / PM Command"
-        cmd_inp = ["quartet",
-                   "play <card or stat>"]
-        example = ["quartet",
-                   "play 5",
-                   "play off"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="hangman", aliases=["hg"])
-    async def hangman_(self, ctx):
-        title = ["hangman", "hg"]
-        cmd_type = "Server Command"
-        cmd_inp = ["hangman",
-                   "guess <character or solution>"]
-        example = ["hangman",
-                   "guess h",
-                   "guess Späher"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="slots")
-    async def slots_(self, ctx):
-        title = ["slots"]
-        cmd_type = "Server Command"
-        cmd_inp = ["slots",
-                   "slotistics"]
-        example = ["slots",
-                   "slotistics"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="quiz")
-    async def quiz_(self, ctx):
-        title = ["quiz"]
-        cmd_type = "Server Command"
-        cmd_inp = ["quiz <rounds>"]
-        example = ["quiz 10"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="blackjack", aliases=["bj"])
-    async def blackjack_(self, ctx):
-        title = ["blackjack", "bj"]
-        cmd_type = "Server Command"
-        cmd_inp = ["bj <optional=amount(100-50000)>"]
-        example = ["bj",
-                   "bj 5000"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
-    @help.command(name="videopoker", aliases=["vp", "draw"])
-    async def videpoker_(self, ctx):
-        title = ["videopoker", "vp", "draw"]
-        cmd_type = "Server Command"
-        cmd_inp = ["vp <2000, optional=amount(100-2000)>",
-                   "draw <cardnumbers>"]
-        example = ["vp",
-                   "vp 500",
-                   "draw 13"]
-        data = title, cmd_type, cmd_inp, example
-        embed = self.cmd_embed(data, ctx)
-        await self.send_embed(ctx, embed)
-
     @help.command(name="dice")
     async def dice_(self, ctx):
         title = ["dice"]
@@ -645,6 +607,90 @@ class Help(commands.Cog):
                    "iron local",
                    "iron global",
                    "iron send 8000 Sheldon"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="quiz")
+    async def quiz_(self, ctx):
+        title = ["quiz"]
+        cmd_type = "Server Command"
+        cmd_inp = ["quiz <rounds>"]
+        example = ["quiz 10"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="slots", aliases=["slotistics"])
+    async def slots_(self, ctx):
+        title = ["slots", "slotistics"]
+        cmd_type = "Server Command"
+        cmd_inp = ["slots",
+                   "slotistics"]
+        example = ["slots",
+                   "slotistics"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="anagram", aliases=["ag"])
+    async def anagram_(self, ctx):
+        title = ["anagram", "ag"]
+        cmd_type = "Server Command"
+        cmd_inp = ["ag",
+                   "<guess>"]
+        example = ["ag",
+                   "Späher"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="blackjack", aliases=["bj"])
+    async def blackjack_(self, ctx):
+        title = ["blackjack", "bj"]
+        cmd_type = "Server Command"
+        cmd_inp = ["bj <optional=amount(100-50000)>"]
+        example = ["bj",
+                   "bj 5000"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="hangman", aliases=["hg"])
+    async def hangman_(self, ctx):
+        title = ["hangman", "hg"]
+        cmd_type = "Server Command"
+        cmd_inp = ["hangman",
+                   "guess <character or solution>"]
+        example = ["hangman",
+                   "guess h",
+                   "guess Späher"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="tribalcards", aliases=["tc"])
+    async def tribalcards_(self, ctx):
+        title = ["tribalcards", "tc", "play"]
+        cmd_type = "Server Command / PM Command"
+        cmd_inp = ["quartet",
+                   "play <card or stat>"]
+        example = ["quartet",
+                   "play 5",
+                   "play off"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
+    @help.command(name="videopoker", aliases=["vp", "draw"])
+    async def videpoker_(self, ctx):
+        title = ["videopoker", "vp", "draw"]
+        cmd_type = "Server Command"
+        cmd_inp = ["vp <2000, optional=amount(100-2000)>",
+                   "draw <cardnumbers>"]
+        example = ["vp",
+                   "vp 500",
+                   "draw 13"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)

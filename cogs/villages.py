@@ -82,7 +82,7 @@ class Villages(commands.Cog):
         user_arguments = rest.split()
 
         if len(user_arguments) < 2:
-            raise utils.MissingRequiredArgument(None)
+            raise utils.MissingRequiredArgument()
 
         amount = user_arguments.pop(-1)
         if not amount.isdigit() or amount == "all":

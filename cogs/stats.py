@@ -14,7 +14,7 @@ class Stats(commands.Cog):
         self.in_a_day = "https://{}/guest.php?village=null&" \
                         "screen=ranking&mode=in_a_day&type={}"
         self.bashtypes = {'offensive': "att_bash",
-                          'overall': "all_bash",
+                          'general': "all_bash",
                           'defensive': "def_bash",
                           'support': "sup_bash"}
 
@@ -60,15 +60,18 @@ class Stats(commands.Cog):
                           "sup_bash": "`SUP` | {}",
                           "all_bash": "`ALL` | {}"}
 
-            user_copy = user.copy()
-            user_copy.remove(dsobj)
-            other_user = user_copy[0]
+            if len(user) == 2:
+                user_copy = user.copy()
+                user_copy.remove(dsobj)
+                other_user = user_copy[0]
+            else:
+                other_user = None
 
             result = []
             for key, represent in attributes.items():
                 value = getattr(dsobj, key)
 
-                if len(user) == 2 and getattr(other_user, key) > value:
+                if other_user and getattr(other_user, key) > value:
                     string_value = f"{value}"
                 else:
                     string_value = f"**{value}**"
