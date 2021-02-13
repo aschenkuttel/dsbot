@@ -174,13 +174,21 @@ class Listen(commands.Cog):
         # coordinate conversion
         coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
         if coordinates and self.bot.config.get_switch('coord', guild_id):
-            coords = set(coordinates)
+            # set imitation workaround to preserve order of coordinates
+            coords = list(dict.fromkeys(c for c in coordinates))
             villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
+            village_dict = {str(vil): vil for vil in villages}
+
             player_ids = [obj.player_id for obj in villages]
             players = await self.bot.fetch_bulk(world, player_ids, dictionary=True)
+
             found_villages = []
 
-            for village in villages:
+            for coord in coords.copy():
+                village = village_dict.get(coord)
+                if village is None:
+                    continue
+
                 player = players.get(village.player_id)
 
                 if player:
@@ -200,6 +208,36 @@ class Listen(commands.Cog):
             await self.send_convert(message, embed)
             logger.debug("coord converted")
             return
+
+        # # coordinate conversion
+        # coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
+        # if coordinates and self.bot.config.get_switch('coord', guild_id):
+        #     coords = set(coordinates)
+        #     villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
+        #     player_ids = [obj.player_id for obj in villages]
+        #     players = await self.bot.fetch_bulk(world, player_ids, dictionary=True)
+        #     found_villages = []
+        #
+        #     for village in villages:
+        #         player = players.get(village.player_id)
+        #
+        #         if player:
+        #             owner = f"[{player.name}]"
+        #         else:
+        #             owner = "[Barbarendorf]"
+        #
+        #         found_villages.append(f"{village.mention} {owner}")
+        #         coords.remove(village.coords)
+        #
+        #     if existing := '\n'.join(found_villages):
+        #         existing = f"**Gefundene Koordinaten:**\n{existing}"
+        #     if remaining := ', '.join(coords):
+        #         remaining = f"**Nicht gefunden:**\n{remaining}"
+        #
+        #     embed = discord.Embed(description=f"{existing}\n{remaining}")
+        #     await self.send_convert(message, embed)
+        #     logger.debug("coord converted")
+        #     return
 
         # ds mention converter
         names = re.findall(r'(?<!\|)\|([\S][^|]*?)\|(?!\|)', content)

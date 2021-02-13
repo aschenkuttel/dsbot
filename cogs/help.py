@@ -443,9 +443,9 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
-    @help.command(name="bb")
+    @help.command(name="bb", aliases=["barbarian"])
     async def bb_(self, ctx):
-        title = ["bb"]
+        title = ["bb", "barbarian"]
         cmd_type = "Server Command"
         cmd_inp = ["bb <coord>",
                    "bb <coord> <radius=1-25>",
@@ -458,9 +458,9 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
-    @help.command(name="rm")
+    @help.command(name="rm", aliases=["circular"])
     async def rm_(self, ctx):
-        title = ["rm"]
+        title = ["rm", "circular"]
         cmd_type = "Server Command"
         cmd_inp = ["rm <tribename> <tribename>"]
         example = ["rm Skype! down \"Mum, I like to farm!\""]
@@ -468,9 +468,9 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
-    @help.command(name="rz", aliases=["rz2", "rz3", "rz4"])
+    @help.command(name="rz", aliases=["rz2", "rz3", "rz4", "scavenge"])
     async def rz_(self, ctx):
-        title = ["rz", "rz2", "rz3", "rz4"]
+        title = ["rz", "rz2", "rz3", "rz4", "scavenge"]
         cmd_type = "Server Command [Creator: Madberg]"
         cmd_inp = ["rz4 <unit-amount>"]
         example = ["rz4 200 100"]
@@ -478,9 +478,9 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
-    @help.command(name="sl")
+    @help.command(name="sl", aliases=["quickbar"])
     async def sl_(self, ctx):
-        title = ["sl"]
+        title = ["sl", "quickbar"]
         cmd_type = "Server/PM Command"
         cmd_inp = ["sl <troop=amount> <*coords>"]
         example = ["sl speer=20 lkav=5 späher=2 550|490 489|361",

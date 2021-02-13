@@ -460,6 +460,9 @@ class Utils(commands.Cog):
 
     @commands.command(name="scavenge", aliases=["rz", "rz2", "rz3", "rz4"])
     async def scavenge_(self, ctx, *args: int):
+        if not args:
+            raise utils.MissingRequiredArgument()
+
         last = ctx.invoked_with[-1]
         if last.isdigit():
             factors = getattr(self, f"same_scavenge_{last}")
