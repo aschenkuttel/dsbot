@@ -21,6 +21,11 @@ class MissingRequiredArgument(HelpFailure):
         super().__init__('missing required arg')
 
 
+class BadArgument(HelpFailure):
+    def __init__(self):
+        super().__init__('conversion failed')
+
+
 class ArgumentOutOfRange(commands.CheckFailure):
     def __init__(self, low, high, item):
         self.min = low

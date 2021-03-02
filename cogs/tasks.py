@@ -220,6 +220,7 @@ class Task:
 class Tasks(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.type = 2
         self.example = "{}tasks add 12 map player=True"
         self.commands = ("daily", "dailytribe", "map")
 
@@ -307,6 +308,7 @@ class Tasks(commands.Cog):
 
         return tasks
 
+    @commands.has_permissions(administrator=True)
     @commands.group(name="tasks", invoke_without_command=True)
     async def tasks(self, ctx):
         tasks = await self.fetch_tasks(ctx.guild.id)
@@ -388,7 +390,7 @@ class Tasks(commands.Cog):
         query = 'SELECT * FROM tasks WHERE id = $1'
         async with self.bot.ress.acquire() as conn:
             cache = await conn.fetchrow(query, task_id)
-            await ctx.send(cache)
+            await ctx.send(str(cache))
 
 
 def setup(bot):

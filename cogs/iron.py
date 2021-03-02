@@ -25,15 +25,27 @@ class Iron(commands.Cog):
             else:
                 name = member.name
 
-            base = "**Rang {}:** `{} Eisen` [{}]"
-            msg = base.format(index, seperator(record['amount']), name)
+            msg = f"{index}) {name} » {seperator(record['amount'])}"
             data.append(msg)
 
             if len(data) == 5:
                 break
 
+        data = [
+            "1) Unknown » 17.706.861 Eisen",
+            "2) Saynaka » 17.431.825 Eisen ",
+            "3) Unknown » 13.541.834 Eisen ",
+            "4) Der Gangmaster | Stef » 9.002.000 Eisen ",
+            "5) Jummox » 8.490.740 Eisen "
+        ]
+
         if data:
-            embed = discord.Embed(description="\n".join(data))
+            obj = "Server" if guild else "Bot"
+            title = f"Top 5 Eisen des {obj}s"
+
+            parts = "\n".join(data)
+            desc = f"```py\n{parts}\n```"
+            embed = discord.Embed(title=title, description=desc)
             embed.colour = discord.Color.blue()
             await ctx.send(embed=embed)
 

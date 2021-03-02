@@ -11,7 +11,7 @@ class Help(commands.Cog):
         self.categories = [
             "Administratives",
             "Stämme Features",
-            "Utilities and Fun",
+            "Utilities",
             "Minigames"
         ]
 
@@ -41,8 +41,9 @@ class Help(commands.Cog):
         package.clear()
 
     def help_embed(self, prefix):
-        desc = "Erhalte eine ausführliche Erklärung zu\neinzelnen " \
-               "Commands mit `{0}help <command>`".format(prefix)
+        desc = "Erhalte eine ausführliche Erklärung zu\n" \
+               f"einzelnen Commands mit `{prefix}help <command>`"
+
         emb_help = discord.Embed(description=desc, color=discord.Color.blue())
         emb_help.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
 
@@ -112,6 +113,7 @@ class Help(commands.Cog):
                       f"**Command Input:**\n {cmd_inp}\n" \
                       f"**Beispiel:**\n {example}"
         emb = discord.Embed(title=title, description=description, color=color)
+        emb.set_footer(text="<> = benötigtes Argument\n[] = optionales Argument")
         return emb
 
     async def send_embed(self, ctx, embed):
@@ -204,8 +206,7 @@ class Help(commands.Cog):
         cmd_type = "Admin Command"
         cmd_inp = ["remove channelworld",
                    "remove game",
-                   "remove conquer",
-                   "remove conquer <channel_id>",
+                   "remove conquer [channel_id]",
                    "remove prefix"]
         example = ["remove channelworld",
                    "remove game",
@@ -530,6 +531,23 @@ class Help(commands.Cog):
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)
 
+    @help.command(name="tasks")
+    async def tasks_(self, ctx):
+        title = ["tasks"]
+        cmd_type = "Admin Command"
+        cmd_inp = ["tasks",
+                   "tasks add <hour> <command> [arguments]",
+                   "tasks remove <task_id>",
+                   "tasks clear"]
+        example = ["tasks",
+                   "tasks add 12 map",
+                   "tasks add 12 daily ",
+                   "tasks remove <task_id>",
+                   "tasks clear"]
+        data = title, cmd_type, cmd_inp, example
+        embed = self.cmd_embed(data, ctx)
+        await self.send_embed(ctx, embed)
+
     @help.command(name="avatar")
     async def avatar_(self, ctx):
         title = ["avatar"]
@@ -560,11 +578,12 @@ class Help(commands.Cog):
                    "remind clear",
                    "now"]
         example = ["remind 50s",
+                   "remind 04.06.2021 08:00\nOffaktion",
                    "remind 18:22\nPizza aus dem Ofen holen",
                    "remind list",
                    "remind remove 120",
                    "remind clear",
-                   "now`"]
+                   "now"]
         data = title, cmd_type, cmd_inp, example
         embed = self.cmd_embed(data, ctx)
         await self.send_embed(ctx, embed)

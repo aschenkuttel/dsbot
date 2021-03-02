@@ -25,7 +25,6 @@ class Listen(commands.Cog):
         self.blacklist = []
         self.cmd_counter = Counter()
         self.silenced = (commands.UnexpectedQuoteError,
-                         commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
                          utils.IngameError,
@@ -161,15 +160,8 @@ class Listen(commands.Cog):
                 await utils.silencer(message.add_reaction('❌'))
                 return
 
-            try:
-                await message.channel.send(file=discord.File(file, "report.png"))
-                await message.delete()
-            except discord.Forbidden:
-                pass
-            finally:
-                self.bot.update_member(message.author)
-                logger.debug("report converted")
-                return
+            await self.send_convert(message, file, file=True, delete=True)
+            logger.debug("report converted")
 
         # coordinate conversion
         coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
@@ -209,36 +201,6 @@ class Listen(commands.Cog):
             logger.debug("coord converted")
             return
 
-        # # coordinate conversion
-        # coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
-        # if coordinates and self.bot.config.get_switch('coord', guild_id):
-        #     coords = set(coordinates)
-        #     villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
-        #     player_ids = [obj.player_id for obj in villages]
-        #     players = await self.bot.fetch_bulk(world, player_ids, dictionary=True)
-        #     found_villages = []
-        #
-        #     for village in villages:
-        #         player = players.get(village.player_id)
-        #
-        #         if player:
-        #             owner = f"[{player.name}]"
-        #         else:
-        #             owner = "[Barbarendorf]"
-        #
-        #         found_villages.append(f"{village.mention} {owner}")
-        #         coords.remove(village.coords)
-        #
-        #     if existing := '\n'.join(found_villages):
-        #         existing = f"**Gefundene Koordinaten:**\n{existing}"
-        #     if remaining := ', '.join(coords):
-        #         remaining = f"**Nicht gefunden:**\n{remaining}"
-        #
-        #     embed = discord.Embed(description=f"{existing}\n{remaining}")
-        #     await self.send_convert(message, embed)
-        #     logger.debug("coord converted")
-        #     return
-
         # ds mention converter
         names = re.findall(r'(?<!\|)\|([\S][^|]*?)\|(?!\|)', content)
         if names and self.bot.config.get_switch('mention', guild_id):
@@ -266,21 +228,13 @@ class Listen(commands.Cog):
                 else:
                     parsed_msg = parsed_msg.replace(f"|{name}|", dsobj.mention)
 
-            current = datetime.now()
-            time = current.strftime("%H:%M Uhr")
+            time = datetime.now().strftime("%H:%M Uhr")
             title = f"{message.author.display_name} um {time}"
             embed = discord.Embed(description=parsed_msg)
             embed.set_author(name=title, icon_url=message.author.avatar_url)
 
-            try:
-                await message.channel.send(embed=embed)
-                if not mentions:
-                    await message.delete()
-            except (discord.Forbidden, discord.NotFound):
-                pass
-            finally:
-                self.bot.update_member(message.author)
-                logger.debug("bbcode converted")
+            await self.send_convert(message, embed, delete=not mentions)
+            logger.debug("bbcode converted")
 
     @commands.Cog.listener()
     async def on_command(self, ctx):
@@ -327,6 +281,8 @@ class Listen(commands.Cog):
             return
         elif isinstance(error, commands.MissingRequiredArgument):
             error = utils.MissingRequiredArgument()
+        elif isinstance(error, commands.BadArgument):
+            error = utils.BadArgument()
 
         logger.debug(f"command error [{ctx.message.id}]: {error}")
         cmd = ctx.invoked_with
@@ -340,6 +296,9 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.MissingRequiredArgument):
             msg = f"Dem Command fehlt ein benötigtes Argument"
+
+        elif isinstance(error, utils.BadArgument):
+            msg = "Ein Argument war nicht vom erwarteten Typ"
 
         elif isinstance(error, utils.MissingRequiredKey):
             cmd = f"{ctx.prefix}{cmd.lower()}"
