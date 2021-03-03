@@ -99,7 +99,12 @@ class Help(commands.Cog):
         titles = [f"`{ctx.prefix}{cmd}`" for cmd in data[0]]
         title = f"Command: {' - '.join(titles)}"
 
-        cmd_description = ctx.lang.help[ctx.command.name]
+        cmd_name = ctx.command.name
+        cmd_description = ctx.lang.help[cmd_name]
+
+        cmd_kwargs = ctx.lang.help.get(f"{cmd_name}_kwargs")
+        if cmd_kwargs:
+            cmd_description += f"\n\n{cmd_kwargs}\n"
 
         raw_inp = [f"`{ctx.prefix}{cmd}`" for cmd in data[2]]
         cmd_inp = "\n".join(raw_inp)

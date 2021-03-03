@@ -5,6 +5,7 @@ import asyncio
 import discord
 import utils
 import json
+import yaml
 import re
 
 world_data = {
@@ -469,7 +470,7 @@ class DSMember:
 class Language:
     def __init__(self, path, name):
         file = open(f"{path}/{name}", encoding='utf-8')
-        self._dict = json.load(file)
+        self._dict = yaml.load(file, Loader=yaml.FullLoader)
         file.close()
 
         for key, value in self._dict.items():
