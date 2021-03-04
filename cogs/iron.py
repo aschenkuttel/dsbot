@@ -84,7 +84,7 @@ class Iron(commands.Cog):
 
         query = 'SELECT * FROM iron WHERE id = ANY($1) ' \
                 'ORDER BY amount DESC LIMIT 5'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             data = await conn.fetch(query, list(members))
 
             result = []
@@ -96,7 +96,7 @@ class Iron(commands.Cog):
     @iron.command(name="global")
     async def global_(self, ctx):
         query = 'SELECT * FROM iron ORDER BY amount DESC LIMIT 5'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             cache = await conn.fetch(query)
 
         result = []
@@ -116,7 +116,7 @@ class Iron(commands.Cog):
                   'FROM iron WHERE amount < $1 ' \
                   'ORDER BY amount DESC LIMIT $2'
 
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             member = member or ctx.author
             over = await conn.fetch(f_query, member.id)
 

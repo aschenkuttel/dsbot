@@ -67,7 +67,7 @@ class Owner(commands.Cog):
     @commands.command(name="execute")
     async def sql_(self, ctx, *, query):
         try:
-            async with self.bot.pool.acquire() as conn:
+            async with self.bot.tribal_pool.acquire() as conn:
                 await conn.execute(query)
         except Exception as error:
             await ctx.send(error)
@@ -75,7 +75,7 @@ class Owner(commands.Cog):
     @commands.command(name="fetch")
     async def fetch(self, ctx, *, query):
         try:
-            async with self.bot.pool.acquire() as conn:
+            async with self.bot.tribal_pool.acquire() as conn:
                 response = await conn.fetch(query)
                 await ctx.send(response)
         except Exception as error:

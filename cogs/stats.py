@@ -156,8 +156,9 @@ class Stats(commands.Cog):
 
         for index, current in enumerate(current_day):
             past = int(day_in_past[index])
+            value = sep(int(current) - past)
 
-            if (value := sep(int(current) - past)).startswith("-"):
+            if value.startswith("-"):
                 result.append(f"`{value[1:]}` {lang_pkg[index][0]}")
             else:
                 result.append(f"`{value}` {lang_pkg[index][1]}")
@@ -224,7 +225,7 @@ class Stats(commands.Cog):
         dstype = utils.DSType('tribe' if tribe else 'player')
         batch = []
 
-        async with self.bot.pool.acquire() as conn:
+        async with self.bot.tribal_pool.acquire() as conn:
             for award in ds_types:
                 award_data = ctx.lang.daily_options.get(award)
 

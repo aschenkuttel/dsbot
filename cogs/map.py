@@ -643,7 +643,7 @@ class Map(commands.Cog):
         await ctx.send("Daten werden geladen...")
 
         day_rankings = {}
-        async with self.bot.pool.acquire() as conn:
+        async with self.bot.tribal_pool.acquire() as conn:
             for n in range(1, days.value + 1):
                 query = f'SELECT * FROM tribe{n} WHERE world = $1 ORDER BY rank LIMIT 10'
                 cache = await conn.fetch(query, ctx.server)

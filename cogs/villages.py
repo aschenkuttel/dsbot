@@ -71,7 +71,7 @@ class Villages(commands.Cog):
         if extra_query:
             query += extra_query
 
-        async with self.bot.pool.acquire() as conn:
+        async with self.bot.tribal_pool.acquire() as conn:
             result = await conn.fetch(query, *arguments)
             return [utils.Village(rec) for rec in result]
 
@@ -115,7 +115,7 @@ class Villages(commands.Cog):
                             ' AND LEFT(CAST(y AS TEXT), 1) = $4'
             arguments.extend([conti_str[2], conti_str[1]])
 
-        async with self.bot.pool.acquire() as conn:
+        async with self.bot.tribal_pool.acquire() as conn:
             cache = await conn.fetch(query, *arguments)
             result = [utils.Village(rec) for rec in cache]
             random.shuffle(result)
@@ -180,7 +180,7 @@ class Villages(commands.Cog):
             base.append(query_part)
 
         query = ' UNION ALL '.join(base)
-        async with self.bot.pool.acquire() as conn:
+        async with self.bot.tribal_pool.acquire() as conn:
             cache = await conn.fetch(query, ctx.server, player_ids)
             result = [utils.Player(rec) for rec in cache]
 

@@ -782,13 +782,10 @@ commands:
   recap:
     - - Punkte verloren
     - Punkte gemacht
-
     - - Dörfer verschenkt und
     - Dörfer geholt und
-
     - - Bashpoints verloren
     - Bashpoints erkämpft
-
     - - hat seit gestern
     - "hat in den letzten {} Tagen"
 

@@ -28,19 +28,17 @@ class DSBot(commands.Bot):
         path = os.path.dirname(__file__)
         self.data_path = f"{path}/data"
 
-        # internal world cache of active worlds with settings
         self.worlds = {}
         self.members = {}
-        self.config = utils.Config(self)
 
-        # tribal wars and user database pools
-        self.pool = None
-        self.ress = None
+        self.session = None
+        self.tribal_pool = None
+        self.member_pool = None
 
         # active connection listening for database callbacks
         self._conn = None
-        self.session = None
 
+        # creation of own logging and discord logging
         self.logger = utils.create_logger('dsbot', self.data_path)
         utils.create_logger('discord', self.data_path)
 
@@ -54,6 +52,7 @@ class DSBot(commands.Bot):
         self._update = asyncio.Event()
         self._lock = asyncio.Event()
 
+        self.config = utils.Config(self)
         self.owner_id = 211836670666997762
         self.default_prefix = secret.default_prefix
         self.activity = discord.Activity(type=0, name=secret.status)
@@ -71,11 +70,11 @@ class DSBot(commands.Bot):
 
             # initiates session object and db conns
             self.session = aiohttp.ClientSession(loop=self.loop)
-            self.pool, self.ress = await self.db_connect()
+            self.tribal_pool, self.member_pool = await self.db_connect()
             await self.setup_tables()
 
             # initiate logging connection for discord callback
-            self._conn = await self.pool.acquire()
+            self._conn = await self.tribal_pool.acquire()
             await self._conn.add_listener("log", self.callback)
 
             # adds needed option for vps
@@ -244,14 +243,14 @@ class DSBot(commands.Bot):
         querys = [reminder, iron, usage,
                   slot, member, tasks]
 
-        async with self.ress.acquire() as conn:
+        async with self.member_pool.acquire() as conn:
             await conn.execute(";".join(querys))
 
     async def load_members(self):
         for guild in self.guilds:
             self.members[guild.id] = {}
 
-        async with self.ress.acquire() as conn:
+        async with self.member_pool.acquire() as conn:
             data = await conn.fetch('SELECT * FROM member')
 
             for record in data:
@@ -295,13 +294,13 @@ class DSBot(commands.Bot):
                 cache[member.id] = dc_member
 
     async def update_iron(self, user_id, iron):
-        async with self.ress.acquire() as conn:
+        async with self.member_pool.acquire() as conn:
             query = 'INSERT INTO iron(id, amount) VALUES($1, $2) ' \
                     'ON CONFLICT (id) DO UPDATE SET amount = iron.amount + $2'
             await conn.execute(query, user_id, iron)
 
     async def subtract_iron(self, user_id, iron, supress=False):
-        async with self.ress.acquire() as conn:
+        async with self.member_pool.acquire() as conn:
             query = 'UPDATE iron SET amount = amount - $2 ' \
                     'WHERE id = $1 AND amount >= $2 RETURNING TRUE'
             response = await conn.fetchrow(query, user_id, iron)
@@ -313,7 +312,7 @@ class DSBot(commands.Bot):
             return response
 
     async def fetch_iron(self, user_id, rank=False):
-        async with self.ress.acquire() as conn:
+        async with self.member_pool.acquire() as conn:
             if rank is False:
                 query = 'SELECT * FROM iron WHERE id = $1'
                 data = await conn.fetchrow(query, user_id)
@@ -332,13 +331,13 @@ class DSBot(commands.Bot):
         if amount is not None:
             statement += f' LIMIT {amount}'
 
-        async with self.ress.acquire() as conn:
+        async with self.member_pool.acquire() as conn:
             data = await conn.fetch(statement)
             return [r.values() for r in data]
 
     async def update_worlds(self):
         query = 'SELECT * FROM world GROUP BY world'
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             data = await conn.fetch(query)
 
         if not data:
@@ -359,7 +358,7 @@ class DSBot(commands.Bot):
     async def fetch_all(self, world, table=0, dictionary=False):
         dsobj = utils.DSType(table)
 
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             query = f'SELECT * FROM {dsobj.table} WHERE world = $1'
             cache = await conn.fetch(query, world)
 
@@ -377,7 +376,7 @@ class DSBot(commands.Bot):
         least = kwargs.get('least', False)
 
         statement = f'SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2'
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             data = await conn.fetch(statement, world, top)
 
         if len(data) < amount:
@@ -407,7 +406,7 @@ class DSBot(commands.Bot):
         else:
             query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
 
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
             return utils.Player(result) if result else None
 
@@ -421,7 +420,7 @@ class DSBot(commands.Bot):
         else:
             query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
 
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             result = await conn.fetchrow(query, world, searchable)
 
         return utils.Tribe(result) if result else None
@@ -437,7 +436,7 @@ class DSBot(commands.Bot):
             query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
             searchable = [searchable]
 
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             result = await conn.fetchrow(query, world, *searchable)
 
         return utils.Village(result) if result else None
@@ -459,7 +458,7 @@ class DSBot(commands.Bot):
         query = f'SELECT * FROM {dsobj.table} WHERE world = $1 ' \
                 f'ORDER BY {attribute} {way} LIMIT $2'
 
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             top10 = await conn.fetch(query, world, top)
 
             if kwargs.get('dictionary') is True:
@@ -475,7 +474,7 @@ class DSBot(commands.Bot):
             allys = [tribe.id for tribe in tribes]
 
         query = f'SELECT * FROM player WHERE world = $1 AND tribe_id = ANY($2)'
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             res = await conn.fetch(query, world, allys)
             return [utils.Player(rec) for rec in res]
 
@@ -497,7 +496,7 @@ class DSBot(commands.Bot):
                 else:
                     query = f'{base} AND LOWER(name) = ANY($2)'
 
-        async with self.pool.acquire() as conn:
+        async with self.tribal_pool.acquire() as conn:
             res = await conn.fetch(query, world, iterable)
             if kwargs.get('dictionary'):
                 return {rec[1]: dsobj.Class(rec) for rec in res}
@@ -514,8 +513,8 @@ class DSBot(commands.Bot):
 
     async def logout(self):
         await self.session.close()
-        await self.ress.close()
-        await self.pool.close()
+        await self.member_pool.close()
+        await self.tribal_pool.close()
         await self.close()
 
 

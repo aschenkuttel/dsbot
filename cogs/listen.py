@@ -33,7 +33,7 @@ class Listen(commands.Cog):
         self.guild_timeout.start()
 
     async def called_per_hour(self):
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             await self.update_usage(conn)
             await self.update_members(conn)
 

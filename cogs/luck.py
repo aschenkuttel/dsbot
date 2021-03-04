@@ -29,7 +29,7 @@ class Casino(utils.DSGames):
 
     async def slot_setup(self):
         await self.bot.wait_until_unlocked()
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             query = 'SELECT * FROM slot WHERE id < 10000'
             cache = await conn.fetchrow(query)
 
@@ -69,7 +69,7 @@ class Casino(utils.DSGames):
             new_number = random.choice(self.numbers)
             query = 'INSERT INTO slot(id, amount) VALUES($1, $2);'
 
-            async with self.bot.ress.acquire() as conn:
+            async with self.bot.member_pool.acquire() as conn:
                 await conn.execute('TRUNCATE TABLE slot')
                 await conn.execute(query, new_number, 5000)
 
@@ -87,7 +87,7 @@ class Casino(utils.DSGames):
                     'ON CONFLICT (id) DO UPDATE SET amount = slot.amount + $2'
 
             arguments = [(ctx.author.id, 1000), (self.winning_number, 1000)]
-            async with self.bot.ress.acquire() as conn:
+            async with self.bot.member_pool.acquire() as conn:
                 await conn.executemany(query, arguments)
 
             base = "Leider die falsche Zahl: **{}**\n" \
@@ -101,7 +101,7 @@ class Casino(utils.DSGames):
     @commands.command(name="slotistics")
     async def slotistics_(self, ctx):
         query = 'SELECT * FROM slot WHERE id = $1'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             cache = await conn.fetchrow(query, ctx.author.id)
             if cache is None:
                 own_value = 0

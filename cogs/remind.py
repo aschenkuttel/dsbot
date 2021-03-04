@@ -81,7 +81,7 @@ class Reminder(commands.Cog):
 
             if not self.current_reminder:
                 query = 'SELECT * FROM reminder ORDER BY expiration'
-                async with self.bot.ress.acquire() as conn:
+                async with self.bot.member_pool.acquire() as conn:
                     data = await conn.fetchrow(query)
 
                     if data is not None:
@@ -95,7 +95,7 @@ class Reminder(commands.Cog):
                 await asyncio.sleep(seconds)
 
                 query = "DELETE FROM reminder WHERE id = $1"
-                async with self.bot.ress.acquire() as conn:
+                async with self.bot.member_pool.acquire() as conn:
                     await conn.execute(query, self.current_reminder.id)
 
                 if seconds > -60:
@@ -157,7 +157,7 @@ class Reminder(commands.Cog):
             query = 'INSERT INTO reminder ' \
                     '(author_id, channel_id, creation, expiration, reason)' \
                     ' VALUES ($1, $2, $3, $4, $5) RETURNING id'
-            async with self.bot.ress.acquire() as conn:
+            async with self.bot.member_pool.acquire() as conn:
                 resp = await conn.fetchrow(query, *arguments)
                 reminder.id = resp['id']
 
@@ -176,7 +176,7 @@ class Reminder(commands.Cog):
     @remind.command(name="list")
     async def list_(self, ctx):
         query = 'SELECT * FROM reminder WHERE author_id = $1 ORDER BY expiration'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             data = await conn.fetch(query, ctx.author.id)
 
         if not data:
@@ -197,7 +197,7 @@ class Reminder(commands.Cog):
     @remind.command(name="remove")
     async def remove_(self, ctx, reminder_id: int):
         query = 'DELETE FROM reminder WHERE author_id = $1 AND id = $2'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             response = await conn.execute(query, ctx.author.id, reminder_id)
 
         if response == "DELETE 0":
@@ -212,7 +212,7 @@ class Reminder(commands.Cog):
     @remind.command(name="clear")
     async def clear_(self, ctx):
         query = 'DELETE FROM reminder WHERE author_id = $1 RETURNING id'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             deleted_rows = await conn.fetch(query, ctx.author.id)
 
         if not deleted_rows:

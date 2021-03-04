@@ -64,7 +64,7 @@ class Task:
         dstype = utils.DSType('tribe' if tribe else 'player')
         batch = []
 
-        async with self.bot.pool.acquire() as conn:
+        async with self.bot.tribal_pool.acquire() as conn:
             for award in ds_types:
                 award_data = lang.daily_options.get(award)
 
@@ -230,7 +230,7 @@ class Tasks(commands.Cog):
     async def run_tasks(self):
         now = datetime.now()
         query = 'SELECT * FROM tasks WHERE EXTRACT(HOUR FROM time) = $1'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             cache = await conn.fetch(query, now.hour)
             tasks = [Task(self.bot, rec) for rec in cache]
 
@@ -283,7 +283,7 @@ class Tasks(commands.Cog):
             query = 'DELETE FROM tasks WHERE id = ANY($1)'
             dead_ids = [t.id for t in dead_tasks]
 
-            async with self.bot.ress.acquire() as conn:
+            async with self.bot.member_pool.acquire() as conn:
                 await conn.execute(query, dead_ids)
 
             logger.debug(f"Deleted {len(dead_ids)} Tasks")
@@ -296,7 +296,7 @@ class Tasks(commands.Cog):
     async def fetch_tasks(self, guild_id, ext=None):
         query = 'SELECT * FROM tasks WHERE guild_id = $1'
         if ext is None:
-            conn = await self.bot.ress.acquire()
+            conn = await self.bot.member_pool.acquire()
         else:
             conn = ext
 
@@ -304,7 +304,7 @@ class Tasks(commands.Cog):
         tasks = [Task(self.bot, rec) for rec in cache]
 
         if ext is None:
-            await self.bot.ress.release(conn)
+            await self.bot.member_pool.release(conn)
 
         return tasks
 
@@ -347,7 +347,7 @@ class Tasks(commands.Cog):
 
         query = 'INSERT INTO tasks(guild_id, channel_id, command, arguments, time)' \
                 'VALUES ($1, $2, $3, $4, $5) RETURNING id'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             tasks = await self.fetch_tasks(ctx.guild.id, conn)
 
             if len(tasks) == 3:
@@ -365,7 +365,7 @@ class Tasks(commands.Cog):
     @tasks.command(name="remove")
     async def remove_(self, ctx, task_id: int):
         query = 'DELETE FROM tasks WHERE guild_id = $1 AND id = $2 RETURNING TRUE'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             resp = await conn.fetchrow(query, ctx.guild.id, task_id)
 
             if resp is None:
@@ -378,7 +378,7 @@ class Tasks(commands.Cog):
     @tasks.command(name="clear")
     async def clear_(self, ctx):
         query = 'DELETE FROM tasks WHERE guild_id = $1'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             await conn.execute(query, ctx.guild.id)
 
         msg = "Alle Tasks wurden erfolgreich gelöscht"
@@ -388,7 +388,7 @@ class Tasks(commands.Cog):
     @tasks.command(name="preview")
     async def preview_(self, ctx, task_id: int):
         query = 'SELECT * FROM tasks WHERE id = $1'
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             cache = await conn.fetchrow(query, task_id)
             await ctx.send(str(cache))
 

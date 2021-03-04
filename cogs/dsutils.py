@@ -287,7 +287,7 @@ class Utils(commands.Cog):
             queries.append(base)
 
         query = " UNION ALL ".join(queries)
-        async with self.bot.pool.acquire() as conn:
+        async with self.bot.tribal_pool.acquire() as conn:
             records = await conn.fetch(query, ctx.server, dsobj.id)
             data = [ds_type.Class(rec) for rec in records]
             data.reverse()
