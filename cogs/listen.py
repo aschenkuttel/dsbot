@@ -27,7 +27,6 @@ class Listen(commands.Cog):
         self.silenced = (commands.UnexpectedQuoteError,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
-                         utils.IngameError,
                          utils.SilentError)
         self.active_guilds = set()
         self.guild_timeout.start()

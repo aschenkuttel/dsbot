@@ -90,9 +90,9 @@ class Casino(utils.DSGames):
             async with self.bot.member_pool.acquire() as conn:
                 await conn.executemany(query, arguments)
 
-            base = "Leider die falsche Zahl: **{}**\n" \
-                   "Aktueller Pot: `{}`\nGewinnzahl: **{}**"
-            msg = base.format(number, utils.seperator(self.pot), self.winning_number)
+            msg = f"Leider die falsche Zahl: **{number}**\n" \
+                  f"Aktueller Pot: `{utils.seperator(self.pot)}`\n" \
+                  f"Gewinnzahl: **{self.winning_number}**"
 
         async with self.end_game(ctx, time=8):
             await ctx.send(msg)

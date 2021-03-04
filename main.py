@@ -63,7 +63,6 @@ class DSBot(commands.Bot):
         self.loop.create_task(self.loop_per_hour())
         self.setup_cogs()
 
-    # setup functions
     async def on_ready(self):
         # db / aiohttp setup
         if not self._lock.is_set():

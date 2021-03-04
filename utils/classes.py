@@ -403,13 +403,17 @@ class DSGames(commands.Cog):
         if container is None:
             container = self.get_container(ctx)
 
+        # no running game
         if ctx.guild.id not in container:
             return
 
+        # list just acts as cooldown container
         if isinstance(container, list):
             raise utils.SilentError
+
         else:
             data = container[ctx.guild.id]
+            # False is the cooldown value
             if data is False:
                 raise utils.SilentError
             else:

@@ -72,12 +72,6 @@ class MissingGucci(commands.CheckFailure):
         super().__init__('not enough iron')
 
 
-class IngameError(commands.CheckFailure):
-    def __init__(self, ingame):
-        self.ingame = not ingame
-        super().__init__('another game running')
-
-
 class SilentError(commands.CheckFailure):
     pass
 
