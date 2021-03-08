@@ -97,13 +97,12 @@ class Iron(commands.Cog):
 
     @iron.command(name="local")
     async def local_(self, ctx, member: MemberConverter = None):
-        f_query = 'SELECT * FROM iron WHERE amount >= ' \
-                  '(SELECT amount FROM iron WHERE id = $1) ' \
+        f_query = 'SELECT *, (SELECT COUNT(*) FROM iron ' \
+                  'WHERE amount > (SELECT amount FROM iron WHERE id = $1)) AS count ' \
+                  'FROM iron WHERE amount >= (SELECT amount FROM iron WHERE id = $1) ' \
                   'ORDER BY amount ASC LIMIT 3'
 
-        s_query = 'SELECT *, (SELECT COUNT(*) FROM iron ' \
-                  'WHERE amount > $1) AS count ' \
-                  'FROM iron WHERE amount < $1 ' \
+        s_query = 'SELECT * FROM iron WHERE amount < $1 ' \
                   'ORDER BY amount DESC LIMIT $2'
 
         async with self.bot.member_pool.acquire() as conn:
@@ -116,8 +115,8 @@ class Iron(commands.Cog):
                 return
 
             amount = over[0]['amount']
+            global_index = over[0]['count']
             under = await conn.fetch(s_query, amount, 5 - len(over))
-            global_index = under[0]['count']
 
         unordered = list(over) + list(under)
         ordered = sorted(unordered, key=lambda r: r['amount'], reverse=True)
