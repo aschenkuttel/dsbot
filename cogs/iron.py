@@ -8,39 +8,29 @@ class Iron(commands.Cog):
         self.bot = bot
         self.type = 3
 
-    async def send_ranking(self, ctx, iterable, guild=False):
+    async def send_ranking(self, ctx, iterable, guild_data=None):
         data = []
         for index, record in iterable:
 
-            if guild is True:
-                ids = (ctx.guild.id, record['id'])
-                member = self.bot.get_guild_member(*ids)
+            if guild_data:
+                member = guild_data[record['id']]
             else:
                 member = self.bot.get_member(record['id'])
 
             if member is None:
                 name = "Unknown"
-            elif guild is True:
+            elif guild_data:
                 name = member.display_name
             else:
                 name = member.name
 
-            msg = f"{index}) {name} » {seperator(record['amount'])}"
-            data.append(msg)
+            data.append(f"{index}) {name} » {seperator(record['amount'])}")
 
             if len(data) == 5:
                 break
 
-        data = [
-            "1) Unknown » 17.706.861 Eisen",
-            "2) Saynaka » 17.431.825 Eisen ",
-            "3) Unknown » 13.541.834 Eisen ",
-            "4) Der Gangmaster | Stef » 9.002.000 Eisen ",
-            "5) Jummox » 8.490.740 Eisen "
-        ]
-
         if data:
-            obj = "Server" if guild else "Bot"
+            obj = "Server" if guild_data else "Bot"
             title = f"Top 5 Eisen des {obj}s"
 
             parts = "\n".join(data)
@@ -56,7 +46,7 @@ class Iron(commands.Cog):
     @commands.group(name="iron", invoke_without_command=True)
     async def iron(self, ctx):
         if not ctx.message.content.endswith("iron"):
-            raise MissingRequiredKey(("send", "top", "local"))
+            raise MissingRequiredKey(("send", "global", "top", "local"))
 
         money, rank = await self.bot.fetch_iron(ctx.author.id, True)
         base = "**Dein Speicher:** `{} Eisen`\n**Globaler Rang:** `{}`"
@@ -91,7 +81,7 @@ class Iron(commands.Cog):
             for index, record in enumerate(data, 1):
                 result.append([index, record])
 
-            await self.send_ranking(ctx, result, guild=True)
+            await self.send_ranking(ctx, result, guild_data=members)
 
     @iron.command(name="global")
     async def global_(self, ctx):
@@ -127,17 +117,16 @@ class Iron(commands.Cog):
 
             amount = over[0]['amount']
             under = await conn.fetch(s_query, amount, 5 - len(over))
-
-            rank = under[0]['count'] + 1
+            global_index = under[0]['count']
 
         unordered = list(over) + list(under)
         ordered = sorted(unordered, key=lambda r: r['amount'], reverse=True)
-        or_index = ordered.index(over[0])
+        author_index = ordered.index(over[0])
 
         result = []
-        for index, record in enumerate(ordered):
-            new_rank = rank + or_index - index
-            result.append([new_rank, record])
+        for index, record in enumerate(ordered, start=1):
+            user_rank = global_index + index - author_index
+            result.append([user_rank, record])
 
         await self.send_ranking(ctx, result)
 
