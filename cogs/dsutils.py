@@ -432,7 +432,7 @@ class Utils(commands.Cog):
                 continue
 
         if not sum(data):
-            troops = ', '.join([o.capitalize() for o in wiki])
+            troops = ", ".join([o.capitalize() for o in wiki])
             msg = f"Du musst einen gültigen Truppennamen angeben:\n`{troops}`"
             await ctx.send(msg)
             return

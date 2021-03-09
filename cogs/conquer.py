@@ -15,7 +15,7 @@ class ConquerLoop(commands.Cog):
 
     @commands.is_owner()
     @commands.command(name="manual")
-    async def manual(self, ctx):
+    async def manual_(self, ctx):
         await self.called_per_hour()
         await ctx.send("manual feed done")
 
@@ -96,7 +96,6 @@ class ConquerLoop(commands.Cog):
                     if len(cache) + len(line) < 1024:
                         cache = "\n".join(conquer_pkg + [line])
                         conquer_pkg.clear()
-
                     else:
                         conquer_pkg = [line]
 

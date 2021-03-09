@@ -5,52 +5,27 @@ import discord
 import random
 import utils
 
-stat = {'id': "ID",
-        'rank': "Rang",
-        'points': "Punkte",
-        'villages': "Dörfer",
-        'all_bash': "Bashpoints",
-        'sup_bash': "UT Bashpoints"}
-
-way = {"id": ["älteste", "neuste"],
-       "rank": ["besten", "schlechtesten"],
-       "points": ["meisten", "wenigsten"],
-       "villages": ["meisten", "wenigsten"],
-       "sup_bash": ["meisten", "wenigsten"],
-       "all_bash": ["meisten", "wenigsten"]}
-
-pl_options = {"id": "die {} ID?",
-              "rank": "den {} Rang?",
-              "points": "die {} Punkte?",
-              "sup_bash": "die {} Unterstützer-Bashis?",
-              "all_bash": "die {} besiegten Gegner?"}
-
-tr_options = {"id": "die {} ID?",
-              "rank": "den {} Rang?",
-              "points": "die {} Punkte?",
-              "villages": "die {} Dörfer?",
-              "all_bash": "die {} besiegten Gegner?"}
-
-prop = {"name": "Spieler", "id": "ID", "rank": "Rang", "points": "Punkte",
-        "villages": "Dörfer", "att_bash": "OFF", "def_bash": "DEF",
-        "sup_bash": "SUP", "all_bash": "Insgesamt"}
-
 
 class Card(utils.DSGames):
     def __init__(self, bot):
         self.bot = bot
         self.type = 3
-        self.cache = []
         self.quiz = {}
+        self.cache = []
         self.tribalcard = {}
-        self.game_pool = [
+        self.game_pool = (
             self.top_entity,
             self.general_ask,
             self.tribe_quiz,
             self.image_guess
-        ]
-        self.format = ('points', 'att_bash', 'def_bash',
-                       'sup_bash', 'all_bash')
+        )
+        self.format = (
+            "points",
+            "att_bash",
+            "def_bash",
+            "sup_bash",
+            "all_bash"
+        )
 
     def quiz_embed(self, desc, rounds, ingame=False):
         title = "Frage " + rounds if not ingame else rounds
@@ -92,8 +67,10 @@ class Card(utils.DSGames):
         top = 15 if switch else 100
         data = await self.bot.fetch_random(ctx.server, top=top, amount=5, tribe=switch)
         base = f"Welcher dieser 5 {'Stämme' if switch else 'Spieler'} hat"
-        witcher = tr_options if switch else pl_options
-        key = random.choice(list(witcher))
+
+        pkg_name = 'tribe_options' if switch else 'player_options'
+        pkg = ctx.lang.quiz[pkg_name]
+        key = random.choice(pkg)
 
         listed = []
         for entry in data:
@@ -105,10 +82,15 @@ class Card(utils.DSGames):
         value, obj = sorted(listed, key=lambda x: x[0], reverse=reverse)[0]
 
         options = self.rankings([u.name for u in data])
-        which = way[key][1] if gravity else way[key][0]
-        question = f"{base} {witcher[key].format(which)}\n\n{options}"
+        which = ctx.lang.quiz['either'][key][gravity]
+        question = f"{base} {pkg[key].format(which)}\n\n{options}"
         index = str(data.index(obj) + 1)
-        sweet = f"{stat[key]} {value}" if lowest else f"{utils.seperator(value)} {stat[key]}"
+
+        if lowest:
+            sweet = f"{ctx.lang.quiz['name'][key]} {value}"
+        else:
+            sweet = f"{utils.seperator(value)} {ctx.lang.quiz['name'][key]}"
+
         answer_str = f"{obj.name} | {sweet}"
 
         await ctx.send(embed=self.quiz_embed(question, rounds))
@@ -117,7 +99,7 @@ class Card(utils.DSGames):
 
     # Module Two
     async def general_ask(self, ctx, rounds):
-        raw_question, answer = random.choice(ctx.lang.quiz_questions)
+        raw_question, answer = random.choice(ctx.lang.quiz['questions'])
         splitted = raw_question.split(" ")
         mid = int((len(splitted) + 1) / 2)
         first_half, second_half = ' '.join(splitted[:mid]), ' '.join(splitted[mid:])
@@ -202,14 +184,16 @@ class Card(utils.DSGames):
         result = await self.wait_for_answers(ctx, index)
         return result, obj.name
 
-    def show_hand(self, hand, instruction, beginner=False):
+    def show_beginner_hand(self, hand, ctx):
         description = f"**Tribalcard | Deine Hand:**\n\n"
+        embed = discord.Embed(description=description)
+
         for index, player in enumerate(hand):
 
-            if beginner and index == 0:
+            if index == 0:
                 card = f"Oberste Karte:\n"
                 values = []
-                for key, value in prop.items():
+                for key, value in ctx.lang.tc.items():
                     pval = getattr(player, key)
 
                     if key in self.format:
@@ -222,11 +206,20 @@ class Card(utils.DSGames):
                 card += f"{result}\n\n"
 
                 base = "Du bist am Zug, wähle eine Eigenschaft mit {}play <property>"
-                instruction = base.format(instruction)
+                embed.set_footer(text=base.format(self.bot.prefix))
 
             else:
                 card = f"**{index + 1}**: {player.name}\n"
 
+            embed.description += card
+
+        return embed
+
+    def show_player_hand(self, hand, instruction):
+        description = f"**Tribalcard | Deine Hand:**\n\n"
+
+        for index, player in enumerate(hand):
+            card = f"**{index + 1}**: {player.name}\n"
             description += card
 
         embed = discord.Embed(description=description)
@@ -392,7 +385,7 @@ class Card(utils.DSGames):
                     hand.append(card)
 
             hand = data['players'][ctx.author]['cards']
-            embed = self.show_hand(hand, ctx.prefix, True)
+            embed = self.show_beginner_hand(hand, ctx)
             resp = await utils.silencer(ctx.author.send(embed=embed))
 
             if resp is False:
@@ -428,7 +421,7 @@ class Card(utils.DSGames):
             await ctx.send(msg)
 
         elif data['beginner'] == ctx.author:
-            for attribute, name in prop.items():
+            for attribute, name in ctx.lang.tc.items():
                 if attribute == "name":
                     continue
                 if name.lower() == card_or_property.lower():
@@ -456,7 +449,7 @@ class Card(utils.DSGames):
                 else:
                     base = "{} möchte {} vergleichen, wähle deine Karte mit {}play <number>"
                     msg = base.format(ctx.author.display_name, name, data['ctx'].bot.prefix)
-                    embed = self.show_hand(playerdata['cards'], msg)
+                    embed = self.show_player_hand(playerdata['cards'], msg)
                     await player.send(embed=embed)
 
         else:
@@ -505,7 +498,9 @@ class Card(utils.DSGames):
                     dsobj = played[user].name
                     points = players[user]['points']
                     name = f"Karte von {user.display_name} ({points}):"
-                    value = f"**{prop[data['attribute']]} von {dsobj}:** `{utils.seperator(value)}`"
+
+                    target = f"{dsobj}:** `{utils.seperator(value)}`"
+                    value = f"**{ctx.lang.tc[data['attribute']]} von {target}"
                     embed.add_field(name=name, value=value, inline=False)
 
                 base = "Warte bis {} sich für eine Eigenschaft entschieden hat"
@@ -531,8 +526,7 @@ class Card(utils.DSGames):
                     data['beginner'] = beginner
                     beginner_data = players[beginner]
 
-                    prefix = data['ctx'].bot.prefix
-                    embed = self.show_hand(beginner_data['cards'], prefix, True)
+                    embed = self.show_beginner_hand(beginner_data['cards'], ctx)
                     msg = await beginner.send(embed=embed)
                     beginner_data['msg'] = msg
 

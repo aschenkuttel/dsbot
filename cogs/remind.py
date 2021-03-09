@@ -57,7 +57,7 @@ class Reminder(commands.Cog):
         self.bot = bot
         self.type = 2
         self.char_limit = 200
-        self.set = {'PREFER_DATES_FROM': 'future'}
+        self.set = {'PREFER_DATES_FROM': "future"}
         self.preset = "%d.%m.%Y | %H:%M:%S Uhr"
         self._task = self.bot.loop.create_task(self.remind_loop())
         self._lock = asyncio.Event(loop=bot.loop)

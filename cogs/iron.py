@@ -1,5 +1,6 @@
 from utils import MemberConverter, MissingRequiredKey, seperator
 from discord.ext import commands
+import tabulate
 import discord
 
 
@@ -24,7 +25,7 @@ class Iron(commands.Cog):
             else:
                 name = member.name
 
-            data.append(f"{index}) {name} » {seperator(record['amount'])}")
+            data.append([f"{index})", name, "»", seperator(record['amount'])])
 
             if len(data) == 5:
                 break
@@ -32,8 +33,7 @@ class Iron(commands.Cog):
         if data:
             obj = "Server" if guild_data else "Bot"
             title = f"Top 5 Eisen des {obj}s"
-
-            parts = "\n".join(data)
+            parts = tabulate.tabulate(data, tablefmt='plain', disable_numparse=True)
             desc = f"```py\n{parts}\n```"
             embed = discord.Embed(title=title, description=desc)
             embed.colour = discord.Color.blue()
@@ -53,7 +53,7 @@ class Iron(commands.Cog):
         await ctx.send(base.format(seperator(money), rank))
 
     @iron.command(name="send")
-    @commands.cooldown(1, 30.0, commands.BucketType.user)
+    @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def send_(self, ctx, amount: int, *, user: MemberConverter):
         if not 1000 <= amount <= 50000:
             await ctx.send("Du kannst nur `1000-50.000 Eisen` überweisen")

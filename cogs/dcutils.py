@@ -4,13 +4,14 @@ import datetime
 import discord
 import asyncio
 import random
+import utils
 
 
 class DCUtils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 2
-        self.duration = 300
+        self.poll_time = 10
         self.url = "http://media1.tenor.com/images/561e3f9a9c6c" \
                    "1912e2edc4c1055ff13e/tenor.gif?itemid=9601551"
 
@@ -98,55 +99,69 @@ class DCUtils(commands.Cog):
             await ctx.send(f"Ihr passt zu `{result}%` zusammen.\n{answer}")
 
     @commands.command(name="poll")
-    async def poll_(self, ctx, question, *options):
-        if len(options) > 9:
-            msg = "Die maximale Anzahl der Auswahlmöglichkeiten beträgt 9"
+    async def poll_(self, ctx, time: int, *, arguments):
+        lines = arguments.split("\n")
+
+        if not 3 <= len(lines) <= 9:
+            msg = "You should have between two and nine choices"
             await ctx.send(msg)
             return
 
-        parsed_options = ""
-        for index, opt in enumerate(options):
-            choice = f"\n`{index + 1}.` {opt}"
-            parsed_options += choice
+        question = lines.pop(0)
 
-        title = f"**Abstimmung von {ctx.author.display_name}:**"
+        parsed_options = ""
+        for index, option in enumerate(lines):
+            parsed_options += f"\n`{index + 1}.` {option}"
+
+        title = f"**Poll from {ctx.author.display_name}**"
         description = f"{title}\n{question}{parsed_options}"
         embed = discord.Embed(description=description, color=discord.Color.purple())
-        embed.set_footer(text="Abstimmung endet in 15 Minuten")
+        embed.set_footer(text=f"Voting ends in {time} minutes")
+        embed.set_thumbnail(url=ctx.author.avatar_url)
         poll = await ctx.send(embed=embed)
 
-        for num in range(len(options)):
+        for num in range(len(lines)):
             emoji = f"{num + 1}\N{COMBINING ENCLOSING KEYCAP}"
             await poll.add_reaction(emoji)
 
-        await ctx.safe_delete()
-        await asyncio.sleep(self.duration)
+        await utils.silencer(ctx.message.delete())
+        whole, remainder = divmod(time, self.poll_time)
 
-        for dur in [2, 1]:
-            cur = int(self.duration / 60) * dur
-            embed.set_footer(text=f"Abstimmung endet in {cur} Minuten")
+        first_duration = self.poll_time if whole else remainder
+        await asyncio.sleep(first_duration * 60)
+
+        for n in range(1, whole):
+            if n + 1 != whole:
+                minutes = self.poll_time
+                cur = (whole - n) * self.poll_time + remainder
+            else:
+                minutes = remainder
+                cur = minutes
+
+            embed.set_footer(text=f"Voting ends in {cur} minutes")
             await poll.edit(embed=embed)
-            await asyncio.sleep(self.duration)
+            await asyncio.sleep(minutes * 60)
 
-        refetched = await ctx.channel.fetch_message(poll.id)
-        votes = sorted(refetched.reactions, key=lambda r: r.count, reverse=True)
+        re_fetched = await ctx.channel.fetch_message(poll.id)
+        votes = sorted(re_fetched.reactions, key=lambda r: r.count, reverse=True)
         color = discord.Color.red()
 
         if [r.count for r in votes].count(1) == len(votes):
-            msg = "`Niemand hat an der Abstimmung teilgenommen`"
+            msg = "`Nobody voted!`"
 
         elif votes[0].count > votes[1].count:
             color = discord.Color.green()
-            winner = refetched.reactions.index(votes[0])
-            msg = f"`{options[winner]} hat gewonnen`"
+            winner = re_fetched.reactions.index(votes[0])
+            msg = f"`{lines[winner]} won with {votes[0].count - 1} votes!`"
 
         else:
-            msg = "`Es konnte kein klares Ergebnis erzielt werden`"
+            msg = "`The poll resulted in a draw...`"
 
         result = f"{title}\n{question}\n{msg}"
-        wimbed = discord.Embed(description=result, color=color)
-        wimbed.set_footer(text="Abstimmung beendet")
-        await poll.edit(embed=wimbed)
+        result_embed = discord.Embed(description=result, color=color)
+        result_embed.set_footer(text="Finished.")
+        await poll.edit(embed=result_embed)
+        await utils.silencer(poll.clear_reactions())
 
     @commands.command(name="info")
     async def info_(self, ctx):

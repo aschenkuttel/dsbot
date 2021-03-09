@@ -222,52 +222,6 @@ unknown_command:
   - "Du scheinst mir heute ein wenig verwirrt, davon hab ich noch nie gehört..."
   - "Den hast du jetzt doch schon 100 Mal versucht :/"
 
-oracle:
-  - "Ja"
-  - "Nein"
-  - "Jo"
-  - "Nah!"
-  - "Möglicherweise"
-  - "Ich tendiere zu Ja"
-  - "Ich tendiere zu Nein"
-  - "Das liegt `Ja` wohl auf der Hand..."
-  - "Nope"
-  - "Klar"
-  - "Wir wissen beide dass du ein `Ja` hören willst :smirk:"
-  - "Willst du nicht lieber anstelle dieser sinnfreien Frage ein paar Fakes verschicken?"
-  - "Die magische Miesmuschel sagt Ja"
-  - "Die magische Miesmuschel sagt Nein"
-  - "Sicherlich"
-  - "Nö"
-  - "Wir wissen beide dass du ein `Nein` hören willst :smirk:"
-  - "Auf jeden Fall!"
-  - "Never Ever!"
-  - "Die Frage kannst nur du beantworten... sei ehrlich zu dir selber."
-  - "Sorry ich hab grad ein Youtube Video geschaut, was war die Frage? Äh Ja."
-  - "Five, Six, Seven, Eight, NEIN!"
-  - "Ich hab gerade deine Mutter gefragt und sie meinte Ja"
-  - "Ich hab gerade deine Mutter gefragt und sie meinte Nein"
-  - "Erwartest du darauf echt eine Antwort?\nOkey, ich will mal nicht so sein... Ja."
-  - "Selbstverständlich."
-  - "Nein, nicht einmal wenn ich auf dem Sterbebett liegen würde."
-  - "Definitiv, aber nur weil du es bist!"
-  - "Nicht in tausend Jahren."
-  - "Hoffentlich ..."
-  - "Hoffentlich nicht."
-  - "Ich denke schon."
-  - "Eher weniger."
-  - "ahahaha :joy:"
-  - "Zu dieser Frage darf ich mich laut meinem Anwalt nicht äußern."
-
-scared_oracle:
-  - "Bitte schrei mich nicht so an :sob:"
-  - "Ja ... JA!! Bitte schlag mich nicht wieder :fearful:"
-  - "Du ... machst mir Angst :confounded:"
-  - "Bi..bitte hau mich nicht wieder!!"
-  - "Ich geb dir ja schon Recht :fearful:"
-  - "Natürlich!!! Nicht wieder ins Gesicht :sob:"
-  - ":sob:"
-
 tribal_words:
   - Adelsgeschlecht
   - Katapult
@@ -465,160 +419,6 @@ tribal_words:
   - Ausmusterung
   - Massen-Rekrutierung
 
-quiz_questions:
-  - - In welchem Jahr wurde DS veröffentlicht?
-    - 2003
-  - - Welche Stufe muss dein Hauptgebäude für den Bau der Kaserne haben?
-    - 3
-  - - Welche Stufe muss dein Hauptgebäude für den Bau des Marktplatzes haben?
-    - 3
-  - - Welche Stufe muss dein Hauptgebäude für den Bau der Schmiede bauen kannst?
-    - 5
-  - - Welche Stufe muss dein Hauptgebäude für den Bau der Werkstatt haben?
-    - 10
-  - - Welche Stufe muss dein Hauptgebäude für den Bau des Stalls haben?
-    - 10
-  - - Welche Stufe muss dein Hauptgebäude für den Bau des Adelshofs haben?
-    - 20
-  - - Welche Stufe muss deine Kaserne für den Bau des Stalls haben?
-    - 5
-  - - Welche Stufe muss deine Schmiede für den Bau des Stalls haben?
-    - 5
-  - - Welche Stufe muss deine Schmiede für den Bau der Werkstatt haben?
-    - 10
-  - - Welche Stufe muss deine Schmiede für den Bau des Adelshof haben?
-    - 20
-  - - Welche Stufe muss dein Marktplatz für den Bau des Adelshof haben?
-    - 10
-  - - Welche Stufe muss dein Stall für die Erforschung der Lkav haben?
-    - 3
-  - - Welche Stufe muss dein Stall für die Erforschung der Skav haben?
-    - 10
-  - - Welche Stufe muss deine Werkstatt für die Erforschung der Katapulte haben?
-    - 2
-  - - Welche Stufe muss deine Schmiede für die Erforschung der Schwertkämpfer haben?
-    - 1
-  - - Welche Stufe muss deine Schmiede für die Erforschung der Axtkämpfer haben?
-    - 2
-  - - Welche Stufe muss deine Schmiede für die Erforschung der Katapulte haben?
-    - 12
-  - - Welche Stufe muss deine Schmiede für die Erforschung der Skav haben?
-    - 15
-  - - Wie viel PP kostet der Premium-Account für 3 Tage?
-    - 30
-  - - Wie viel PP kostet der Premium-Account für 7 Tage?
-    - 60
-  - - Wie viel PP kostet der Premium-Account für 30 Tage?
-    - 200
-  - - Ab wie vielen Punkten erscheint ein Dorf in der letzten Kartengrafik?
-    - 11000
-  - - Wie viel Punkte gibt der Ausbau der ersten Stufe des Adelshofes?
-    - 512
-  - - Mit wie vielen Spielern muss man für `Treuer Freund - Gold` befreundet sein?
-    - 100
-  - - Wie viele Tag muss man in einem Stamm sein um `Waffenbruder - Gold` zu erhalten?
-    - 360
-  - - Wie viele Dörfer muss man für `Plünderer - Gold` geplündert haben?
-    - 10000
-  - - Wie viele Münzen muss man für `Krösus - Gold` geprägt haben?
-    - 50000
-  - - Wie viele Wallstufen muss man für `Wallbezwinger - Gold` zerstört haben?
-    - 10000
-  - - Was ist die maximale Anzahl an UVs die ein Account haben kann?
-    - 3
-  - - Wieviel KB darf ein Profilbild nicht überschreiten?
-    - 200
-  - - Mit welchem Programm kann man große Mengen an Angriffen schnell verschicken?
-    - Workbench
-  - - Wie viele Konstruktionen kann man ohne Premium Account maximal in der Schleife haben?
-    - 2
-  - - Ab wie vielen Dörfer kann man den Account-Manager benutzen?
-    - 5
-  - - Mit wie vielen Dörfern bekommt man das erste Mal Gratis-AM für 3 Tage?
-    - 10
-  - - Was ist die höchstmögliche Prozentzahl Glück?
-    - 25
-  - - Welchen Rohstoff benötigt man zur Mehrheit für Schwertkämpfer?
-    - Eisen
-  - - Welchen Rohstoff benötigt man zur Mehrheit für Axtkämpfer?
-  - - Welchen Rohstoff benötigt man zur Mehrheit für Axtkämpfer?
-    - Holz
-  - - Welchen Rohstoff benötigt man zur Mehrheit für Lkav?
-    - Eisen
-  - - Welchen Rohstoff benötigt man zur Mehrheit für berittenen Bogenschützen?
-    - Holz
-  - - Welchen Rohstoff benötigt man zur Mehrheit für Rammböcke?
-    - Holz
-  - - Welchen Rohstoff benötigt man zur Mehrheit für Katapulte?
-    - Lehm
-  - - Wie viel Bauernhofplätze hat der Bauernhof auf Stufe 30?
-    - 24000
-  - - Wie viele Händler hat ein Marktplatz auf Stufe 10?
-    - 10
-  - - Wie lautet die Abkürzung für Speedwelten?
-    - SDS
-  - - Wie lautet die Abkürzung für ein Barbarendorf?
-    - BB
-  - - Wie viele `des Tages`-Awards gibt es?
-    - 6
-  - - Wie viel Rohstoffe pro Einheit fasst der Speicher auf Stufe 30?
-    - 400000
-  - - Welche Farbe hat der Bericht eines Angriffs mit Verlusten?
-    - Gelb
-  - - Wie viel Kontinente kann eine Welt maximal haben?
-    - 100
-
-map_menue:
-  <:center:672875546773946369>:
-    title: Zoom
-    default: 0
-
-  <:dsmap:672912316240756767>:
-    title: Zentrum
-    default: 500|500
-
-  <:friend:672875516117778503>:
-    title: Spieler
-    default: ""
-
-  <:tribe:672862439074693123>:
-    title: Stämme
-    default: ""
-
-  <:report:672862439242465290>:
-    title: Markierung
-    default: Aus
-
-  <:old:672862439112441879>:
-    title: Barbarendörfer
-    default: An
-
-  <:button:672910606700904451>:
-    title: Karte erstellen
-
-vp_message:
-  Paar: ein
-  Doppel-Paar: ein
-  Drilling: einen
-  Straße: eine
-  Flush: einen
-  Full House: ein
-  Vierling: wirklich einen
-  Straight Flush: "'nen fucking"
-  Royal Flush: legit einen...
-
-duali_message:
-  - "Bitte schlagt eure Köpfe solange an die Wand, bis ihr Erinnerungen aneinander verliert."
-  - "Ihr beide solltet euch nicht einmal im selben Land aufhalten..."
-  - "Bitte spielt niemals in einem Stamm."
-  - "Bitte spielt niemals in einem Account."
-  - "Ihr beide in einem Account? Bitte überlegt es euch."
-  - "Ihr könnt es versuchen aber es gibt bessere Dualis für euch beide..."
-  - "Nice, euch zwei seh ich in einem Account :blush:"
-  - "Uff nicht schlecht. Ihr regelt auf jeden Fall :heart:"
-  - "Fast das perfekte Dreamteam :heart_eyes:"
-  - "Hiermit erkläre ich euch zu Duali und Dualin :heart:"
-
 settings:
   speed:
     parent: null
@@ -724,70 +524,325 @@ converter_title:
   report: Berichte
   mention: BB-Codes
 
-config_title:
-  game: Game Channel
-  prefix: Prefix
-
-daily_options:
-  points:
-    title: Wachstum
-    value: points
-    item: Punkte
-
-  minus:
-    title: Abfall
-    value: points
-    item: Punkte
-
-  basher:
-    title: Angreifer
-    value: att_bash
-    item: Bashpoints
-
-  defender:
-    title: Verteidiger
-    value: def_bash
-    item: Bashpoints
-
-  supporter:
-    title: Unterstützer
-    value: sup_bash
-    item: Bashpoints
-
-  fighter:
-    title: Kämpfer
-    value: all_bash
-    item: Bashpoints
-
-  loser:
-    title: Verlierer
-    value: villages
-    item: Dörfer
-
-  conquerer:
-    title: Eroberer
-    value: villages
-    item: Dörfer
-
-  top_options:
-    bash: kill_att
-    def: kill_def
-    sup: kill_sup
-    farm: loot_res
-    villages: loot_vil
-    scavenge: scavenge
-    conquer: conquer
-
 commands:
   recap:
     - - Punkte verloren
-    - Punkte gemacht
+      - Punkte gemacht
     - - Dörfer verschenkt und
-    - Dörfer geholt und
+      - Dörfer geholt und
     - - Bashpoints verloren
-    - Bashpoints erkämpft
+      - Bashpoints erkämpft
     - - hat seit gestern
-    - "hat in den letzten {} Tagen"
+      - hat in den letzten {} Tagen
+
+  daily:
+    points:
+      title: Wachstum
+      value: points
+      item: Punkte
+
+    minus:
+      title: Abfall
+      value: points
+      item: Punkte
+
+    basher:
+      title: Angreifer
+      value: att_bash
+      item: Bashpoints
+
+    defender:
+      title: Verteidiger
+      value: def_bash
+      item: Bashpoints
+
+    supporter:
+      title: Unterstützer
+      value: sup_bash
+      item: Bashpoints
+
+    fighter:
+      title: Kämpfer
+      value: all_bash
+      item: Bashpoints
+
+    loser:
+      title: Verlierer
+      value: villages
+      item: Dörfer
+
+    conquerer:
+      title: Eroberer
+      value: villages
+      item: Dörfer
+
+    top_options:
+      bash: kill_att
+      def: kill_def
+      sup: kill_sup
+      farm: loot_res
+      villages: loot_vil
+      scavenge: scavenge
+      conquer: conquer
+
+  config:
+    game: Game Channel
+    prefix: Prefix
+
+  duali:
+    - "Bitte schlagt eure Köpfe solange an die Wand, bis ihr Erinnerungen aneinander verliert."
+    - "Ihr beide solltet euch nicht einmal im selben Land aufhalten..."
+    - "Bitte spielt niemals in einem Stamm."
+    - "Bitte spielt niemals in einem Account."
+    - "Ihr beide in einem Account? Bitte überlegt es euch."
+    - "Ihr könnt es versuchen aber es gibt bessere Dualis für euch beide..."
+    - "Nice, euch zwei seh ich in einem Account :blush:"
+    - "Uff nicht schlecht. Ihr regelt auf jeden Fall :heart:"
+    - "Fast das perfekte Dreamteam :heart_eyes:"
+    - "Hiermit erkläre ich euch zu Duali und Dualin :heart:"
+
+  oracle:
+    normal:
+      - "Ja"
+      - "Nein"
+      - "Jo"
+      - "Nah!"
+      - "Möglicherweise"
+      - "Ich tendiere zu Ja"
+      - "Ich tendiere zu Nein"
+      - "Das liegt `Ja` wohl auf der Hand..."
+      - "Nope"
+      - "Klar"
+      - "Wir wissen beide dass du ein `Ja` hören willst :smirk:"
+      - "Willst du nicht lieber anstelle dieser sinnfreien Frage ein paar Fakes verschicken?"
+      - "Die magische Miesmuschel sagt Ja"
+      - "Die magische Miesmuschel sagt Nein"
+      - "Sicherlich"
+      - "Nö"
+      - "Wir wissen beide dass du ein `Nein` hören willst :smirk:"
+      - "Auf jeden Fall!"
+      - "Never Ever!"
+      - "Die Frage kannst nur du beantworten... sei ehrlich zu dir selber."
+      - "Sorry ich hab grad ein Youtube Video geschaut, was war die Frage? Äh Ja."
+      - "Five, Six, Seven, Eight, NEIN!"
+      - "Ich hab gerade deine Mutter gefragt und sie meinte Ja"
+      - "Ich hab gerade deine Mutter gefragt und sie meinte Nein"
+      - "Erwartest du darauf echt eine Antwort?\nOkey, ich will mal nicht so sein... Ja."
+      - "Selbstverständlich."
+      - "Nein, nicht einmal wenn ich auf dem Sterbebett liegen würde."
+      - "Definitiv, aber nur weil du es bist!"
+      - "Nicht in tausend Jahren."
+      - "Hoffentlich ..."
+      - "Hoffentlich nicht."
+      - "Ich denke schon."
+      - "Eher weniger."
+      - "ahahaha :joy:"
+      - "Zu dieser Frage darf ich mich laut meinem Anwalt nicht äußern."
+
+    scared:
+      - "Bitte schrei mich nicht so an :sob:"
+      - "Ja ... JA!! Bitte schlag mich nicht wieder :fearful:"
+      - "Du ... machst mir Angst :confounded:"
+      - "Bi..bitte hau mich nicht wieder!!"
+      - "Ich geb dir ja schon Recht :fearful:"
+      - "Natürlich!!! Nicht wieder ins Gesicht :sob:"
+      - ":sob:"
+
+  vp:
+    Paar: ein
+    Doppel-Paar: ein
+    Drilling: einen
+    Straße: eine
+    Flush: einen
+    Full House: ein
+    Vierling: wirklich einen
+    Straight Flush: "'nen fucking"
+    Royal Flush: legit einen...
+
+  tc:
+    name: Spieler
+    id: ID
+    rank: Rang
+    points: Punkte
+    villages: Dörfer
+    att_bash: OFF
+    def_bash: DEF
+    sup_bash: SUP
+    all_bash: Insgesamt
+
+  quiz:
+    name:
+      id: ID
+      rank: Rang
+      points: Punkte
+      villages: Dörfer
+      all_bash: Bashpoints
+      sup_bash: UT Bashpoints
+
+    either:
+      id:
+        - - älteste
+        - neuste
+      rank:
+        - - besten
+        - schlechtesten
+      points:
+        - - meisten
+        - wenigsten
+      villages:
+        - - meisten
+        - wenigsten
+      sup_bash:
+        - - meisten
+        - wenigsten
+      all_bash:
+        - - meisten
+        - wenigsten
+
+    player_options:
+      id: die {} ID?
+      rank: den {} Rang?
+      points: die {} Punkte?
+      sup_bash: die {} Unterstützer-Bashis?
+      all_bash: die {} besiegten Gegner?
+
+    tribe_options:
+      id: die {} ID?
+      rank: den {} Rang?
+      points: die {} Punkte?
+      villages: die {} Dörfer?
+      all_bash: die {} besiegten Gegner?
+
+    questions:
+      - - In welchem Jahr wurde DS veröffentlicht?
+        - 2003
+      - - Welche Stufe muss dein Hauptgebäude für den Bau der Kaserne haben?
+        - 3
+      - - Welche Stufe muss dein Hauptgebäude für den Bau des Marktplatzes haben?
+        - 3
+      - - Welche Stufe muss dein Hauptgebäude für den Bau der Schmiede bauen kannst?
+        - 5
+      - - Welche Stufe muss dein Hauptgebäude für den Bau der Werkstatt haben?
+        - 10
+      - - Welche Stufe muss dein Hauptgebäude für den Bau des Stalls haben?
+        - 10
+      - - Welche Stufe muss dein Hauptgebäude für den Bau des Adelshofs haben?
+        - 20
+      - - Welche Stufe muss deine Kaserne für den Bau des Stalls haben?
+        - 5
+      - - Welche Stufe muss deine Schmiede für den Bau des Stalls haben?
+        - 5
+      - - Welche Stufe muss deine Schmiede für den Bau der Werkstatt haben?
+        - 10
+      - - Welche Stufe muss deine Schmiede für den Bau des Adelshof haben?
+        - 20
+      - - Welche Stufe muss dein Marktplatz für den Bau des Adelshof haben?
+        - 10
+      - - Welche Stufe muss dein Stall für die Erforschung der Lkav haben?
+        - 3
+      - - Welche Stufe muss dein Stall für die Erforschung der Skav haben?
+        - 10
+      - - Welche Stufe muss deine Werkstatt für die Erforschung der Katapulte haben?
+        - 2
+      - - Welche Stufe muss deine Schmiede für die Erforschung der Schwertkämpfer haben?
+        - 1
+      - - Welche Stufe muss deine Schmiede für die Erforschung der Axtkämpfer haben?
+        - 2
+      - - Welche Stufe muss deine Schmiede für die Erforschung der Katapulte haben?
+        - 12
+      - - Welche Stufe muss deine Schmiede für die Erforschung der Skav haben?
+        - 15
+      - - Wie viel PP kostet der Premium-Account für 3 Tage?
+        - 30
+      - - Wie viel PP kostet der Premium-Account für 7 Tage?
+        - 60
+      - - Wie viel PP kostet der Premium-Account für 30 Tage?
+        - 200
+      - - Ab wie vielen Punkten erscheint ein Dorf in der letzten Kartengrafik?
+        - 11000
+      - - Wie viel Punkte gibt der Ausbau der ersten Stufe des Adelshofes?
+        - 512
+      - - Mit wie vielen Spielern muss man für `Treuer Freund - Gold` befreundet sein?
+        - 100
+      - - Wie viele Tag muss man in einem Stamm sein um `Waffenbruder - Gold` zu erhalten?
+        - 360
+      - - Wie viele Dörfer muss man für `Plünderer - Gold` geplündert haben?
+        - 10000
+      - - Wie viele Münzen muss man für `Krösus - Gold` geprägt haben?
+        - 50000
+      - - Wie viele Wallstufen muss man für `Wallbezwinger - Gold` zerstört haben?
+        - 10000
+      - - Was ist die maximale Anzahl an UVs die ein Account haben kann?
+        - 3
+      - - Wieviel KB darf ein Profilbild nicht überschreiten?
+        - 200
+      - - Mit welchem Programm kann man große Mengen an Angriffen schnell verschicken?
+        - Workbench
+      - - Wie viele Konstruktionen kann man ohne Premium Account maximal in der Schleife haben?
+        - 2
+      - - Ab wie vielen Dörfer kann man den Account-Manager benutzen?
+        - 5
+      - - Mit wie vielen Dörfern bekommt man das erste Mal Gratis-AM für 3 Tage?
+        - 10
+      - - Was ist die höchstmögliche Prozentzahl Glück?
+        - 25
+      - - Welchen Rohstoff benötigt man zur Mehrheit für Schwertkämpfer?
+        - Eisen
+      - - Welchen Rohstoff benötigt man zur Mehrheit für Axtkämpfer?
+      - - Welchen Rohstoff benötigt man zur Mehrheit für Axtkämpfer?
+        - Holz
+      - - Welchen Rohstoff benötigt man zur Mehrheit für Lkav?
+        - Eisen
+      - - Welchen Rohstoff benötigt man zur Mehrheit für berittenen Bogenschützen?
+        - Holz
+      - - Welchen Rohstoff benötigt man zur Mehrheit für Rammböcke?
+        - Holz
+      - - Welchen Rohstoff benötigt man zur Mehrheit für Katapulte?
+        - Lehm
+      - - Wie viel Bauernhofplätze hat der Bauernhof auf Stufe 30?
+        - 24000
+      - - Wie viele Händler hat ein Marktplatz auf Stufe 10?
+        - 10
+      - - Wie lautet die Abkürzung für Speedwelten?
+        - SDS
+      - - Wie lautet die Abkürzung für ein Barbarendorf?
+        - BB
+      - - Wie viele `des Tages`-Awards gibt es?
+        - 6
+      - - Wie viel Rohstoffe pro Einheit fasst der Speicher auf Stufe 30?
+        - 400000
+      - - Welche Farbe hat der Bericht eines Angriffs mit Verlusten?
+        - Gelb
+      - - Wie viel Kontinente kann eine Welt maximal haben?
+        - 100
+
+  map:
+    <:center:672875546773946369>:
+      title: Zoom
+      default: 0
+
+    <:dsmap:672912316240756767>:
+      title: Zentrum
+      default: 500|500
+
+    <:friend:672875516117778503>:
+      title: Spieler
+      default: ""
+
+    <:tribe:672862439074693123>:
+      title: Stämme
+      default: ""
+
+    <:report:672862439242465290>:
+      title: Markierung
+      default: Aus
+
+    <:old:672862439112441879>:
+      title: Barbarendörfer
+      default: An
+
+    <:button:672910606700904451>:
+      title: Karte erstellen
 
 error:
   out_of_range:

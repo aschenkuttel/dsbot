@@ -195,7 +195,7 @@ class Config(commands.Cog):
     @commands.group(name="conquer", invoke_without_command=True)
     async def conquer(self, ctx):
         self.get_conquer_data(ctx)
-        cmd = self.bot.get_command("help conquer")
+        cmd = self.bot.get_command('help conquer')
         await ctx.invoke(cmd)
 
     @conquer.command(name="add")
@@ -231,7 +231,7 @@ class Config(commands.Cog):
     @conquer.command(name="grey")
     async def conquer_grey(self, ctx):
         conquer = self.get_conquer_data(ctx)
-        conquer['bb'] = False if conquer.get('bb') else True
+        conquer['bb'] = not conquer.get('bb')
         self.config.save()
 
         state_str = "ausgeblendet" if not conquer['bb'] else "angezeigt"

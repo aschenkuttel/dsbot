@@ -2,7 +2,6 @@ from utils import CoordinateConverter
 from discord.ext import commands
 from collections import Counter
 import discord
-import typing
 import random
 import utils
 import io
@@ -47,9 +46,9 @@ class Villages(commands.Cog):
                     represent.append(line)
 
             text = io.StringIO()
-            text.write(f'{os.linesep}'.join(represent))
+            text.write(f"{os.linesep}".join(represent))
             text.seek(0)
-            file = discord.File(text, 'villages.txt')
+            file = discord.File(text, "villages.txt")
             await ctx.author.send(file=file)
 
         await ctx.private_hint()
@@ -61,8 +60,8 @@ class Villages(commands.Cog):
 
         arguments = [world, village.x, village.y, radius.value]
 
-        query = 'SELECT * FROM village WHERE world = $1 ' \
-                'AND SQRT(POWER(ABS($2 - x), 2) + POWER(ABS($3 - y), 2)) <= $4'
+        query = 'SELECT * FROM village WHERE world = $1 AND ' \
+                'SQRT(POWER(ABS($2 - x), 2) + POWER(ABS($3 - y), 2)) <= $4'
 
         if points:
             query += f' AND points {points.sign} $5'
@@ -90,7 +89,7 @@ class Villages(commands.Cog):
             await ctx.send(msg)
             return
 
-        name = ' '.join(user_arguments)
+        name = " ".join(user_arguments)
         dsobj = await self.bot.fetch_both(ctx.server, name)
 
         if dsobj is None:
@@ -108,7 +107,7 @@ class Villages(commands.Cog):
             conti_str = None
 
         arguments = [ctx.server, ids]
-        query = "SELECT * FROM village WHERE world = $1 AND player = ANY($2)"
+        query = 'SELECT * FROM village WHERE world = $1 AND player = ANY($2)'
 
         if conti_str is not None:
             query = query + ' AND LEFT(CAST(x AS TEXT), 1) = $3' \
@@ -173,9 +172,11 @@ class Villages(commands.Cog):
                          f'WHERE {table}.world = $1 ' \
                          f'AND {table}.id = ANY($2)'
 
-            if tribe.value in [True, False]:
-                state = '!=' if tribe.value else '='
-                query_part += f' AND {table}.tribe_id {state} 0'
+            if tribe.value is True:
+                query_part += f'AND {table}.tribe_id != 0'
+
+            elif tribe.value is False:
+                query_part += f'AND {table}.tribe_id == 0'
 
             base.append(query_part)
 

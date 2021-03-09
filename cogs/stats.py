@@ -84,7 +84,7 @@ class Stats(commands.Cog):
 
     @commands.command(name="bashrank")
     async def bashrank_(self, ctx, tribe: utils.DSConverter('tribe'), bashtype=None):
-        bashtype = bashtype.lower() or 'offensive'
+        bashtype = bashtype.lower() or "offensive"
 
         if bashtype not in self.bashtypes:
             raise MissingRequiredKey(self.bashtypes.keys(), "tribe")
@@ -152,19 +152,26 @@ class Stats(commands.Cog):
                 return
 
         result = []
-        lang_pkg = ctx.lang.commands['recap']
 
         for index, current in enumerate(current_day):
             past = int(day_in_past[index])
             value = sep(int(current) - past)
 
+            if index == 1:
+                result[-1] += ","
+
+                # preregister accounts have no villages
+                # hence we ignore the first "conquer"
+                if past == 0:
+                    value = sep(int(current) - past - 1)
+
             if value.startswith("-"):
-                result.append(f"`{value[1:]}` {lang_pkg[index][0]}")
+                result.append(f"`{value[1:]}` {ctx.lang.recap[index][0]}")
             else:
-                result.append(f"`{value}` {lang_pkg[index][1]}")
+                result.append(f"`{value}` {ctx.lang.recap[index][1]}")
 
         since = "seit gestern" if time == 1 else f"in den letzten {time} Tagen"
-        answer = f"`{dsobj.name}` {since} {' '.join(result)}"
+        answer = f"`{dsobj.name}` hat {since} {' '.join(result)}"
         await ctx.send(answer)
 
     @commands.group(name="top")
@@ -178,15 +185,15 @@ class Stats(commands.Cog):
         async with self.bot.session.get(url) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
 
-        table = soup.find('table', id='in_a_day_ranking_table')
-        rows = table.find_all('tr')
+        table = soup.find("table", id='in_a_day_ranking_table')
+        rows = table.find_all("tr")
         result = []
 
         try:
             datapack = {}
-            cache = soup.find('option', selected=True)
+            cache = soup.find("option", selected=True)
             for row in rows[1:6]:
-                vanity = row.find('a')['href']
+                vanity = row.find("a")['href']
                 player_id = int(vanity.split("=")[-1])
                 points = row.findAll("td")[3].text
                 datapack[player_id] = points
@@ -197,7 +204,7 @@ class Stats(commands.Cog):
                 if player:
                     result.append(f"`{points}` **|** {player.guest_mention}")
 
-            msg = '\n'.join(result)
+            msg = "\n".join(result)
             title = f"{cache.text}\n(an einem Tag)"
             embed = discord.Embed(title=title, description=msg)
 

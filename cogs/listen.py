@@ -387,7 +387,7 @@ class Listen(commands.Cog):
             msg = "Diesen Command kann nur ein Server-Admin ausführen"
 
         elif isinstance(error, commands.CommandOnCooldown):
-            base = "Command Cooldown: Versuche es in {0:.1f} Sekunden erneut"
+            base = "Cooldown: Versuche es in `{0:.1f}` Sekunden erneut"
             msg = base.format(error.retry_after)
 
         elif isinstance(error, utils.DSUserNotFound):

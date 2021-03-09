@@ -39,13 +39,13 @@ class DSBot(commands.Bot):
         self._conn = None
 
         # creation of own logging and discord logging
-        self.logger = utils.create_logger('dsbot', self.data_path)
-        utils.create_logger('discord', self.data_path)
+        self.logger = utils.create_logger("dsbot", self.data_path)
+        utils.create_logger("discord", self.data_path)
 
         self.languages = {}
         path = f"{self.data_path}/language"
         for filename in os.listdir(path):
-            name = filename.split('.')[0]
+            name = filename.split(".")[0]
             self.languages[name] = utils.Language(path, filename)
 
         # update lock which waits for external database script and setup lock
@@ -77,8 +77,8 @@ class DSBot(commands.Bot):
             await self._conn.add_listener("log", self.callback)
 
             # adds needed option for vps
-            if os.name != 'nt':
-                utils.imgkit['xvfb'] = ''
+            if os.name != "nt":
+                utils.imgkit['xvfb'] = ""
 
             # loads active worlds from database
             await self.update_worlds()
@@ -131,13 +131,13 @@ class DSBot(commands.Bot):
     def callback(self, *args):
         payload = args[-1]
 
-        if payload == '200':
+        if payload == "200":
             self._update.set()
             return
 
-        elif payload == '400':
+        elif payload == "400":
             msg = "engine broke once, restarting"
-        elif payload == '404':
+        elif payload == "404":
             msg = "database script ended with a failure"
         else:
             msg = "unknown payload"
@@ -161,7 +161,7 @@ class DSBot(commands.Bot):
             await asyncio.sleep(seconds)
             self.logger.debug("loop per hour")
 
-            task_cog = self.get_cog('Tasks')
+            task_cog = self.get_cog("Tasks")
             await task_cog.task_engine()
 
             try:
@@ -172,7 +172,7 @@ class DSBot(commands.Bot):
                 self.logger.error("update timeout")
 
             for cog in self.cogs.values():
-                loop = getattr(cog, 'called_per_hour', None)
+                loop = getattr(cog, "called_per_hour", None)
 
                 try:
                     if loop is not None:

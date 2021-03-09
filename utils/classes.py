@@ -477,5 +477,8 @@ class Language:
         self._dict = yaml.load(file, Loader=yaml.FullLoader)
         file.close()
 
-        for key, value in self._dict.items():
+        cmds = self._dict.pop('commands')
+        iterable = list(self._dict.items()) + list(cmds.items())
+
+        for key, value in iterable:
             setattr(self, key, value)

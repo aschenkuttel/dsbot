@@ -1,7 +1,6 @@
-from utils import error_embed, DSConverter
 from PIL import Image, ImageSequence
 from discord.ext import commands
-from bs4 import BeautifulSoup
+from utils import error_embed
 from io import BytesIO
 import discord
 import aiohttp
@@ -67,7 +66,6 @@ class Graphic(commands.Cog):
 
     @commands.command(name="avatar")
     async def avatar_(self, ctx, url):
-
         async with self.bot.session.get(url) as r:
             avatar_bytes = await r.read()
 

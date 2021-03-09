@@ -8,3 +8,4 @@ aiohttp
 dateparser
 pandas
 numpy
+tabulate

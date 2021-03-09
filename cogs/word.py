@@ -19,7 +19,7 @@ class Word(utils.DSGames):
         amount = int(200 * length * (data['life'] / 8 + 0.5) + 2500)
 
         base = "Herzlichen Glückwunsch `{}`\n" \
-               "Du hast `{} Eisen` gewonnen :trophy: (15s Cooldown)"
+               "Du hast `{} Eisen` gewonnen :trophy: (10s Cooldown)"
         msg = base.format(ctx.author.display_name, amount)
 
         async with self.end_game(ctx):
@@ -31,7 +31,7 @@ class Word(utils.DSGames):
         data['life'] -= loss
 
         if data['life'] <= 0:
-            base = "**Game Over** | Lösungswort:{}`{}` (15s Cooldown)"
+            base = "**Game Over** | Lösungswort:{}`{}` (10s Cooldown)"
             msg = base.format(os.linesep, data['solution'])
             async with self.end_game(ctx):
                 await ctx.send(msg)
@@ -106,7 +106,7 @@ class Word(utils.DSGames):
         amount = int((200 * len(word) + 100 * percent ** 2) * percent)
 
         base = "`{}` hat das Wort in `{} Sekunden` erraten.\n" \
-               "`{} Eisen` gewonnen (15s Cooldown)"
+               "`{} Eisen` gewonnen (10s Cooldown)"
         msg = base.format(win_msg.author.display_name, float_diff, amount)
 
         async with self.end_game(ctx):
