@@ -13,7 +13,7 @@ class Villages(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 1
-        self.base_options = {'radius': [1, 10, 25], 'points': 0}
+        self.base_options = {'radius': [1, 10, 25], 'points': None}
 
     async def send_result(self, ctx, result, object_name):
         if not result:
@@ -21,30 +21,18 @@ class Villages(commands.Cog):
             await ctx.send(msg)
             return
 
-        is_village = isinstance(result[0], utils.Village)
-        attribute = 'coords' if is_village else 'mention'
-
-        represent = []
+        represent = ["```"]
         for index, obj in enumerate(result, 1):
-            line = f"{index}. {getattr(obj, attribute)}"
+            line = f"{index}. {obj.coords}"
             represent.append(line)
 
+        represent.append("```")
         msg = "\n".join(represent)
 
         if len(msg) <= 2000:
-            if not is_village:
-                embed = discord.Embed(description=msg)
-                await ctx.author.send(embed=embed)
-            else:
-                await ctx.author.send(msg)
+            await ctx.author.send(msg)
 
         else:
-            if not is_village:
-                represent = []
-                for index, obj in enumerate(result, 1):
-                    line = f"{index}. {getattr(obj, 'name')}"
-                    represent.append(line)
-
             text = io.StringIO()
             text.write(f"{os.linesep}".join(represent))
             text.seek(0)
@@ -76,7 +64,7 @@ class Villages(commands.Cog):
 
     @commands.command(name="villages")
     async def villages(self, ctx, *, arguments):
-        base_options = {'points': 0, 'continent': None}
+        base_options = {'points': None, 'continent': None}
         rest, points, continent = utils.keyword(arguments, strip=True, **base_options)
         user_arguments = rest.split()
 
@@ -163,7 +151,7 @@ class Villages(commands.Cog):
         radius, points, inactive_since, tribe = args
 
         all_villages = await self.fetch_in_radius(ctx.server, village, radius=radius)
-        player_ids = set([vil.player_id for vil in all_villages])
+        player_ids = set(vil.player_id for vil in all_villages)
 
         base = []
         for num in range(inactive_since.value + 1):
@@ -207,14 +195,17 @@ class Villages(commands.Cog):
             else:
                 player_cache[player.id] = False
 
-        result = []
-        for player_id, player in player_cache.items():
-            if day_counter[player_id] != inactive_since.value:
-                continue
-            else:
-                result.append(player)
+        vil_dict = {p_id: [] for p_id in player_cache}
+        for vil in all_villages:
+            if vil.player_id != 0:
+                vil_dict[vil.player_id].append(vil)
 
-        await self.send_result(ctx, result, "inaktiven Spieler")
+        result = []
+        for player_id in player_cache:
+            if day_counter[player_id] == inactive_since.value:
+                result.extend(vil_dict[player_id])
+
+        await self.send_result(ctx, result, "inaktiven Spielerdörfer")
 
 
 def setup(bot):

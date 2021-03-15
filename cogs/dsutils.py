@@ -367,8 +367,8 @@ class Utils(commands.Cog):
         buf.seek(0)
         plt.close()
 
-        file = discord.File(buf, "example.png")
-        profile.set_image(url="attachment://example.png")
+        file = discord.File(buf, "graph.png")
+        profile.set_image(url="attachment://graph.png")
         await ctx.send(embed=profile, file=file)
 
     @commands.command(name="nude")
