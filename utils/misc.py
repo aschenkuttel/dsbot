@@ -67,7 +67,7 @@ def keyword(options, strip=False, dct=False, **kwargs):
         elif input_value.isdigit():
             true_value = int(value)
 
-        elif value in ["true", "false"]:
+        elif value in ("true", "false"):
             true_value = value == "true"
 
         else:

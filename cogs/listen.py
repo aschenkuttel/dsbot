@@ -21,7 +21,6 @@ logger = logging.getLogger('dsbot')
 class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.cap = 10
         self.blacklist = []
         self.cmd_counter = Counter()
         self.silenced = (commands.UnexpectedQuoteError,

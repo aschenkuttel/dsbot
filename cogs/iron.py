@@ -68,20 +68,20 @@ class Iron(commands.Cog):
 
     @iron.command(name="top")
     async def top_(self, ctx):
-        members = self.bot.members.get(ctx.guild.id)
-        if members is None:
+        member_list = self.bot.member.get(ctx.guild.id)
+        if member_list is None:
             return
 
         query = 'SELECT * FROM iron WHERE id = ANY($1) ' \
                 'ORDER BY amount DESC LIMIT 5'
         async with self.bot.member_pool.acquire() as conn:
-            data = await conn.fetch(query, list(members))
+            data = await conn.fetch(query, list(member_list))
 
             result = []
             for index, record in enumerate(data, 1):
                 result.append([index, record])
 
-            await self.send_ranking(ctx, result, guild_data=members)
+            await self.send_ranking(ctx, result, guild_data=member_list)
 
     @iron.command(name="global")
     async def global_(self, ctx):

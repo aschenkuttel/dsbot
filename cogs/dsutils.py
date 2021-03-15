@@ -79,8 +79,6 @@ class Utils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 1
-        self.maximum = 0
-        self.cap_dict = {}
         self.active_pager = {}
         self.base = "javascript: var settings = Array" \
                     "({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}," \
@@ -161,10 +159,10 @@ class Utils(commands.Cog):
         plt.xticks([0, 7, 14, 21])
         axes.margins(x=0)
 
-        for direction in ["bottom", "top", "left", "right"]:
+        for direction in ("bottom", "top", "left", "right"):
             axes.spines[direction].set_color('white')
 
-        for coord in ["x", "y"]:
+        for coord in ("x", "y"):
             coord_axe = getattr(axes, f"{coord}axis")
             coord_axe.label.set_color('white')
             axes.tick_params(axis=coord, colors='white')
@@ -219,7 +217,7 @@ class Utils(commands.Cog):
             await ctx.send(msg)
             return
 
-        elif url_type not in ["ingame", "guest", "twstats"]:
+        elif url_type not in ("ingame", "guest", "twstats"):
             msg = "Der angegebene Url Typ ist nicht vorhanden:\n" \
                   "`(ingame[default], guest, twstats)`"
             await ctx.send(msg)
@@ -278,24 +276,11 @@ class Utils(commands.Cog):
         ds_type = utils.DSType(ctx.invoked_with.lower())
         dsobj = await ds_type.fetch(ctx, username, name=True)
 
-        queries = []
-        for num in range(29):
-            table = f"{ds_type.table}{num or ''}"
-            base = f'SELECT * FROM {table} WHERE ' \
-                   f'{table}.world = $1 AND {table}.id = $2'
-
-            queries.append(base)
-
-        query = " UNION ALL ".join(queries)
-        async with self.bot.tribal_pool.acquire() as conn:
-            records = await conn.fetch(query, ctx.server, dsobj.id)
-            data = [ds_type.Class(rec) for rec in records]
-            data.reverse()
-
-        rows = [f"**{dsobj.name}** | {ctx.world.represent(True)} {ctx.world.icon}"]
+        raw_title = "**{0.name}** | {1.represent(True)} {1.icon}"
+        rows = [raw_title.format(dsobj, ctx.world)]
 
         urls = []
-        for url_type in ["ingame", "guest", "twstats", "ds_ultimate"]:
+        for url_type in ("ingame", "guest", "twstats", "ds_ultimate"):
             if "_" in url_type:
                 parts = url_type.split("_")
                 name = f"{parts[0].upper()}-{parts[1].capitalize()}"
@@ -346,6 +331,20 @@ class Utils(commands.Cog):
         image_url = await self.fetch_profile_picture(dsobj)
         if image_url is not None:
             profile.set_thumbnail(url=image_url)
+
+        queries = []
+        for num in range(29):
+            table = f"{ds_type.table}{num or ''}"
+            base = f'SELECT * FROM {table} WHERE ' \
+                   f'{table}.world = $1 AND {table}.id = $2'
+
+            queries.append(base)
+
+        query = ' UNION ALL '.join(queries)
+        async with self.bot.tribal_pool.acquire() as conn:
+            records = await conn.fetch(query, ctx.server, dsobj.id)
+            data = [ds_type.Class(rec) for rec in records]
+            data.reverse()
 
         filled = [0] * (29 - len(data)) + [d.points for d in data]
         plot_data = pd.DataFrame({'x_coord': range(29), 'y_coord': filled})

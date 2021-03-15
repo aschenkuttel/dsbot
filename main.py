@@ -239,8 +239,8 @@ class DSBot(commands.Bot):
                 'channel_id BIGINT, command TEXT,' \
                 'arguments TEXT, time TIME)'
 
-        querys = [reminder, iron, usage,
-                  slot, member, tasks]
+        querys = (reminder, iron, usage,
+                  slot, member, tasks)
 
         async with self.member_pool.acquire() as conn:
             await conn.execute(";".join(querys))

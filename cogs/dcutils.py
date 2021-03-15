@@ -200,7 +200,7 @@ class DCUtils(commands.Cog):
             if ctx.channel != msg.channel or ctx.author.id in counter:
                 return
 
-            if any(word in msg.content.lower() for word in ["ja", "nein"]):
+            if any(word in msg.content.lower() for word in ("ja", "nein")):
                 counter.append(ctx.author.id)
 
         try:

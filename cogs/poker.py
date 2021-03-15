@@ -75,8 +75,7 @@ class Poker(utils.DSGames):
             return data['hand'], stamp
 
     async def player_wins(self, ctx, data, bj=False):
-        extra = data['bet'] * 1.5 if bj else data['bet']
-        price = int(data['bet'] + extra)
+        price = int(data['bet'] * (2.5 if bj else 1))
 
         greet = "Blackjack" if bj else "Glückwunsch"
         msg = f"{greet}, du gewinnst {utils.seperator(price)} Eisen!"
@@ -324,7 +323,7 @@ class Poker(utils.DSGames):
             else:
                 move = "s"
 
-            if move in ["h", "d"]:
+            if move in ("h", "d"):
 
                 if len(moves) == 3:
                     moves.remove("d")

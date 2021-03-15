@@ -166,7 +166,7 @@ class MapMenue:
             args = (village, tribes, players)
 
             center = [int(c) for c in self.center.split('|')]
-            label = self.highlight in [2, 3]
+            label = self.highlight in (2, 3)
             kwargs = {'zoom': self.zoom, 'center': center, 'label': label}
             return args, kwargs
 

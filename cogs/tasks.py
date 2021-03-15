@@ -129,7 +129,7 @@ class Task:
                         cur_value = getattr(dsobj, award_data['value'], 0)
                         old_value = getattr(old_dsobj, award_data['value'], 0)
 
-                    if award in ["loser"]:
+                    if award in ("loser",):
                         value = old_value - cur_value
                     else:
                         value = cur_value - old_value
@@ -205,8 +205,8 @@ class Task:
             players = {pl.id: pl for pl in result}
             args = (all_villages, ds_dict, players)
 
-        text = label.value in [2, 3]
-        highlight = label.value in [1, 2]
+        text = label.value in (2, 3)
+        highlight = label.value in (1, 2)
         kwargs = {'zoom': zoom.value, 'label': text,
                   'highlight': highlight, 'center': center.value}
         file = await cog.send_map(channel, *args, **kwargs)

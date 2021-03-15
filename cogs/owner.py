@@ -51,7 +51,7 @@ class Owner(commands.Cog):
 
     @commands.command(name="change")
     async def change_(self, ctx, guild_id: int, item, value):
-        if item.lower() not in ['prefix', 'world', 'game']:
+        if item.lower() not in ('prefix', 'world', 'game'):
             await ctx.send("Fehlerhafte Eingabe")
             return
 

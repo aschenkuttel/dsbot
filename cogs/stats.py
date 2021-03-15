@@ -297,7 +297,7 @@ class Stats(commands.Cog):
                         cur_value = getattr(dsobj, award_data['value'], 0)
                         old_value = getattr(old_dsobj, award_data['value'], 0)
 
-                    if award in ["loser"]:
+                    if award in ("loser",):
                         value = old_value - cur_value
                     else:
                         value = cur_value - old_value
