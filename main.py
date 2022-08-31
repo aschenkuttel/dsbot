@@ -1,6 +1,9 @@
 from async_timeout import timeout
 import data.credentials as secret
-from discord.ext import commands
+from utils import DSTree
+from discord.ext import commands, tasks
+from discord import app_commands
+from bs4 import BeautifulSoup
 import concurrent.futures
 import functools
 import datetime
@@ -13,14 +16,6 @@ import utils
 import os
 
 
-def prefix(bot, message):
-    if message.guild is None:
-        return secret.default_prefix
-
-    guild_prefix = bot.config.get_prefix(message.guild.id)
-    return guild_prefix or secret.default_prefix
-
-
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,6 +24,13 @@ class DSBot(commands.Bot):
         self.data_path = f"{path}/data"
 
         self.worlds = {}
+        self.players = {}
+        self.tribes = {}
+
+        # age of player and tribe cache
+        self.cache_age = {}
+
+        # discord member cache
         self.members = {}
 
         self.session = None
@@ -49,19 +51,26 @@ class DSBot(commands.Bot):
             self.languages[name] = utils.Language(path, filename)
 
         # update lock which waits for external database script and setup lock
-        self._update = asyncio.Event()
-        self._lock = asyncio.Event()
+        self._update = None
+        self._lock = None
 
         self.config = utils.Config(self)
         self.owner_id = 211836670666997762
-        self.default_prefix = secret.default_prefix
+        self.tree.on_error = self.on_app_command_error
         self.activity = discord.Activity(type=0, name=secret.status)
-        self.add_check(self.global_check)
         self.remove_command("help")
 
-        # initiate main loop and load modules
-        self.loop.create_task(self.loop_per_hour())
-        self.setup_cogs()
+    async def setup_hook(self):
+        self._update = asyncio.Event()
+        self._lock = asyncio.Event()
+
+        await self.setup_cogs()
+        self.loop_per_hour.start()
+        self.set_global_param_description()
+
+        guild = discord.Object(id=213992901263228928)
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
 
     async def on_ready(self):
         # db / aiohttp setup
@@ -93,36 +102,36 @@ class DSBot(commands.Bot):
     async def wait_until_unlocked(self):
         return await self._lock.wait()
 
-    # global check and ctx.world inject
-    async def global_check(self, ctx):
-        cmds = {str(ctx.command), str(ctx.command.parent)}
+    async def on_message(self, message) -> None:
+        if message.author.id == self.owner_id:
+            await self.process_commands(message)
 
-        if bool(cmds & secret.pm_commands):
-            return True
-        elif ctx.guild is None:
-            raise commands.NoPrivateMessage()
-        else:
-            self.update_member(ctx.author)
+    async def on_app_command_error(self, interaction, error):
+        ephemeral = False
+        msg = None
+        print(type(error))
 
-        world_prefix = self.config.get_world(ctx.channel)
-        world = self.worlds.get(world_prefix)
+        if isinstance(error, app_commands.TransformerError):
+            if isinstance(error.transformer, utils.DSConverter):
+                msg = f"`{error.value}` konnte auf {interaction.world} nicht gefunden werden"
 
-        if world:
-            ctx.world = world
-            return True
-        else:
-            raise utils.WorldMissing()
+        elif isinstance(error, app_commands.CommandOnCooldown):
+            base = "Cooldown: Versuche es in `{0:.1f}` Sekunden erneut"
+            msg = base.format(error.retry_after)
+        elif isinstance(error, app_commands.CommandInvokeError):
+            if isinstance(error.original, commands.ArgumentParsingError):
+                msg = "Fehlerhaftes Argument"
+            elif isinstance(error.original, utils.SilentError):
+                msg = "Silent Cooldown"
+                ephemeral = True
+            else:
+                raise error.original
 
-    # custom context implementation
-    async def on_message(self, message):
-        if not self._lock.is_set():
-            return
+        if msg is None:
+            msg = "Upps, da ist wohl etwas schief gelaufen..."
 
-        if message.author.bot:
-            return
-
-        ctx = await self.get_context(message, cls=utils.DSContext)
-        await self.invoke(ctx)
+        embed = utils.error_embed(msg)
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     async def report_to_owner(self, msg):
         owner = await self.fetch_user(self.owner_id)
@@ -153,41 +162,53 @@ class DSBot(commands.Bot):
 
         return result
 
+    @tasks.loop(seconds=0)
     async def loop_per_hour(self):
         await self._lock.wait()
+        await self.wait_until_ready()
 
-        while not self.is_closed():
-            seconds = self.get_seconds()
-            await asyncio.sleep(seconds)
+        if self.loop_per_hour.seconds is not None:
+            self.set_loop_per_hour_interval()
+            return
+
+        else:
             self.logger.debug("loop per hour")
+            # task_cog = self.get_cog("Tasks")
+            # await task_cog.task_engine()
 
-            task_cog = self.get_cog("Tasks")
-            await task_cog.task_engine()
+        try:
+            async with timeout(120, loop=self.loop):
+                await self._update.wait()
+                await self.update_worlds()
+        except asyncio.TimeoutError:
+            self.logger.error("update timeout")
+
+        for cog in self.cogs.values():
+            loop = getattr(cog, "called_per_hour", None)
 
             try:
-                async with timeout(120, loop=self.loop):
-                    await self._update.wait()
-                    await self.update_worlds()
-            except asyncio.TimeoutError:
-                self.logger.error("update timeout")
+                if loop is not None:
+                    await loop()
 
-            for cog in self.cogs.values():
-                loop = getattr(cog, "called_per_hour", None)
+            except Exception as error:
+                self.logger.debug(f"{cog.qualified_name} Cog Error: {error}")
 
-                try:
-                    if loop is not None:
-                        await loop()
+        self._update.clear()
+        self.set_loop_per_hour_interval()
 
-                except Exception as error:
-                    self.logger.debug(f"{cog.qualified_name} Cog Error: {error}")
+    def set_loop_per_hour_interval(self):
+        datetime_obj = self.get_seconds(obj=True)
+        self.loop_per_hour.change_interval(time=datetime_obj.time())
 
-            self._update.clear()
-
-    # current workaround since library update will support that with tasks in short future
-    def get_seconds(self, added_hours=1, timestamp=False):
+    # return seconds till the next full hour
+    def get_seconds(self, added_hours=1, timestamp=False, obj=False):
         now = datetime.datetime.now()
         clean = now + datetime.timedelta(hours=added_hours)
         goal_time = clean.replace(minute=0, second=0, microsecond=0)
+
+        if obj is True:
+            return goal_time
+
         start_time = now.replace(microsecond=0)
 
         if added_hours < 1:
@@ -198,14 +219,53 @@ class DSBot(commands.Bot):
         else:
             return (goal_time - start_time).seconds
 
+    async def get_tribal_cache(self, interaction, ds_type=None):
+        timestamp = interaction.created_at.timestamp()
+        age = self.cache_age.get(interaction.server)
+
+        if ds_type is not None:
+            # either client.players or client.tribes
+            world_cache = getattr(self, f"{ds_type}s")
+            cached_objects = world_cache.get(interaction.server)
+
+        else:
+            player_cache = self.players.get(interaction.server, {})
+            tribe_cache = self.tribes.get(interaction.server, {})
+
+            if not tribe_cache and not player_cache:
+                cached_objects = None
+            else:
+                cached_objects = (player_cache, tribe_cache)
+
+        if not cached_objects or (timestamp - age) > 14400:
+            player_query = f'SELECT * FROM player_{interaction.server}'
+            tribe_query = f'SELECT * FROM tribe_{interaction.server}'
+
+            async with interaction.client.tribal_pool.acquire() as conn:
+                players = {rec['id']: utils.Player(rec) for rec in await conn.fetch(player_query)}
+                tribes = {rec['id']: utils.Tribe(rec) for rec in await conn.fetch(tribe_query)}
+
+                self.players[interaction.server] = players
+                self.tribes[interaction.server] = tribes
+                self.cache_age[interaction.server] = timestamp
+
+                if ds_type == 'player':
+                    return players
+                elif ds_type == 'tribe':
+                    return tribes
+                else:
+                    return tribes, players
+
+        return cached_objects
+
     async def db_connect(self):
         result = []
 
-        for db in secret.databases:
-            conn_data = {'host': secret.db_adress,
-                         'port': secret.db_port,
-                         'user': secret.db_user,
-                         'password': secret.db_key,
+        for db, db_data in secret.databases.items():
+            conn_data = {'host': db_data['ip'],
+                         'port': db_data['port'],
+                         'user': db_data['user'],
+                         'password': db_data['key'],
                          'database': db,
                          'loop': self.loop,
                          'max_size': 50}
@@ -234,13 +294,13 @@ class DSBot(commands.Bot):
                  '(id BIGINT, guild_id BIGINT, name TEXT, nick TEXT, ' \
                  'last_update TIMESTAMP, PRIMARY KEY (id, guild_id))'
 
-        tasks = 'CREATE TABLE IF NOT EXISTS tasks' \
-                '(id SERIAL PRIMARY KEY, guild_id BIGINT,' \
-                'channel_id BIGINT, command TEXT,' \
-                'arguments TEXT, time TIME)'
+        cmd_tasks = 'CREATE TABLE IF NOT EXISTS tasks' \
+                    '(id SERIAL PRIMARY KEY, guild_id BIGINT,' \
+                    'channel_id BIGINT, command TEXT,' \
+                    'arguments TEXT, time TIME)'
 
         querys = (reminder, iron, usage,
-                  slot, member, tasks)
+                  slot, member, cmd_tasks)
 
         async with self.member_pool.acquire() as conn:
             await conn.execute(";".join(querys))
@@ -354,12 +414,11 @@ class DSBot(commands.Bot):
         self.worlds = cache
         self.logger.debug("worlds updated")
 
-    async def fetch_all(self, world, table=0, dictionary=False):
-        dsobj = utils.DSType(table)
+    async def fetch_all(self, server, table=0, dictionary=False):
+        dsobj = utils.DSType(table, server=server)
 
         async with self.tribal_pool.acquire() as conn:
-            query = f'SELECT * FROM {dsobj.table} WHERE world = $1'
-            cache = await conn.fetch(query, world)
+            cache = await conn.fetch(f'SELECT * FROM {dsobj.table}')
 
             if dictionary:
                 result = {rec['id']: dsobj.Class(rec) for rec in cache}
@@ -368,15 +427,15 @@ class DSBot(commands.Bot):
 
             return result
 
-    async def fetch_random(self, world, **kwargs):
+    async def fetch_random(self, server, **kwargs):
         amount = kwargs.get('amount', 1)
         top = kwargs.get('top', 500)
-        dsobj = utils.DSType(kwargs.get('tribe', 0))
+        dsobj = utils.DSType(kwargs.get('tribe', 0), server=server)
         least = kwargs.get('least', False)
 
-        statement = f'SELECT * FROM {dsobj.table} WHERE world = $1 AND rank <= $2'
+        query = f'SELECT * FROM {dsobj.table} WHERE rank <= $1'
         async with self.tribal_pool.acquire() as conn:
-            data = await conn.fetch(statement, world, top)
+            data = await conn.fetch(query, top)
 
         if len(data) < amount:
             if kwargs.get('max'):
@@ -396,117 +455,148 @@ class DSBot(commands.Bot):
 
         return result[0] if amount == 1 else result
 
-    async def fetch_player(self, world, searchable, *, name=False, archive=None):
-        table = f"player{archive}" if archive else "player"
+    async def fetch_player(self, server, searchable, *, name=False, archive=None):
+        table = f"player_{archive}" if archive else f"player_{server}"
 
         if name:
             searchable = utils.encode(searchable)
-            query = f'SELECT * FROM {table} WHERE world = $1 AND LOWER(name) = $2'
+            query = f'SELECT * FROM {table} WHERE LOWER(name) = $1'
         else:
-            query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
+            query = f'SELECT * FROM {table} WHERE id = $1'
 
         async with self.tribal_pool.acquire() as conn:
-            result = await conn.fetchrow(query, world, searchable)
+            result = await conn.fetchrow(query, searchable)
             return utils.Player(result) if result else None
 
-    async def fetch_tribe(self, world, searchable, *, name=False, archive=None):
-        table = f"tribe{archive}" if archive else "tribe"
+    async def fetch_tribe(self, server, searchable, *, name=False, archive=None):
+        table = f"tribe_{archive}" if archive else f"tribe_{server}"
 
         if name:
             searchable = utils.encode(searchable)
-            query = f'SELECT * FROM {table} WHERE world = $1 ' \
-                    f'AND (LOWER(tag) = $2 OR LOWER(name) = $2)'
+            query = f'SELECT * FROM {table} WHERE (LOWER(tag) = $1 OR LOWER(name) = $1)'
         else:
-            query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
+            query = f'SELECT * FROM {table} WHERE id = $1'
 
         async with self.tribal_pool.acquire() as conn:
-            result = await conn.fetchrow(query, world, searchable)
+            result = await conn.fetchrow(query, searchable)
 
         return utils.Tribe(result) if result else None
 
-    async def fetch_village(self, world, searchable, *, coord=False, archive=None):
-        table = f"village{archive}" if archive else "village"
+    async def fetch_village(self, server, searchable, *, coord=False, archive=None):
+        table = f"village_{archive}" if archive else f"village_{server}"
 
         if coord:
             x, y = searchable.split('|')
-            query = f'SELECT * FROM {table} WHERE world = $1 AND x = $2 AND y = $3'
+            query = f'SELECT * FROM {table} WHERE x = $1 AND y = $2'
             searchable = [int(x), int(y)]
         else:
-            query = f'SELECT * FROM {table} WHERE world = $1 AND id = $2'
+            query = f'SELECT * FROM {table} WHERE id = $1'
             searchable = [searchable]
 
         async with self.tribal_pool.acquire() as conn:
-            result = await conn.fetchrow(query, world, *searchable)
+            result = await conn.fetchrow(query, *searchable)
 
         return utils.Village(result) if result else None
 
-    async def fetch_both(self, world, searchable, *, name=True, archive=None):
+    async def fetch_both(self, server, searchable, *, name=True, archive=None):
         kwargs = {'name': name, 'archive': archive}
-        player = await self.fetch_player(world, searchable, **kwargs)
+        player = await self.fetch_player(server, searchable, **kwargs)
         if player:
             return player
 
-        tribe = await self.fetch_tribe(world, searchable, **kwargs)
+        tribe = await self.fetch_tribe(server, searchable, **kwargs)
         return tribe
 
-    async def fetch_top(self, world, top, table=None, **kwargs):
-        dsobj = utils.DSType(table or 0)
+    async def fetch_top(self, server, top, table=None, **kwargs):
+        dsobj = utils.DSType(table or 0, server=server)
         attribute = kwargs.get('attribute', 'rank')
         way = "ASC" if attribute == "rank" else "DESC"
 
-        query = f'SELECT * FROM {dsobj.table} WHERE world = $1 ' \
-                f'ORDER BY {attribute} {way} LIMIT $2'
+        query = f'SELECT * FROM {dsobj.table}' \
+                f'ORDER BY {attribute} {way} LIMIT $1'
 
         async with self.tribal_pool.acquire() as conn:
-            top10 = await conn.fetch(query, world, top)
+            top10 = await conn.fetch(query, top)
 
             if kwargs.get('dictionary') is True:
                 return {rec[1]: dsobj.Class(rec) for rec in top10}
             else:
                 return [dsobj.Class(rec) for rec in top10]
 
-    async def fetch_tribe_member(self, world, allys, name=False):
+    async def fetch_tribe_member(self, server, allys, name=False):
         if not isinstance(allys, (tuple, list)):
             allys = [allys]
         if name:
-            tribes = await self.fetch_bulk(world, allys, table=1, name=True)
+            tribes = await self.fetch_bulk(server, allys, table=1, name=True)
             allys = [tribe.id for tribe in tribes]
 
-        query = f'SELECT * FROM player WHERE world = $1 AND tribe_id = ANY($2)'
+        query = f'SELECT * FROM player_{server} WHERE tribe_id = ANY($1)'
         async with self.tribal_pool.acquire() as conn:
-            res = await conn.fetch(query, world, allys)
+            res = await conn.fetch(query, allys)
             return [utils.Player(rec) for rec in res]
 
-    async def fetch_bulk(self, world, iterable, table=None, **kwargs):
-        dsobj = utils.DSType(table or 0, archive=kwargs.get('archive'))
-        base = f'SELECT * FROM {dsobj.table} WHERE world = $1'
+    async def fetch_bulk(self, server, iterable, table=None, **kwargs):
+        dsobj = utils.DSType(table or 0, archive=kwargs.get('archive'), server=server)
+        base = f'SELECT * FROM {dsobj.table}'
 
         if not kwargs.get('name'):
-            query = f'{base} AND id = ANY($2)'
+            query = f'{base} WHERE id = ANY($1)'
         else:
             if dsobj.table == "village":
                 iterable = [vil.replace("|", "") for vil in iterable]
-                query = f'{base} AND CAST(x AS TEXT)||CAST(y as TEXT) = ANY($2)'
+                query = f'{base} WHERE CAST(x AS TEXT)||CAST(y as TEXT) = ANY($1)'
 
             else:
                 iterable = [utils.encode(obj) for obj in iterable]
                 if dsobj.table == "tribe":
-                    query = f'{base} AND ARRAY[LOWER(name), LOWER(tag)] && $2'
+                    query = f'{base} WHERE ARRAY[LOWER(name), LOWER(tag)] && $1'
                 else:
-                    query = f'{base} AND LOWER(name) = ANY($2)'
+                    query = f'{base} WHERE LOWER(name) = ANY($1)'
 
         async with self.tribal_pool.acquire() as conn:
-            res = await conn.fetch(query, world, iterable)
+            res = await conn.fetch(query, server, iterable)
             if kwargs.get('dictionary'):
                 return {rec[1]: dsobj.Class(rec) for rec in res}
             else:
                 return [dsobj.Class(rec) for rec in res]
 
+    async def fetch_profile_picture(self, dsobj, default_avatar=False):
+        async with self.session.get(dsobj.guest_url) as resp:
+            soup = BeautifulSoup(await resp.read(), "html.parser")
+
+            tbody = soup.find(id='content_value')
+            tables = tbody.findAll('table')
+            tds = tables[1].findAll('td', attrs={'valign': 'top'})
+            images = tds[1].findAll('img')
+
+            if not images or 'badge' in images[0]['src']:
+                return
+
+            endings = ['large']
+            if default_avatar is True:
+                endings.append('jpg')
+
+            if images[0]['src'].endswith(tuple(endings)):
+                return images[0]['src']
+
+    def set_global_param_description(self):
+        params = self.languages['german'].params
+
+        for command in self.tree.walk_commands():
+            if isinstance(command, app_commands.Command):
+                for param, description in params.items():
+                    # noinspection PyProtectedMember
+                    command_parameters = command._params
+
+                    if param in command_parameters:
+                        if str(command_parameters[param].description) == "…":
+                            command_parameters[param].description = description
+
     # imports all cogs at startup
-    def setup_cogs(self):
+    async def setup_cogs(self):
         for file in secret.default_cogs:
             try:
-                self.load_extension(f"cogs.{file}")
+                await self.load_extension(f"cogs.{file}")
             except commands.ExtensionNotFound:
                 print(f"module {file} not found")
 
@@ -520,6 +610,7 @@ class DSBot(commands.Bot):
 intents = discord.Intents.default()
 intents.presences = False
 intents.typing = False
+intents.messages = True
 
-dsbot = DSBot(command_prefix=prefix, intents=intents)
+dsbot = DSBot(command_prefix="!", intents=intents, tree_cls=DSTree)
 dsbot.run(secret.TOKEN)

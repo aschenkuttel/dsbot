@@ -111,7 +111,6 @@ class ConquerLoop(commands.Cog):
         sec = self.bot.get_seconds(added_hours=-1)
 
         for world, world_obj in self.bot.worlds.items():
-
             if world_obj.type == "s":
                 continue
 
@@ -238,5 +237,5 @@ class ConquerLoop(commands.Cog):
         return result
 
 
-def setup(bot):
-    bot.add_cog(ConquerLoop(bot))
+async def setup(bot):
+    await bot.add_cog(ConquerLoop(bot))

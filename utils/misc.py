@@ -1,6 +1,6 @@
 from utils.error import WrongChannel, GameChannelMissing, ArgumentOutOfRange
 from urllib.parse import quote_plus, unquote_plus
-from discord.ext import commands
+from discord import app_commands
 from utils import Keyword
 import logging
 import discord
@@ -145,12 +145,13 @@ def parse_integer(user_input, default, boundaries=None):
 
 
 # default embeds
-def error_embed(text, ctx=None):
+def error_embed(text, interaction=None):
     embed = discord.Embed(description=text, color=discord.Color.red())
-    if ctx:
-        command = ctx.command.parent or ctx.command
-        help_text = f"Erklärung und Beispiel mit {ctx.prefix}help {command}"
+    if interaction:
+        command = interaction.command.parent or interaction.command
+        help_text = f"Erklärung und Beispiel mit /help {command.name}"
         embed.set_footer(text=help_text)
+
     return embed
 
 
@@ -201,16 +202,16 @@ def unpack_join(record):
 
 
 def game_channel_only():
-    def predicate(ctx):
-        config = ctx.bot.config
-        chan = config.get('game', ctx.guild.id)
+    def predicate(interaction):
+        config = interaction.client.config
+        chan = config.get('game', interaction.guild.id)
         if not chan:
             raise GameChannelMissing()
-        if chan == ctx.channel.id:
+        if chan == interaction.channel_id:
             return True
         raise WrongChannel('game')
 
-    return commands.check(predicate)
+    return app_commands.check(predicate)
 
 
 def create_logger(name, datapath):

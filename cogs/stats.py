@@ -1,10 +1,16 @@
-from utils import DSUserNotFound, MissingRequiredKey
+from collections import OrderedDict
+from utils import MissingRequiredKey
 from utils import seperator as sep
 from discord.ext import commands
+from discord import app_commands
+from matplotlib import ticker, patheffects
+import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
+import pandas as pd
 import asyncpg
 import discord
 import utils
+import io
 
 
 class Stats(commands.Cog):
@@ -17,40 +23,55 @@ class Stats(commands.Cog):
                           'general': "all_bash",
                           'defensive': "def_bash",
                           'support': "sup_bash"}
+        self.bash_names = {'all_bash': "ALL",
+                           'att_bash': "OFF",
+                           'def_bash': "DEF",
+                           'sup_bash': "SUP"}
 
-    @commands.command(name="bash")
-    async def bash(self, ctx, *, arguments):
-        args = arguments.split("/")
-        if len(args) != 2:
-            dsobj = await self.bot.fetch_both(ctx.server, arguments)
-            if dsobj is None:
-                raise utils.DSUserNotFound(arguments)
+    def create_figure(self):
+        fig = plt.figure(figsize=(10, 4))
+        plt.rc(f'xtick', labelsize=16)
+        plt.rc(f'ytick', labelsize=18)
+
+        axes = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        plt.xticks([0, 7, 14, 21])
+        axes.margins(x=0)
+
+        for direction in ("bottom", "top", "left", "right"):
+            axes.spines[direction].set_color('white')
+
+        for coord in ("x", "y"):
+            coord_axe = getattr(axes, f"{coord}axis")
+            coord_axe.label.set_color('white')
+            axes.tick_params(axis=coord, colors='white')
+
+        def x_format(num, _):
+            weeknum = int((28 - num) / 7)
+            if weeknum not in (0, 4):
+                return f"-{weeknum} Woche"
+
+        def y_format(num, _):
+            magnitude = 0
+            while abs(num) >= 1000:
+                magnitude += 1
+                num /= 1000.0
+
+            if magnitude == 0:
+                return int(num)
             else:
-                user = [dsobj]
+                return '%.1f%s' % (num, ['', 'K', 'M'][magnitude])
 
+        axes.yaxis.set_major_formatter(ticker.FuncFormatter(y_format))
+        axes.xaxis.set_major_formatter(ticker.FuncFormatter(x_format))
+
+        return axes
+
+    @app_commands.command(name="bash", description="Bashpunkte oder ein Vergleich zwischen 2 Parteien")
+    async def bash(self, interaction, first_dsobj: utils.DSConverter, second_dsobj: utils.DSConverter = None):
+        if second_dsobj is None:
+            user = [first_dsobj]
         else:
-            player1 = args[0].strip()
-            player2 = args[1].strip()
-
-            if player1.lower() == player2.lower():
-                await ctx.send("Dein Witz :arrow_right: Unlustig")
-                return
-
-            s1 = await self.bot.fetch_both(ctx.server, player1)
-            s2 = await self.bot.fetch_both(ctx.server, player2)
-            user = [s1, s2]
-
-            if s1 is None or s2 is None:
-                wrong_name = player1 if s1 is None else player2
-                raise utils.DSUserNotFound(wrong_name)
-
-        for dsobj in user:
-            if isinstance(dsobj, utils.Tribe):
-                dsobj.sup_bash = 0
-                members = await self.bot.fetch_tribe_member(ctx.server, dsobj.id)
-
-                for member in members:
-                    dsobj.sup_bash += member.sup_bash
+            user = [first_dsobj, second_dsobj]
 
         embed = discord.Embed()
 
@@ -80,55 +101,147 @@ class Stats(commands.Cog):
 
             embed.add_field(name=f"{dsobj}", value="\n".join(result))
 
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
-    @commands.command(name="bashrank")
-    async def bashrank_(self, ctx, tribe: utils.DSConverter('tribe'), bashtype=None):
-        bashtype = bashtype.lower() or "offensive"
+    @app_commands.command(name="bashrank", description="Bashrangliste eines Stammes")
+    @app_commands.describe(tribe="Der gewünschte Stamm", bashtype="<general|offensive|defensive|support>")
+    async def bashrank_(self, interaction, tribe: utils.DSConverter('tribe'), bashtype: str = "offensive"):
+        bashtype = bashtype.lower()
+        bashstat = self.bashtypes.get(bashtype)
 
-        if bashtype not in self.bashtypes:
+        if bashstat is None:
             raise MissingRequiredKey(self.bashtypes.keys(), "tribe")
 
-        bashstat = self.bashtypes.get(bashtype)
-        members = await self.bot.fetch_tribe_member(ctx.server, tribe.id)
+        members = await self.bot.fetch_tribe_member(interaction.server, tribe.id)
         members.sort(key=lambda m: getattr(m, bashstat), reverse=True)
-
         result = [f"**Stammesinterne Rangliste {tribe.mention}**",
                   f"**Bashtype:** `{bashtype.capitalize()}`", ""]
+
         for member in members[:15]:
             value = getattr(member, bashstat)
             line = f"`{utils.seperator(value)}` | {member}"
             result.append(line)
 
         embed = discord.Embed(description="\n".join(result))
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
-    @commands.command(name="recap")
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recap(self, ctx, *, args):
-        dsobj = None
-        parts = args.split(' ')
-        if parts[-1].isdigit():
-            dsobj = await self.bot.fetch_both(ctx.server, ' '.join(parts[:-1]))
+    @app_commands.command(name="player", description="Statistiken eines Spielers")
+    @app_commands.rename(player="name")
+    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.guild_id)
+    async def player(self, interaction, player: utils.DSConverter('player')):
+        await self.ingame_stats(interaction, player, 'player')
 
-        if dsobj is None:
-            dsobj = await self.bot.fetch_both(ctx.server, args)
-            time = 7
+    @app_commands.command(name="tribe", description="Statistiken eines Stammes")
+    @app_commands.rename(tribe="name")
+    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.guild_id)
+    async def tribe(self, interaction, tribe: utils.DSConverter('tribe')):
+        await self.ingame_stats(interaction, tribe, 'tribe')
+
+    async def ingame_stats(self, interaction, dsobj, raw_ds_type):
+        await interaction.response.defer()
+        ds_type = utils.DSType(raw_ds_type)
+
+        title = f"**{dsobj.name}** | {interaction.world.represent(True)} {interaction.world.icon}"
+        rows = [title]
+
+        urls = []
+        for url_type in ("ingame", "guest", "twstats", "ds_ultimate"):
+            if "_" in url_type:
+                parts = url_type.split("_")
+                name = f"{parts[0].upper()}-{parts[1].capitalize()}"
+            else:
+                name = url_type.capitalize()
+
+            url = getattr(dsobj, f"{url_type}_url")
+            urls.append(f"[{name}]({url})")
+
+        rows.append(" | ".join(urls))
+
+        if hasattr(dsobj, 'tribe_id'):
+            tribe = await self.bot.fetch_tribe(interaction.server, dsobj.tribe_id)
+            desc = tribe.mention if tribe else "None"
+            villages = f"**Stamm:** {desc}"
         else:
-            time = int(parts[-1])
+            villages = f"**Mitglieder:** `{dsobj.member}`"
 
-        if not dsobj:
-            raise DSUserNotFound(args)
-        else:
-            utils.valid_range(time, 1, 30, "day")
+        villages += f" | **Dörfer:** `{utils.seperator(dsobj.villages)}`"
+        points = f"**Punkte:** `{utils.seperator(dsobj.points)}` | **Rang:** `{dsobj.rank}`"
+        rows.extend(["", points, villages, "", "**Besiegte Gegner:**"])
 
+        bash_rows = OrderedDict()
+        for index, stat in enumerate(['all_bash', 'att_bash', 'def_bash', 'sup_bash']):
+            value = getattr(dsobj, stat)
+            rank_stat = f"{stat.split('_')[0]}_rank"
+            rank_value = getattr(dsobj, rank_stat)
+
+            stat_title = self.bash_names[stat]
+            represent = f"{stat_title}: `{sep(value)}`"
+
+            if rank_value:
+                represent += f" | Rang: `{rank_value}`"
+
+            bash_rows[represent] = value
+
+        clean = sorted(bash_rows.items(), key=lambda l: l[1], reverse=True)
+        rows.extend([line[0] for line in clean])
+
+        profile = discord.Embed(description="\n".join(rows))
+        profile.colour = discord.Color.blue()
+
+        image_url = await self.bot.fetch_profile_picture(dsobj)
+        if image_url is not None:
+            profile.set_thumbnail(url=image_url)
+
+        queries = []
+        for num in range(29):
+            table = ds_type.table if not num else f"{ds_type.table}_{num}"
+            base = f'SELECT * FROM {table} WHERE ' \
+                   f'{table}.world = $1 AND {table}.id = $2'
+
+            queries.append(base)
+
+        query = ' UNION ALL '.join(queries)
+        async with self.bot.tribal_pool.acquire() as conn:
+            records = await conn.fetch(query, interaction.server, dsobj.id)
+            data = [ds_type.Class(rec) for rec in records]
+            data.reverse()
+
+        filled = [0] * (29 - len(data)) + [d.points for d in data]
+        plot_data = pd.DataFrame({'x_coord': range(29), 'y_coord': filled})
+
+        config = {'color': '#3498db',
+                  'linewidth': 5,
+                  'path_effects': [patheffects.SimpleLineShadow(linewidth=8),
+                                   patheffects.Normal()]}
+
+        figure = self.create_figure()
+
+        if not data:
+            plt.ylim(top=50, bottom=-3)
+
+        figure.plot('x_coord', 'y_coord', data=plot_data, **config)
+        figure.grid(axis='y', zorder=1, alpha=0.3)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=100, transparent=True)
+        buf.seek(0)
+        plt.close()
+
+        file = discord.File(buf, "graph.png")
+        profile.set_image(url="attachment://graph.png")
+        await interaction.followup.send(embed=profile, file=file)
+
+    @app_commands.command(name="recap", description="Fasst die letzten X Tage eines Spielers oder Stammes zusammen")
+    @app_commands.describe(dsobj="Spieler oder Stamm", time="Dauer des Recaps in Tagen")
+    @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild.id, i.user.id))
+    async def recap(self, interaction, dsobj: utils.DSConverter, time: app_commands.Range[int, 1, 30] = 7):
         try:
-            dsobj8 = await self.bot.fetch_both(ctx.server, dsobj.id, name=False, archive=time)
+            dsobj8 = await self.bot.fetch_both(interaction.server, dsobj.id, name=False, archive=time)
 
             if dsobj8 is None:
                 obj = "Spieler" if dsobj.alone else "Stamm"
                 msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
-                await ctx.send(msg)
+                await interaction.response.send_message(msg)
                 return
 
             current_day = dsobj.points, dsobj.villages, dsobj.all_bash
@@ -148,7 +261,7 @@ class Stats(commands.Cog):
             except (IndexError, ValueError, AttributeError):
                 obj = "Spieler" if dsobj.alone else "Stamm"
                 msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
-                await ctx.send(msg)
+                await interaction.response.send_message(msg)
                 return
 
         result = []
@@ -166,22 +279,23 @@ class Stats(commands.Cog):
                     value = sep(int(current) - past - 1)
 
             if value.startswith("-"):
-                result.append(f"`{value[1:]}` {ctx.lang.recap[index][0]}")
+                result.append(f"`{value[1:]}` {interaction.lang.recap[index][0]}")
             else:
-                result.append(f"`{value}` {ctx.lang.recap[index][1]}")
+                result.append(f"`{value}` {interaction.lang.recap[index][1]}")
 
         since = "seit gestern" if time == 1 else f"in den letzten {time} Tagen"
         answer = f"`{dsobj.name}` hat {since} {' '.join(result)}"
-        await ctx.send(answer)
+        await interaction.response.send_message(answer)
 
-    @commands.group(name="top")
-    async def top_(self, ctx, state):
-        key = ctx.lang.top_options.get(state.lower())
+    @app_commands.command(name="top", description="Erhalte unterschiedliche \"An einem Tag\" Ranglisten")
+    @app_commands.describe(state="/help state")
+    async def top_(self, interaction, state: str = "kill_att"):
+        key = interaction.lang.top_options.get(state.lower())
 
         if key is None:
-            raise MissingRequiredKey(ctx.lang.top_options)
+            raise MissingRequiredKey(interaction.lang.top_options)
 
-        url = self.in_a_day.format(ctx.world.url, key)
+        url = self.in_a_day.format(interaction.world.url, key)
         async with self.bot.session.get(url) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
 
@@ -198,7 +312,7 @@ class Stats(commands.Cog):
                 points = row.findAll("td")[3].text
                 datapack[player_id] = points
 
-            players = await self.bot.fetch_bulk(ctx.server, datapack.keys(), dictionary=True)
+            players = await self.bot.fetch_bulk(interaction.server, datapack.keys(), dictionary=True)
             for player_id, points in datapack.items():
                 player = players.get(player_id)
                 if player:
@@ -212,15 +326,14 @@ class Stats(commands.Cog):
             msg = "Aktuell liegen noch keine Daten vor"
             embed = discord.Embed(description=msg, color=discord.Color.red())
 
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
-    @commands.command(name="daily", aliases=["dailytribe"])
-    async def daily_(self, ctx, award_type=None):
+    async def daily_award(self, interaction, award_type: str, tribe: bool = False):
         if award_type is not None:
             award = award_type.lower()
 
-            if award not in ctx.lang.daily_options:
-                raise MissingRequiredKey(ctx.lang.daily_options)
+            if award not in interaction.lang.daily_options:
+                raise MissingRequiredKey(interaction.lang.daily_options)
             else:
                 ds_types = [award]
 
@@ -228,13 +341,12 @@ class Stats(commands.Cog):
             ds_types = ("points", "conquerer", "loser", "basher", "defender")
 
         amount = 3 if award_type is None else 5
-        tribe = ctx.invoked_with.lower() == "dailytribe"
         dstype = utils.DSType('tribe' if tribe else 'player')
         batch = []
 
         async with self.bot.tribal_pool.acquire() as conn:
             for award in ds_types:
-                award_data = ctx.lang.daily_options.get(award)
+                award_data = interaction.lang.daily_options.get(award)
 
                 if tribe and award == "supporter":
                     query = '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player ' \
@@ -245,7 +357,7 @@ class Stats(commands.Cog):
                             'WHERE world = $1 AND tribe_id != 0 GROUP BY tribe_id ' \
                             f'ORDER BY sup DESC LIMIT {amount})'
 
-                    cache = await conn.fetch(query, ctx.server)
+                    cache = await conn.fetch(query, interaction.server)
                     all_values = {rec['tribe_id']: [] for rec in cache}
 
                     for record in cache:
@@ -257,7 +369,7 @@ class Stats(commands.Cog):
 
                     tribe_ids = [tup[0] for tup in value_list]
                     kwargs = {'table': dstype.table, 'dictionary': True}
-                    tribes = await self.bot.fetch_bulk(ctx.server, tribe_ids, **kwargs)
+                    tribes = await self.bot.fetch_bulk(interaction.server, tribe_ids, **kwargs)
                     data = [tribes[idc] for idc in tribe_ids]
 
                 else:
@@ -266,7 +378,7 @@ class Stats(commands.Cog):
                            'ORDER BY ({0}.{2} - {1}.{2}{5}) {3} LIMIT {4}'
 
                     switch = "ASC" if award in ["loser"] else "DESC"
-                    args = [dstype.table, f"{dstype.table}1",
+                    args = [dstype.table, f"{dstype.table}_1",
                             award_data['value'], switch, amount]
 
                     if tribe and award in ("loser", "conquerer"):
@@ -281,7 +393,7 @@ class Stats(commands.Cog):
                         args.append('')
 
                     query = base.format(*args)
-                    data = await conn.fetch(query, ctx.server)
+                    data = await conn.fetch(query, interaction.server)
 
                 ranking = []
                 for record in data:
@@ -328,7 +440,7 @@ class Stats(commands.Cog):
                     batch.append(body)
 
         if batch:
-            world_title = ctx.world.represent(plain=True)
+            world_title = interaction.world.represent(plain=True)
 
             if award_type is None:
                 batch.insert(0, f"**Ranglisten des Tages der {world_title}**")
@@ -345,8 +457,18 @@ class Stats(commands.Cog):
             msg = "Aktuell liegen noch keine Daten vor"
             embed = discord.Embed(description=msg, color=discord.Color.red())
 
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="daily", description="Tägliche Spielerawards")
+    @app_commands.describe(award="Mehr unter /help award")
+    async def daily(self, interaction, award: str):
+        await self.daily_award(interaction, award)
+
+    @app_commands.command(name="dailytribe", description="Tägliche Stammesawards")
+    @app_commands.describe(award="Mehr unter /help award")
+    async def dailytribe(self, interaction, award: str):
+        await self.daily_award(interaction, award, True)
 
 
-def setup(bot):
-    bot.add_cog(Stats(bot))
+async def setup(bot):
+    await bot.add_cog(Stats(bot))

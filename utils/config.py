@@ -125,5 +125,5 @@ class Config:
         else:
             return config.get('prefix')
 
-    def get_conquer(self, ctx):
-        return self.get('conquer', ctx.guild.id)
+    def get_conquer(self, guild_id):
+        return self.get('conquer', guild_id)

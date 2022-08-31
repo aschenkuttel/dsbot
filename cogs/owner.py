@@ -7,11 +7,16 @@ class Owner(commands.Cog):
         self.bot = bot
         self.config = bot.config
 
-    async def cog_check(self, ctx):
-        if await self.bot.is_owner(ctx.author):
-            return True
-        else:
-            raise commands.NotOwner()
+    @commands.command(name="desync")
+    async def desync_(self, ctx):
+        self.bot.tree.clear_commands(guild=None)
+        await self.bot.tree.sync()
+        await ctx.send("DeSync Completed")
+
+    @commands.command(name="sync")
+    async def sync_(self, ctx):
+        await self.bot.tree.sync()
+        await ctx.send("Sync Completed")
 
     @commands.command(name="presence")
     async def presence_(self, ctx, *, args):
@@ -22,7 +27,7 @@ class Owner(commands.Cog):
     @commands.command(name="reload")
     async def reload_(self, ctx, cog):
         try:
-            self.bot.reload_extension(f"cogs.{cog}")
+            await self.bot.reload_extension(f"cogs.{cog}")
             await ctx.send("Extension erfolgreich neu geladen")
             print("-- Extension reloaded --")
         except Exception as error:
@@ -82,5 +87,5 @@ class Owner(commands.Cog):
             await ctx.send(error)
 
 
-def setup(bot):
-    bot.add_cog(Owner(bot))
+async def setup(bot):
+    await bot.add_cog(Owner(bot))

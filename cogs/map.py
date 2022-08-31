@@ -1,31 +1,39 @@
+from discord.ui import Modal, View, TextInput
 from PIL import Image, ImageFont, ImageDraw
-from datetime import datetime, timedelta
+from discord import app_commands
 from discord.ext import commands
-from zipfile import ZipFile
-from utils import keyword
 import numpy as np
 import discord
-import asyncio
 import utils
 import io
 import re
 
 
-class MapMenue:
-    icons = [
-        '<:center:672875546773946369>',
-        '<:dsmap:672912316240756767>',
-        '<:friend:672875516117778503>',
-        '<:tribe:672862439074693123>',
-        '<:report:672862439242465290>',
-        '<:old:672862439112441879>',
-        '<:button:672910606700904451>',
-    ]
+class MapModal(Modal):
+    def __init__(self, callback, title, label, long=False):
+        super().__init__(title=title)
+        self.callback = callback
+        self.label = label
+        self.long = long
 
-    def __init__(self, ctx):
-        self.ctx = ctx
-        self.bot = ctx.bot
-        self.message = None
+    input_text = TextInput(label="")
+
+    def render(self):
+        self.input_text.label = self.label
+        self.input_text.style = discord.TextStyle.long if self.long else discord.TextStyle.short
+
+    async def on_submit(self, interaction):
+        await self.callback(interaction, self.input_text.value)
+
+
+class MapMenue:
+    def __init__(self, interaction):
+        super().__init__()
+
+        self.interaction = interaction
+        self.bot = interaction.client
+        self.callback = None
+        self.view = View()
         self.embed = None
         self.zoom = 0
         self.center = "500|500"
@@ -34,43 +42,62 @@ class MapMenue:
         self.highlight = 0
         self.bb = True
         self.color = utils.DSColor()
-        self.dead = False
 
-    async def setup(self, restart=False):
+    async def setup(self, callback):
+        self.callback = callback
+
         options = []
-        for icon, value in self.ctx.lang.map_menue.items():
+        for icon, value in self.interaction.lang.map.items():
             title = value['title']
             default = value.get('default')
+
             if default is not None:
                 message = f"{icon} {title} `[{default}]`"
             else:
-                message = f"\n{icon} {title}"
+                message = f"{icon} {title}"
+
+                if len(icon) > 1:
+                    message = "\n" + message
+
             options.append(message)
 
         self.embed = discord.Embed(title="Custom Map Tool", description="\n".join(options))
-        example = f"Für eine genaue Erklärung und Beispiele: {self.ctx.prefix}help custom"
+        example = f"Für eine genaue Erklärung und Beispiele: /help custom"
         self.embed.set_footer(text=example)
 
-        if restart is True:
-            for index in range(5):
-                self.update_embed(index)
+        for index, icon in enumerate(self.interaction.lang.map.keys()):
+            button = utils.DSButton(
+                custom_id=str(index),
+                emoji=icon,
+                row=0 if index < 4 else 1,
+                _callback=self.change
+            )
 
-        self.message = await self.ctx.send(embed=self.embed)
+            self.view.add_item(button)
 
-        for icon in self.icons:
-            await self.message.add_reaction(icon)
+        await self.interaction.response.send_message(embed=self.embed, view=self.view)
 
-    async def reinstall(self, ctx):
-        self.dead = False
-        self.ctx = ctx
-        await self.setup(restart=True)
+    async def coord_callback(self, interaction, value):
+        coords = re.findall(r'\d\d\d\|\d\d\d', value)
+        self.center = coords[0] if coords else "500|500"
+        await self.update(1, interaction)
 
-    async def change(self, emoji):
-        try:
-            index = self.icons.index(emoji)
-        except ValueError:
-            return
+    async def player_callback(self, interaction, value):
+        iterable = value.split("\n")
+        args = (self.interaction.server, iterable, 0)
+        data = await self.bot.fetch_bulk(*args, name=True)
+        self.player = data[:10]
+        await self.update(2, interaction)
 
+    async def tribe_callback(self, interaction, value):
+        iterable = value.split("\n")
+        args = (self.interaction.server, iterable, 1)
+        data = await self.bot.fetch_bulk(*args, name=True)
+        self.tribes = data[:10]
+        await self.update(3, interaction)
+
+    async def change(self, custom_id, interaction):
+        index = int(custom_id)
         # index 0: zoom
         if index == 0:
             if self.zoom == 5:
@@ -80,50 +107,19 @@ class MapMenue:
 
         # index 1,2,3: center, player, tribe
         elif index in (1, 2, 3):
-            name = ('center', 'player', 'tribes')[index - 1]
-
-            if getattr(self, name) is False:
-                return
-            else:
-                setattr(self, name, False)
-
-            listen = self.bot.get_cog('Listen')
-            listen.blacklist.append(self.ctx.author.id)
-
             if index == 1:
-                msg = "**Gebe bitte die gewünschte Koordinate an:**"
+                msg = "Gebe bitte die gewünschte Koordinate an:"
+                modal = MapModal(self.coord_callback, msg, "Center der Karte")
 
             else:
                 obj = "Spieler" if index == 2 else "Stämme"
-                msg = f"**Gebe jetzt bis zu 10 {obj} an:**\n" \
-                      f"(Mit neuer Zeile getrennt | Shift Enter)"
+                msg = f"Gebe jetzt bis 10 {obj} an (1 Zeile pro)"
+                callback = self.player_callback if index == 2 else self.tribe_callback
+                modal = MapModal(callback, obj, msg, long=True)
 
-            guide_msg = await self.ctx.send(msg)
-
-            def check(m):
-                return self.ctx.author == m.author and self.ctx.channel == m.channel
-
-            try:
-                result = await self.ctx.bot.wait_for('message', check=check, timeout=300)
-
-                if index == 1:
-                    coords = re.findall(r'\d\d\d\|\d\d\d', result.content)
-                    self.center = coords[0] if coords else "500|500"
-
-                else:
-                    iterable = result.content.split("\n")
-                    args = (self.ctx.server, iterable, index - 2)
-                    data = await self.bot.fetch_bulk(*args, name=True)
-                    setattr(self, name, data[:10])
-
-                listen.blacklist.remove(self.ctx.author.id)
-                await utils.silencer(result.delete())
-
-            except asyncio.TimeoutError:
-                return
-
-            finally:
-                await utils.silencer(guide_msg.delete())
+            modal.render()
+            await interaction.response.send_modal(modal)
+            return
 
         # index 4 highlight: none, mark, label + mark, label
         elif index == 4:
@@ -138,8 +134,6 @@ class MapMenue:
 
         # map creation
         elif index == 6:
-            await self.ctx.trigger_typing()
-
             if self.tribes is False:
                 self.tribes = []
             if self.player is False:
@@ -148,7 +142,7 @@ class MapMenue:
                 self.center = "500|500"
 
             idc = [tribe.id for tribe in self.tribes]
-            members = await self.bot.fetch_tribe_member(self.ctx.server, idc)
+            members = await self.bot.fetch_tribe_member(self.interaction.server, idc)
             colors = self.color.top()
 
             players = {player.id: player for player in self.player}
@@ -162,19 +156,38 @@ class MapMenue:
                 if dsobj not in members:
                     dsobj.color = colors.pop(0)
 
-            village = await self.bot.fetch_all(self.ctx.server, 'map')
+            village = await self.bot.fetch_all(self.interaction.server, 'map')
             args = (village, tribes, players)
 
             center = [int(c) for c in self.center.split('|')]
             label = self.highlight in (2, 3)
             kwargs = {'zoom': self.zoom, 'center': center, 'label': label}
-            return args, kwargs
+            await self.interaction.edit_original_response(embed=self.embed, view=None)
+            await self.callback(interaction, *args, **kwargs)
+            return
 
-        self.update_embed(index)
-        await self.message.edit(embed=self.embed)
+        else:
+            self.zoom = 0
+            self.center = "500|500"
+            self.tribes = []
+            self.player = []
+            self.highlight = 0
+            self.bb = True
+
+        await self.update(index, interaction)
         return True
 
+    async def update(self, index, interaction):
+        self.update_embed(index)
+        await interaction.response.edit_message(embed=self.embed, view=self.view)
+
     def update_embed(self, index):
+        # reset index
+        if index == 7:
+            for num in range(6):
+                self.update_embed(num)
+            return
+
         values = [self.zoom, self.center,
                   self.player, self.tribes,
                   self.highlight, self.bb]
@@ -223,15 +236,7 @@ class Map(commands.Cog):
     async def called_per_hour(self):
         self.top10_cache.clear()
 
-        for key in self.menue_cache.copy():
-            menue = self.menue_cache[key]
-            now = datetime.utcnow()
-            creation = menue.message.created_at
-
-            if menue.dead is True and (now - creation).total_seconds() > 600:
-                self.menue_cache.pop(key)
-
-    async def send_map(self, ctx, *args, **kwargs):
+    async def send_map(self, interaction, *args, **kwargs):
         image = await self.bot.execute(self.draw_map, *args, **kwargs)
 
         file = io.BytesIO()
@@ -239,7 +244,11 @@ class Map(commands.Cog):
         image.close()
         file.seek(0)
 
-        await ctx.send(file=discord.File(file, "map.png"))
+        if kwargs.get('new'):
+            await interaction.channel.send(file=discord.File(file, "map.png"))
+        else:
+            await interaction.response.send_message(file=discord.File(file, "map.png"))
+
         return file
 
     async def timeout(self, user_id, time):
@@ -478,58 +487,69 @@ class Map(commands.Cog):
         self.watermark(result)
         return result
 
-    @commands.cooldown(1, 30, commands.BucketType.guild)
-    @commands.command(name="map")
-    async def map_(self, ctx, *, arguments=None):
-        tribe_names, options, = keyword(arguments, strip=True, dct=True, **self.default_options)
+    @app_commands.command(name="map", description="Weltenkarte mit unterschiedlichen Optionen")
+    @app_commands.describe(names="Namen der Stämme oder Spieler die markiert werden sollen",
+                           zoom="Stufe des Zooms von 0-10",
+                           top="Anzahl der Top Stämme oder Spieler von 5-20",
+                           player="True für Spieler, False für Stämme",
+                           label="Namen über den gefärbten Objekten",
+                           highlight="Schein für die gefärbten Objekte")
+    @app_commands.checks.cooldown(1, 30, key=lambda i: i.guild_id)
+    async def map_(self, interaction,
+                   names: str = "",
+                   zoom: app_commands.Range[int, 1, 10] = 0,
+                   top: app_commands.Range[int, 5, 20] = 10,
+                   player: bool = False,
+                   label: bool = True,
+                   highlight: bool = True):
 
-        await ctx.trigger_typing()
+        default_map = interaction.data.get('options') is None
 
         color_map = []
-        if not tribe_names:
-            file = self.top10_cache.get(ctx.server)
+        if not names:
+            file = self.top10_cache.get(interaction.server)
 
-            if arguments is None and file is not None:
+            if default_map is None and file is not None:
                 file.seek(0)
-                await ctx.send(file=discord.File(file, 'map.png'))
+                await interaction.response.send_message(file=discord.File(file, 'map.png'))
                 return
 
-            ds_type = "player" if options['player'] else "tribe"
-            ds_objects = await self.bot.fetch_top(ctx.server, options['top'].value, ds_type)
+            ds_type = "player" if player else "tribe"
+            ds_objects = await self.bot.fetch_top(interaction.server, top, ds_type)
 
         else:
-            all_tribes = []
-            raw_fractions = tribe_names.split('&')
+            all_names = []
+            raw_fractions = names.split('&')
             fractions = [f for f in raw_fractions if f]
 
             for index, team in enumerate(fractions):
-                names = []
+                fraction_names = []
                 quoted = re.findall(r'\"(.+)\"', team)
                 for res in quoted:
                     team = team.replace(f'"{res}"', ' ')
-                    names.append(res)
+                    fraction_names.append(res)
 
                 for name in team.split():
                     if not name:
                         continue
-                    names.append(name)
+                    fraction_names.append(name)
 
-                all_tribes.extend(names)
+                all_names.extend(fraction_names)
 
-                if len(fractions) == 1 and '&' not in tribe_names:
+                if len(fractions) == 1 and '&' not in fraction_names:
                     color_map.extend([obj] for obj in names)
                 else:
                     color_map.append(names)
 
-            ds_objects = await self.bot.fetch_bulk(ctx.server, all_tribes, 1, name=True)
+            ds_objects = await self.bot.fetch_bulk(interaction.server, all_names, 1, name=True)
 
         if len(color_map) > 20:
-            await ctx.send("Du kannst nur bis zu 20 Stämme/Gruppierungen angeben")
+            await interaction.reponse.send_message("Du kannst nur bis zu 20 Stämme/Gruppierungen angeben")
             return
 
         colors = self.colors.top()
         for tribe in ds_objects.copy():
-            if not tribe_names:
+            if not names:
                 tribe.color = colors.pop(0)
                 continue
 
@@ -542,179 +562,39 @@ class Map(commands.Cog):
             else:
                 ds_objects.remove(tribe)
 
-        all_villages = await self.bot.fetch_all(ctx.server, "map")
+        all_villages = await self.bot.fetch_all(interaction.server, "map")
         if not all_villages:
             msg = "Auf der Welt gibt es noch keine Dörfer :/"
-            await ctx.send(msg)
+            await interaction.response.send_message(msg)
             return
 
         ds_dict = {dsobj.id: dsobj for dsobj in ds_objects}
-        if options['player']:
+        if player:
             args = (all_villages, {}, ds_dict)
 
         else:
-            result = await self.bot.fetch_tribe_member(ctx.server, list(ds_dict))
+            result = await self.bot.fetch_tribe_member(interaction.server, list(ds_dict))
             players = {pl.id: pl for pl in result}
             args = (all_villages, ds_dict, players)
 
-        zoom = options['zoom'].value
-        center = options['center'].value
-        label = options['label'].value in (2, 3)
-        hightlight = options['label'].value in (1, 2)
-        kwargs = {'zoom': zoom, 'label': label, 'highlight': hightlight, 'center': center}
-        file = await self.send_map(ctx, *args, **kwargs)
+        kwargs = {'zoom': zoom, 'label': label, 'highlight': highlight}
+        file = await self.send_map(interaction, *args, **kwargs)
 
-        if arguments is None:
-            self.top10_cache[ctx.server] = file
+        if default_map:
+            self.top10_cache[interaction.server] = file
         else:
             file.close()
 
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload):
-        await self.menue_handler(payload)
+    @app_commands.command(name="custom", description="Weltenkartentool mit Menü")
+    @app_commands.checks.cooldown(1, 30, key=lambda i: i.guild_id)
+    async def custom_(self, interaction, world: utils.WorldConverter = None):
+        if world is not None:
+            interaction.world = world
+            interaction.server = world.server
 
-    @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload):
-        await self.menue_handler(payload)
-
-    async def menue_handler(self, payload):
-        if payload.user_id == self.bot.user.id:
-            return
-
-        menue = self.menue_cache.get(payload.user_id)
-        if menue is None:
-            return
-
-        elif payload.message_id != menue.message.id:
-            return
-
-        else:
-            resp = await menue.change(str(payload.emoji))
-            if resp is None:
-                await self.timeout(payload.user_id, 300)
-
-            elif isinstance(resp, tuple):
-                await self.send_map(menue.ctx, *resp[0], **resp[1])
-                menue.dead = True
-
-    @commands.cooldown(1, 60, commands.BucketType.guild)
-    @commands.command(name="custom", aliases=["last"])
-    async def custom_(self, ctx, world: utils.WorldConverter = None):
-        menue = self.menue_cache.get(ctx.author.id)
-
-        if menue is not None and menue.dead is False:
-            msg = "Du hast bereits eine offene Karte"
-            return await ctx.send(msg)
-
-        elif ctx.invoked_with.lower() == "last":
-            if menue is None:
-                msg = "Du hast keine alte Karte mehr im Cache"
-                return await ctx.send(msg)
-
-            elif menue.is_dead():
-                await menue.reinstall(ctx)
-
-        else:
-            if world is not None:
-                ctx.world = world
-
-            menue = MapMenue(ctx)
-            self.menue_cache[ctx.author.id] = menue
-            await menue.setup()
-
-        await asyncio.sleep(600)
-
-        menue = self.menue_cache.get(ctx.author.id)
-        if menue is None:
-            return
-
-        if ctx.message.id == menue.ctx.message.id:
-            await self.timeout(ctx.author.id, 600)
-
-    @commands.cooldown(2, 1800, commands.BucketType.guild)
-    @commands.command(name="timelapse")
-    async def timelapse(self, ctx, *, options=None):
-        rest, days = keyword(options, strip=True, days=[7, 7, 60])
-
-        if rest:
-            world = await utils.WorldConverter().convert(ctx, rest)
-            ctx.world = world
-
-        await ctx.send("Daten werden geladen...")
-
-        day_rankings = {}
-        async with self.bot.tribal_pool.acquire() as conn:
-            for n in range(1, days.value + 1):
-                query = f'SELECT * FROM tribe{n} WHERE world = $1 ORDER BY rank LIMIT 10'
-                cache = await conn.fetch(query, ctx.server)
-                tribes = {rec[1]: utils.Tribe(rec) for rec in cache}
-
-                query = f'SELECT * FROM player{n} WHERE world = $1 AND tribe_id = ANY($2)'
-                cache = await conn.fetch(query, ctx.server, list(tribes))
-                player = {rec[1]: utils.Player(rec) for rec in cache}
-
-                query = f'SELECT * FROM village{n} WHERE world = $1'
-                cache = await conn.fetch(query, ctx.server)
-                villages = [utils.MapVillage(rec) for rec in cache]
-
-                if len(villages) != 0:
-                    day_rankings[n] = {'village': villages,
-                                       'tribe': tribes,
-                                       'player': player}
-
-        self.bot.loop.create_task(self.zip_task(ctx, day_rankings, days.value))
-        await ctx.send("Bilder werden generiert...")
-
-    async def zip_task(self, ctx, *args):
-        files = await self.bot.execute(self.zip_timelapse, *args)
-        for file in files:
-            await ctx.send(file=file)
-            await asyncio.sleep(1)
-
-    def zip_timelapse(self, day_rankings, last_day):
-        palette = {}
-        colors = self.colors.top()
-
-        for tribe in day_rankings[1]['tribe'].values():
-            palette[tribe.id] = colors.pop(0)
-
-        files = []
-        archive = io.BytesIO()
-        zip_archive = ZipFile(archive, 'w')
-        today = datetime.now()
-
-        for index, (day, package) in enumerate(day_rankings.items(), start=1):
-
-            for tribe in package['tribe'].values():
-                color = palette.get(tribe.id, [112, 128, 144])
-                tribe.color = color
-
-            args = list(package.values())
-            kwargs = {'label': True, 'highlight': True, 'base': today.timestamp()}
-            image = self.draw_map(*args, **kwargs)
-
-            shell = io.BytesIO()
-            image.save(shell, "png", quality=100)
-            image.close()
-            shell.seek(0)
-
-            date = today - timedelta(days=index)
-            date_pars = date.strftime('%d.%m.%Y')
-            zip_archive.writestr(f"{date_pars}.png", shell.read())
-
-            if day % 10 == 0 or day == last_day:
-                zip_archive.close()
-                archive.seek(0)
-
-                file = discord.File(archive, f'images_{len(files) + 1}.zip')
-                files.append(file)
-
-                archive = io.BytesIO()
-                zip_archive = ZipFile(archive, 'w')
-
-        self.bound_cache.pop(today.timestamp())
-        return files
+        menue = MapMenue(interaction)
+        await menue.setup(callback=self.send_map)
 
 
-def setup(bot):
-    bot.add_cog(Map(bot))
+async def setup(bot):
+    await bot.add_cog(Map(bot))

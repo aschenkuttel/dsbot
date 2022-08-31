@@ -10,3 +10,5 @@ pandas
 numpy
 tabulate
 yaml
+xmltodict
+requests

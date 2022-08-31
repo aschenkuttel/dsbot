@@ -207,21 +207,6 @@ help:
     Man spielt um einen gewünschten Einsatz,
     der je nach Hand einen immer größeren Gewinn ergibt.
 
-unknown_command:
-  - "Der Command `{}` ist leider nur für dsBot Premium User verfügbar"
-  - "Den Command `{}` kenne ich leider nicht :confused:"
-  - "In was für einer Welt leben wir in der es den `{}` Command nicht gibt :sob:"
-  - "Ich wünschte es würde den `{}` Command geben :no_mouth:"
-  - "`{}` kann leider nur der Bot-Admin ausführen!"
-  - "Seit Wochen wünsche ich mir den `{}` Command... doch niemand hört mir zu :sob:"
-  - "Du hast dich vertippt oder soll `{}` etwa dein ernst sein?"
-  - "Bot Cooldown aktiv. Zahle monatlich nur 10 Euro für den vollen Service!"
-  - "Du nuschelst dezent oder was soll `{}` bitte sein? Noch nie gehört"
-  - "Ne Sorry, dich ignorier ich heute"
-  - "Dieser Command wurde gesponsert von **RAID: Shadow Legends!**"
-  - "Du scheinst mir heute ein wenig verwirrt, davon hab ich noch nie gehört..."
-  - "Den hast du jetzt doch schon 100 Mal versucht :/"
-
 tribal_words:
   - Adelsgeschlecht
   - Katapult
@@ -426,7 +411,7 @@ settings:
     description: null
 
   unit_speed:
-    parent: null,
+    parent: null
     title: Einheitengeschwindigkeit
     description: null
 
@@ -518,11 +503,6 @@ settings:
       - Casual-Endgame
       - Zeitalter der Aufklärung
       - Große Belagerung
-
-converter_title:
-  coord: Koordinaten
-  report: Berichte
-  mention: BB-Codes
 
 commands:
   recap:
@@ -681,22 +661,22 @@ commands:
 
     either:
       id:
-        - - älteste
+        - älteste
         - neuste
       rank:
-        - - besten
+        - besten
         - schlechtesten
       points:
-        - - meisten
+        - meisten
         - wenigsten
       villages:
-        - - meisten
+        - meisten
         - wenigsten
       sup_bash:
-        - - meisten
+        - meisten
         - wenigsten
       all_bash:
-        - - meisten
+        - meisten
         - wenigsten
 
     player_options:
@@ -844,7 +824,21 @@ commands:
     <:button:672910606700904451>:
       title: Karte erstellen
 
+    <:delete:1012714373850075206>:
+      title: Reset
+
 error:
   out_of_range:
     bet: Der Einsatz
     day: Der Tag
+
+params:
+  dsobj: Stammestag oder Spielername
+  first_dsobj: Stammestag oder Spielername
+  second_dsobj: Stammestag oder Spielername
+  player: Der gewünschte Spielername
+  tribe: Der gewünschte Stammesname
+  village: Die gewünschte Koordinate
+  member: Name des Server Members
+  units: Eine oder mehrere Truppenanzahlen
+  iron: Die Menge Eisen um die du spielen möchtest

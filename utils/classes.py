@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from discord.ext import commands
+from discord import app_commands
 from datetime import datetime
 import asyncio
 import discord
@@ -11,20 +12,39 @@ import re
 world_data = {
     'de': {'domain': "die-staemme.de", 'icon': ":flag_de:"},
     'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"},
-    'en': {'domain': "tribalwars.net", 'icon': ":flag_gb:"}
+    'en': {'domain': "tribalwars.net", 'icon': ":flag_gb:"},
+    'nl': {'domain': 'tribalwars.nl', 'icon': ":flag_cz:"},
+    'pl': {'domain': 'plemonia.pl', 'icon': ":flag_pl:"},
+    'br': {'domain': 'tribalwars.com.br', 'icon': ":flag_br:"},
+    'pt': {'domain': 'tribalwars.com.pt', 'icon': ":flag_pt:"},
+    'cs': {'domain': 'divokekmeny.cz', 'icon': ":flag_cz:"},
+    'ro': {'domain': 'triburile.ro', 'icon': ":flag_ro:"},
+    'ru': {'domain': 'voynaplemyon.com', 'icon': ":flag_ua:"},
+    'gr': {'domain': 'fyletikesmaxes.gr', 'icon': ":flag_gr:"},
+    'sk': {'domain': 'no.tribalwars.com', 'icon': ":flag_sk:"},
+    'hu': {'domain': 'klanhaboru.hu', 'icon': ":flag_hu:"},
+    'it': {'domain': 'tribals.it', 'icon': ":flag_it:"},
+    'tr': {'domain': 'klanlar.org', 'icon': ":flag_tr:"},
+    'fr': {'domain': 'guerretribale.fr', 'icon': ":flag_fr:"},
+    'es': {'domain': 'guerrastribales.es', 'icon': ":flag_es:"},
+    'ae': {'domain': 'tribalwars.ae', 'icon': ":flag_ae:"},
+    'uk': {'domain': 'tribalwars.co.uk', 'icon': ":flag_uk:"},
+    'zz': {'domain': 'tribalwars.works', 'icon': ":flag_fm:"},
+    'us': {'domain': 'tribalwars.us', 'icon': ":flag_us:"}
 }
 
 
-# custom context for simple world implementation
-class DSContext(commands.Context):
-    def __init__(self, **attrs):
-        super().__init__(**attrs)
+# custom interaction for simple world implementation
+class DSInteraction:
+    def __init__(self, inter: discord.Interaction):
+        self.inter = inter
         self._world = None
         self.server = None
 
-    @property
-    def lang(self):
-        return self.bot.languages['german']
+    # note that this must be getattr, not getattribute
+    # this implements the discord.Interaction interface to our class
+    def __getattr__(self, attr: str):
+        return getattr(self.inter, attr)
 
     @property
     def world(self):
@@ -35,27 +55,64 @@ class DSContext(commands.Context):
         self._world = world
         self.server = world.server
 
-    async def safe_send(self, *args, **kwargs):
-        try:
-            await self.send(*args, **kwargs)
-        except discord.Forbidden:
-            return
 
-    async def safe_delete(self):
-        try:
-            await self.message.delete()
-        except discord.Forbidden:
-            return
+class DSTree(app_commands.CommandTree):
+    def __init__(self, client):
+        super().__init__(client)
+        self._world = None
+        self.server = None
+        self.valid_interactions = (
+            discord.InteractionType.application_command,
+            discord.InteractionType.autocomplete
+        )
 
-    async def private_hint(self):
-        if self.guild is None:
-            return
-        try:
-            await self.message.add_reaction("📨")
+    async def interaction_check(self, interaction: DSInteraction):
+        if interaction.type not in self.valid_interactions:
             return True
-        except (discord.Forbidden, discord.NotFound):
-            pass
 
+        interaction.lang = interaction.client.languages['german']
+        world_prefix = interaction.client.config.get_world(interaction.channel)
+        world = interaction.client.worlds.get(world_prefix)
+
+        if world is not None:
+            interaction.world = world
+            return True
+
+        elif interaction.command.name == "world":
+            if interaction.command.parent is not None:
+                # only allows /set world command on missing world
+                return interaction.command.parent.name == "set"
+            else:
+                return False
+
+        else:
+            msg = f"Der Server hat keine zugeordnete Welt.\nEin Admin kann dies mit `/set world <world>`"
+            await interaction.response.send_message(msg)
+            return False
+
+    async def _call(self, interaction: discord.Interaction) -> None:
+        await super()._call(DSInteraction(interaction))  # noqa (ignore error)
+
+
+class DSButton(discord.ui.Button):
+    def __init__(self, custom_id, row, _callback, emoji=None, label=None, style=None, disabled=False):
+        super().__init__()
+        self.custom_id = custom_id
+
+        if emoji is not None:
+            self.emoji = emoji
+        elif label is not None:
+            self.label = label
+
+        if style is not None:
+            self.style = style
+
+        self.row = row
+        self._callback = _callback
+        self.disabled = disabled
+
+    async def callback(self, interaction):
+        await self._callback(self.custom_id, interaction)
 
 # default tribal wars classes
 class DSObject:
@@ -149,16 +206,10 @@ class Tribe(DSObject):
         self.att_rank = data['att_rank']
         self.def_bash = data['def_bash']
         self.def_rank = data['def_rank']
+        self.sup_bash = data['sup_bash']
+        self.sup_rank = data['sup_rank']
         self.all_bash = data['all_bash']
         self.all_rank = data['all_rank']
-
-    async def fetch_supbash(self, ctx):
-        query = 'SELECT player.sup_bash FROM player ' \
-                'WHERE world = $1 AND player.tribe_id = $2'
-
-        async with ctx.bot.tribal_pool.acquire() as conn:
-            data = await conn.fetch(query, ctx.server, self.id)
-            return sum([rec['sup_bash'] for rec in data])
 
 
 class Village(DSObject):
@@ -311,15 +362,17 @@ class DSWorld:
 class DSType:
     classes = {'player': Player, 'tribe': Tribe, 'village': Village, 'map': MapVillage}
 
-    def __init__(self, arg, archive=None):
+    def __init__(self, arg, server=None, archive=None):
         self.arg = arg
         self.Class = None
         self.table = None
         res = self.try_convers(self.arg)
         if not res:
             raise ValueError(f"argument: {self.arg} needs to be either enum or tablename")
-        elif archive:
-            self.table += str(archive)
+        elif archive is not None:
+            self.table = f"{self.table}_{archive}"
+        elif server is not None:
+            self.table = f"{self.table}_{server}"
 
     def try_convers(self, arg):
         if isinstance(arg, int):
@@ -338,11 +391,11 @@ class DSType:
                 self.table = name
 
     def try_name(self, arg):
-        table = re.findall(r'(\D+)\d*', arg)
+        table = re.match(r'(\D+)\d*', arg)
         if not table:
             return
 
-        self.Class = self.classes.get(table[0])
+        self.Class = self.classes.get(table.string)
         if self.Class:
 
             if arg == "map":
@@ -350,9 +403,9 @@ class DSType:
             else:
                 self.table = arg
 
-    async def fetch(self, ctx, *args, **kwargs):
-        method = getattr(ctx.bot, f"fetch_{self.table}")
-        response = await method(ctx.server, *args, **kwargs)
+    async def fetch(self, interaction, *args, **kwargs):
+        method = getattr(interaction.client, f"fetch_{self.table}")
+        response = await method(interaction.server, *args, **kwargs)
 
         if response is None:
             raise utils.DSUserNotFound(args[0])
@@ -361,24 +414,29 @@ class DSType:
 
 
 class DSGames(commands.Cog):
-    async def cog_check(self, ctx):
-        container = self.get_container(ctx)
+    def __init__(self):
+        for command in self.walk_app_commands():
+            if isinstance(command, app_commands.Command):
+                command.add_check(self.command_check)
+
+    def command_check(self, interaction):
+        container = self.get_container(interaction)
 
         # if its a list it is a simple cooldown container and we need to check
         # it since commands with dictionarys need to grab their data on begin
         if isinstance(container, list):
-            self.get_game_data(ctx, container)
+            self.get_game_data(interaction, container)
 
         return True
 
     @asynccontextmanager
-    async def end_game(self, ctx, time=10):
-        container = self.get_container(ctx)
+    async def end_game(self, interaction, time=10):
+        container = self.get_container(interaction)
         if isinstance(container, list):
-            container.append(ctx.guild.id)
+            container.append(interaction.guild.id)
             method = container.remove
         else:
-            container[ctx.guild.id] = False
+            container[interaction.guild.id] = False
             method = container.pop
 
         try:
@@ -386,25 +444,40 @@ class DSGames(commands.Cog):
         finally:
             await asyncio.sleep(time)
 
-            if ctx.guild.id in container:
-                method(ctx.guild.id)
+            if interaction.guild.id in container:
+                method(interaction.guild.id)
 
-    def get_container(self, ctx):
-        command = str(ctx.command)
+    def get_container(self, interaction):
+        if interaction.command.parent is not None:
+            command_name = f"{interaction.command.parent.name} {interaction.command.name}"
+        else:
+            command_name = interaction.command.name
 
-        if command == "guess":
-            command = "hangman"
-        elif command == "draw":
-            command = "videopoker"
+        print(command_name)
 
-        return getattr(self, command, None)
+        if command_name == "bj":
+            container_name = "blackjack"
+        elif command_name in ("hg", "guess"):
+            container_name = "hangman"
+        elif command_name in ("vp start", "vp draw"):
+            container_name = "videopoker"
+        elif command_name == "ag":
+            container_name = "anagram"
+        elif command_name in ("dice start", "dice accept"):
+            container_name = "dice"
+        elif command_name in ("quiz start", "quiz guess"):
+            container_name = "quiz"
+        else:
+            container_name = command_name
 
-    def get_game_data(self, ctx, container=None):
+        return getattr(self, container_name, {})
+
+    def get_game_data(self, interaction, container=None):
         if container is None:
-            container = self.get_container(ctx)
+            container = self.get_container(interaction)
 
         # no running game
-        if ctx.guild.id not in container:
+        if interaction.guild.id not in container:
             return
 
         # list just acts as cooldown container
@@ -412,7 +485,7 @@ class DSGames(commands.Cog):
             raise utils.SilentError
 
         else:
-            data = container[ctx.guild.id]
+            data = container[interaction.guild.id]
             # False is the cooldown value
             if data is False:
                 raise utils.SilentError
@@ -421,9 +494,19 @@ class DSGames(commands.Cog):
 
 
 class Keyword:
-    def __init__(self, value, sign="="):
-        self.value = value
+    def __init__(self, sign, value):
         self.sign = sign
+        self.value = int(value)
+
+    @classmethod
+    def from_str(cls, value):
+        match = re.findall(r'([<=>])(\d+)', value)
+        if not match:
+            return
+
+        self = cls.__new__(cls)
+        self.__init__(*match[0])
+        return self
 
     def compare(self, other):
         if self.value is None:
@@ -473,6 +556,7 @@ class DSMember:
 
 class Language:
     def __init__(self, path, name):
+        self.params = None
         file = open(f"{path}/{name}", encoding='utf-8')
         self._dict = yaml.load(file, Loader=yaml.FullLoader)
         file.close()
@@ -482,3 +566,33 @@ class Language:
 
         for key, value in iterable:
             setattr(self, key, value)
+
+
+class Coordinate:
+    def __init__(self, x=None, y=None):
+        self.x = x
+        self.y = y
+
+    def __str__(self):
+        return f"{self.x}|{self.y}"
+
+    @classmethod
+    def from_str(cls, value):
+        coord = re.match(r'\d\d\d\|\d\d\d', value)
+
+        if not coord:
+            return
+
+        self = cls.__new__(cls)
+        raw_x, raw_y = coord.string.split("|")
+        self.x = int(raw_x)
+        self.y = int(raw_y)
+        return self
+
+    @classmethod
+    def from_known_str(cls, value):
+        self = cls.__new__(cls)
+        raw_x, raw_y = value.split("|")
+        self.x = int(raw_x)
+        self.y = int(raw_y)
+        return self
