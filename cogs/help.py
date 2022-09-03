@@ -8,7 +8,6 @@ import utils
 class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.cache = {}
         self.categories = [
             "Administratives",
             "Stämme Features",
@@ -16,36 +15,13 @@ class Help(commands.Cog):
             "Minigames"
         ]
 
-    @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
-        if user == self.bot.user:
-            return
-
-        data = self.cache.get(reaction.message.id)
-        if data is None:
-            return
-
-        if user.id in data['cache']:
-            return
-
-        if reaction.emoji == "📨":
-            try:
-                embed = data['embed']
-                data['cache'].append(user.id)
-                await user.send(embed=embed)
-            except discord.Forbidden:
-                pass
-
     def packing(self, storage, package):
         pkg = [f"`{c}`" for c in package]
         storage.append(" ".join(pkg))
         package.clear()
 
-    def help_embed(self, prefix):
-        desc = "Erhalte eine ausführliche Erklärung zu\n" \
-               f"einzelnen Commands mit `{prefix}help <command>`"
-
-        emb_help = discord.Embed(description=desc, color=discord.Color.blue())
+    def help_embed(self):
+        emb_help = discord.Embed(color=discord.Color.blue())
         emb_help.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
 
         groups = {name: [] for name in self.categories}
@@ -56,19 +32,14 @@ class Help(commands.Cog):
                 continue
 
             category = self.categories[cog_type]
-            for cmd in cog.get_commands():
+            for cmd in cog.walk_app_commands():
+                if isinstance(cmd, app_commands.Command):
+                    if cmd.parent is not None:
+                        cmd_name = f"{cmd.parent.name} {cmd.name}"
+                    else:
+                        cmd_name = cmd.name
 
-                if cmd.hidden is True:
-                    continue
-
-                for alias in cmd.aliases:
-                    if len(alias) < 3:
-                        cmd_name = f"{alias} [{cmd}]"
-                        break
-                else:
-                    cmd_name = str(cmd)
-
-                groups[category].append(cmd_name)
+                    groups[category].append(cmd_name)
 
         for name, cmd_list in groups.items():
             cache = []
@@ -96,58 +67,54 @@ class Help(commands.Cog):
 
         return emb_help
 
-    def cmd_embed(self, data, ctx):
-        titles = [f"`{ctx.prefix}{cmd}`" for cmd in data[0]]
-        title = f"Command: {' - '.join(titles)}"
-
-        cmd_name = ctx.command.name
-        cmd_description = ctx.lang.help[cmd_name]
-
-        cmd_kwargs = ctx.lang.help.get(f"{cmd_name}_kwargs")
-        if cmd_kwargs:
-            cmd_description += f"\n\n{cmd_kwargs}\n"
-
-        raw_inp = [f"`{ctx.prefix}{cmd}`" for cmd in data[2]]
-        cmd_inp = "\n".join(raw_inp)
-
-        raw_example = [f"`{ctx.prefix}{cmd}`" for cmd in data[3]]
-        example = "\n".join(raw_example)
-
+    def tip_embed(self, title, description):
         color = discord.Color.blue()
-        description = f"**Beschreibung:**\n{cmd_description}\n" \
-                      f"**Command Typ:** {data[1]}\n" \
-                      f"**Command Input:**\n {cmd_inp}\n" \
-                      f"**Beispiel:**\n {example}"
-        emb = discord.Embed(title=title, description=description, color=color)
-        emb.set_footer(text="<> = benötigtes Argument\n[] = optionales Argument")
-        return emb
+        embed = discord.Embed(title=title, description=description, color=color)
+        return embed
 
-    async def send_embed(self, ctx, embed):
-        if "pin" in ctx.message.content:
-            await ctx.send(embed=embed)
+    @app_commands.command(name="commands", description="Eine Lister aller Commands")
+    async def commands(self, interaction):
+        embed = self.help_embed()
+        await interaction.response.send_message(embed=embed)
 
-        else:
-            await ctx.author.send(embed=embed)
-            response = await ctx.private_hint()
-            if response:
-                data = {'embed': embed, 'cache': [ctx.author.id]}
-                self.cache[ctx.message.id] = data
-                await asyncio.sleep(600)
-                self.cache.pop(ctx.message.id)
+    help = app_commands.Group(name="help", description="xd")
 
-    @app_commands.command(name="commands")
-    async def commands(self, ctx):
-        pin = "pin" in ctx.message.content.lower()
-        if pin and not ctx.author.guild_permissions.administrator:
-            raise commands.MissingPermissions(['administrator'])
+    @help.command(name="points", description="Erklärung des points Arguments")
+    async def points(self, interaction):
+        msg = "Punkte können in folgendem Format angegeben werden:\n" \
+              "<100 (die gewünschten Punkte müssen unter 100 sein)\n" \
+              "=100 (die gewünschten Punkte müssen exakt 100 sein)\n" \
+              "<100 (die gewünschten Punkte müssen über 100 sein)\n"
+        embed = self.tip_embed("Erklärung des Argument: points", msg)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        if ctx.invoked_subcommand is not None:
-            return
+    @help.command(name="state", description="All die unterstützten State Typen")
+    async def state(self, interaction):
+        msg = "Es gibt folgende States:\n" \
+              "**bash** (Offensive Bahspoints)\n" \
+              "**def** (Defensive Bahspoints)\n" \
+              "**sup** (Unterstützungs Bashpoints)\n" \
+              "**farm** (Erbeutete Rohstoffe)\n" \
+              "**villages** (Geplünderte Dörfer)\n" \
+              "**scavenge** (Raubzüge)\n" \
+              "**conquer** (Eroberte Dörfer)"
 
-        embed = self.help_embed(ctx.prefix)
-        await self.send_embed(ctx, embed)
+        embed = self.tip_embed("Erklärung des Argument: state", msg)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    # help = app_commands.Group(name="help", description="xd")
+    @help.command(name="awards", description="All die unterstützten Awardtypen")
+    async def awards(self, interaction):
+        msg = "Es gibt folgende Awards:\n" \
+              "**bash** (Offensive Bahspoints)\n" \
+              "**def** (Defensive Bahspoints)\n" \
+              "**sup** (Unterstützungs Bashpoints)\n" \
+              "**farm** (Erbeutete Rohstoffe)\n" \
+              "**villages** (Geplünderte Dörfer)\n" \
+              "**scavenge** (Raubzüge)\n" \
+              "**conquer** (Eroberte Dörfer)"
+
+        embed = self.tip_embed("Erklärung des Argument: state", msg)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot):

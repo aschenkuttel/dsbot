@@ -79,7 +79,7 @@ class Villages(commands.Cog):
             conti_str = None
 
         arguments = [interaction.server, ids]
-        query = 'SELECT * FROM village WHERE world = $1 AND player = ANY($2)'
+        query = 'SELECT * FROM village WHERE world = $1 AND player_id = ANY($2)'
 
         if conti_str is not None:
             query = query + ' AND LEFT(CAST(x AS TEXT), 1) = $3' \

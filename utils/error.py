@@ -1,93 +1,67 @@
-from discord.ext import commands
+from discord import app_commands
 
 
-class EmbedFailure(commands.CheckFailure):
-    pass
-
-
-class HelpFailure(commands.CheckFailure):
-    pass
-
-
-class MissingRequiredKey(HelpFailure):
+class MissingRequiredKey(app_commands.AppCommandError):
     def __init__(self, keys, arg=None):
         self.keys = list(keys)
         self.pos_arg = arg
         super().__init__('missing required key')
 
 
-class MissingRequiredArgument(HelpFailure):
-    def __init__(self):
-        super().__init__('missing required arg')
-
-
-class BadArgument(HelpFailure):
-    def __init__(self):
-        super().__init__('conversion failed')
-
-
-class ArgumentOutOfRange(commands.CheckFailure):
-    def __init__(self, low, high, item):
-        self.min = low
-        self.max = high
-        self.item = item
-        super().__init__('out of range')
-
-
-class GameChannelMissing(EmbedFailure):
+class GameChannelMissing(app_commands.AppCommandError):
     def __init__(self):
         super().__init__('missing game channel')
 
 
-class ConquerChannelMissing(EmbedFailure):
+class ConquerChannelMissing(app_commands.AppCommandError):
     def __init__(self):
         super().__init__('missing conquer channel')
 
 
-class WrongChannel(commands.CheckFailure):
+class WrongChannel(app_commands.AppCommandError):
     def __init__(self, channeltype):
         self.type = channeltype
         super().__init__('cmd not in game channel')
 
 
-class WorldMissing(commands.CheckFailure):
+class WorldMissing(app_commands.AppCommandError):
     def __init__(self):
         super().__init__('no guild world')
 
 
-class UnknownWorld(HelpFailure):
+class UnknownWorld(app_commands.AppCommandError):
     def __init__(self, possible):
         self.possible_world = possible
         super().__init__('unknown world')
 
 
-class InvalidCoordinate(commands.CheckFailure):
+class InvalidCoordinate(app_commands.AppCommandError):
     def __init__(self):
         super().__init__('invalid coordinate')
 
 
-class MissingGucci(commands.CheckFailure):
+class MissingGucci(app_commands.AppCommandError):
     def __init__(self, purse):
         self.purse = purse
         super().__init__('not enough iron')
 
 
-class SilentError(commands.CheckFailure):
+class SilentError(app_commands.AppCommandError):
     pass
 
 
-class DontPingMe(HelpFailure):
+class DontPingMe(app_commands.AppCommandError):
     def __init__(self):
         super().__init__('discord mention instead of username')
 
 
-class DSUserNotFound(commands.CheckFailure):
+class DSUserNotFound(app_commands.AppCommandError):
     def __init__(self, searchable):
         self.name = searchable
         super().__init__('dsobj not found')
 
 
-class MemberNotFound(commands.CheckFailure):
+class MemberNotFound(app_commands.AppCommandError):
     def __init__(self, searchable):
         self.name = searchable
         super().__init__('discord user not found')

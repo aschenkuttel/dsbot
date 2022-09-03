@@ -27,13 +27,17 @@ class Convert(commands.Cog):
 
         main = f"{utils.whymtl}<head></head>{tiles[1]}"
         css = f"{self.bot.data_path}/report.css"
-        img_bytes = imgkit.from_string(main, False, options=utils.imgkit, css=css)
+
+        try:
+            img_bytes = imgkit.from_string(main, False, options=utils.imgkit, css=css)
+        except UnicodeDecodeError as err:
+            img_bytes = err.args[1]
 
         # crops empty background
-        im = Image.open(io.BytesIO(img_bytes))
+        im = Image.open(io.BytesIO(img_bytes)).convert('RGB')
         bg = Image.new(im.mode, im.size, im.getpixel((0, 0)))
         diff = ImageChops.difference(im, bg)
-        diff = ImageChops.add(diff, diff, 2.0, -100)
+        diff = ImageChops.add(diff, diff, 2.0, -10)
         im = im.crop(diff.getbbox())
 
         # crops border and saves to FileIO
@@ -51,15 +55,21 @@ class Convert(commands.Cog):
             return
 
         file = await self.bot.execute(self.html_to_image, data)
-        return file
+        return discord.File(file, "report.png")
 
     @app_commands.command(name="coords", description="Konvertiert eine oder mehrere Koordinaten in Hyperlinks")
+    @app_commands.describe(coordinates="Eine oder mehrere Koordinaten die konvertiert werden sollen")
     async def coords(self, interaction, coordinates: utils.CoordinatesConverter):
         # set imitation workaround to preserve order of coordinates
         coords = list(dict.fromkeys(str(c) for c in coordinates))  # noqa (due transformer)
+
+        if not coords:
+            embed = utils.error_embed(text="Keine gültige Koordinate gefunden")
+            await interaction.response.send_message(embed=embed)
+            return
+
         villages = await self.bot.fetch_bulk(interaction.server, coords, 2, name=True)
         village_dict = {str(vil): vil for vil in villages}
-
         player_ids = [obj.player_id for obj in villages]
         players = await self.bot.fetch_bulk(interaction.server, player_ids, dictionary=True)
 
@@ -90,18 +100,21 @@ class Convert(commands.Cog):
         logger.debug("coord converted")
 
     @app_commands.command(name="report", description="Konvertiert einen Bericht Link in ein Bild")
+    @app_commands.describe(report="Ein Link eines veröffentlichten Berichts")
     async def report(self, interaction, report: str):
+        await interaction.response.defer()
+
         report_url = re.match(r'https://.+/public_report/\S*', report)
         if report_url:
             file = await self.fetch_report(report_url.string)
 
             if file is not None:
-                await interaction.response.send_message(file=file)
+                await interaction.followup.send(file=file)
                 logger.debug("report converted")
                 return
 
         embed = utils.error_embed("Invalid Report")
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
 
 async def setup(bot):

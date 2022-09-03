@@ -83,8 +83,8 @@ class DCUtils(commands.Cog):
         embed.description = "\n".join(result)
         embed.set_footer(text="Supportserver: https://discord.gg/s7YDfFW")
         name = "dsBot | Einladungslink"
-        url = "http://discordapp.com/oauth2/authorize?&client_id=344191195981021185&scope=bot"
-        embed.set_author(icon_url=self.bot.user.avatar_url, name=name, url=url)
+        url = "https://discord.com/api/oauth2/authorize?client_id=344191195981021185&scope=applications.commands"
+        embed.set_author(icon_url=self.bot.user.display_avatar.url, name=name, url=url)
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="emoji", description="Fügt dem Server eine Reihe an DS Emojis hinzu")

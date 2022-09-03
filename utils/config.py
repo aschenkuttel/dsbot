@@ -18,7 +18,7 @@ class Config:
     def get(self, item, guild_id, default=None):
         config = self.get_config(guild_id)
         if config is None:
-            return
+            return default
         else:
             return config.get(item, default)
 

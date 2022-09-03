@@ -134,6 +134,9 @@ class MapMenue:
 
         # map creation
         elif index == 6:
+            await interaction.response.defer()
+            await self.interaction.edit_original_response(embed=self.embed, view=None)
+
             if self.tribes is False:
                 self.tribes = []
             if self.player is False:
@@ -162,7 +165,6 @@ class MapMenue:
             center = [int(c) for c in self.center.split('|')]
             label = self.highlight in (2, 3)
             kwargs = {'zoom': self.zoom, 'center': center, 'label': label}
-            await self.interaction.edit_original_response(embed=self.embed, view=None)
             await self.callback(interaction, *args, **kwargs)
             return
 
@@ -244,11 +246,7 @@ class Map(commands.Cog):
         image.close()
         file.seek(0)
 
-        if kwargs.get('new'):
-            await interaction.channel.send(file=discord.File(file, "map.png"))
-        else:
-            await interaction.response.send_message(file=discord.File(file, "map.png"))
-
+        await interaction.followup.send(file=discord.File(file, "map.png"))
         return file
 
     async def timeout(self, user_id, time):
@@ -354,7 +352,7 @@ class Map(commands.Cog):
                 percentage = 1
 
             length = int((bounds[2] - bounds[0]) * percentage / 2)
-            shell = {'id': 0, 'player': 0, 'x': center[0], 'y': center[1], 'rank': 0}
+            shell = {'id': 0, 'player_id': 0, 'x': center[0], 'y': center[1], 'rank': 0}
             vil = utils.MapVillage(shell)
             iterable = [vil.x, vil.y, vil.x, vil.y]
             bounds = self.calculate_bounds(iterable, length)
@@ -502,7 +500,7 @@ class Map(commands.Cog):
                    player: bool = False,
                    label: bool = True,
                    highlight: bool = True):
-
+        await interaction.response.defer()
         default_map = interaction.data.get('options') is None
 
         color_map = []
@@ -511,7 +509,7 @@ class Map(commands.Cog):
 
             if default_map is None and file is not None:
                 file.seek(0)
-                await interaction.response.send_message(file=discord.File(file, 'map.png'))
+                await interaction.followup.send(file=discord.File(file, 'map.png'))
                 return
 
             ds_type = "player" if player else "tribe"
@@ -544,7 +542,7 @@ class Map(commands.Cog):
             ds_objects = await self.bot.fetch_bulk(interaction.server, all_names, 1, name=True)
 
         if len(color_map) > 20:
-            await interaction.reponse.send_message("Du kannst nur bis zu 20 Stämme/Gruppierungen angeben")
+            await interaction.followup.send("Du kannst nur bis zu 20 Stämme/Gruppierungen angeben")
             return
 
         colors = self.colors.top()
@@ -565,7 +563,7 @@ class Map(commands.Cog):
         all_villages = await self.bot.fetch_all(interaction.server, "map")
         if not all_villages:
             msg = "Auf der Welt gibt es noch keine Dörfer :/"
-            await interaction.response.send_message(msg)
+            await interaction.followup.send(msg)
             return
 
         ds_dict = {dsobj.id: dsobj for dsobj in ds_objects}

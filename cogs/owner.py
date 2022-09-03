@@ -1,4 +1,5 @@
 from discord.ext import commands
+from typing import Optional, Literal
 import discord
 
 
@@ -7,6 +8,17 @@ class Owner(commands.Cog):
         self.bot = bot
         self.config = bot.config
 
+    @commands.command(name="servers")
+    async def servers(self, ctx):
+        counter = 0
+        global_config = self.bot.config._config  # noqa
+
+        for k, v in global_config.items():
+            if v.get('inactive') is None:
+                counter += 1
+
+        await ctx.send(f"{counter}/{len(global_config)} active guilds")
+
     @commands.command(name="desync")
     async def desync_(self, ctx):
         self.bot.tree.clear_commands(guild=None)
@@ -14,9 +26,22 @@ class Owner(commands.Cog):
         await ctx.send("DeSync Completed")
 
     @commands.command(name="sync")
-    async def sync_(self, ctx):
-        await self.bot.tree.sync()
-        await ctx.send("Sync Completed")
+    async def sync(self, ctx, guild: discord.Object = None, spec: Optional[Literal["~", "*", "^"]] = None):
+        if spec == "~":
+            synced = await ctx.bot.tree.sync(guild=guild)
+        elif spec == "*":
+            ctx.bot.tree.copy_global_to(guild=guild)
+            synced = await ctx.bot.tree.sync(guild=guild)
+        elif spec == "^":
+            ctx.bot.tree.clear_commands(guild=guild)
+            await ctx.bot.tree.sync(guild=guild)
+            synced = []
+        else:
+            synced = await ctx.bot.tree.sync()
+
+        await ctx.send(
+            f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+        )
 
     @commands.command(name="presence")
     async def presence_(self, ctx, *, args):

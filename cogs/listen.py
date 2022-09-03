@@ -1,20 +1,13 @@
 from discord.ext import commands, tasks
 from discord import app_commands
-from PIL import Image, ImageChops
 from collections import Counter
-from datetime import datetime
-from bs4 import BeautifulSoup
 import traceback
 import logging
 import discord
 import aiohttp
-import imgkit
-import random
 import utils
 import math
 import sys
-import io
-import re
 
 logger = logging.getLogger('dsbot')
 
@@ -22,6 +15,7 @@ logger = logging.getLogger('dsbot')
 class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.bot.tree.on_error = self.on_app_command_error
         self.cmd_counter = Counter()
         self.silenced = (commands.UnexpectedQuoteError,
                          aiohttp.InvalidURL,
@@ -35,7 +29,7 @@ class Listen(commands.Cog):
             await self.update_usage(conn)
             await self.update_members(conn)
 
-    @tasks.loop(hours=120)
+    @tasks.loop(hours=168)
     async def guild_timeout(self):
         if self.bot.is_locked():
             return
@@ -96,17 +90,122 @@ class Listen(commands.Cog):
 
         self.active_guilds.add(message.guild.id)
 
+    async def on_app_command_error(self, interaction, error):
+        print(type(error))
+        logger.debug(f"command error [{interaction.full_command_name}]: {error}")
+        ephemeral = True
+        no_embed = False
+
+        if isinstance(error, app_commands.CommandOnCooldown):
+            base = "Cooldown: Versuche es in `{0:.1f}` Sekunden erneut"
+            msg = base.format(error.retry_after)
+            ephemeral = False
+
+        elif isinstance(error, app_commands.MissingPermissions):
+            msg = "Diesen Command kann nur ein Server-Admin ausführen"
+
+        elif isinstance(error, utils.DontPingMe):
+            msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
+
+        elif isinstance(error, utils.MemberNotFound):
+            msg = f"`{error.name}` konnte nicht gefunden werden"
+
+        elif isinstance(error, utils.DSUserNotFound):
+            msg = f"`{error.name}` konnte auf {interaction.world} nicht gefunden werden"
+            ephemeral = False
+
+        elif isinstance(error, utils.SilentError):
+            msg = "Silent Cooldown"
+
+        elif isinstance(error, utils.MissingRequiredKey):
+            title = f"Es fehlt einer folgender Keys:"
+
+            result = [title]
+            if len(error.keys) < 5:
+                batches = ["|".join(error.keys)]
+            else:
+                index = math.ceil(len(error.keys) / 2)
+                batches = utils.show_list(error.keys, "|", index, return_iter=True)
+
+            for batch in batches:
+                result.append(f"`<{batch}>`")
+
+            msg = "\n".join(result)
+
+        elif isinstance(error, utils.UnknownWorld):
+            msg = "Diese Welt existiert leider nicht"
+
+            if error.possible_world:
+                msg += f"\nMeinst du möglicherweise: `{error.possible_world}`"
+
+        elif isinstance(error, utils.InvalidCoordinate):
+            msg = "Du musst eine gültige Koordinate angeben"
+
+        elif isinstance(error, utils.WrongChannel):
+            if error.type == 'game':
+                channel_ids = [self.bot.config.get('game', interaction.guild.id)]
+
+            else:
+                raw_ids = self.bot.config.get('conquer', interaction.guild.id)
+                channel_ids = [int(channel_id) for channel_id in raw_ids]
+
+            if not channel_ids:
+                raise utils.ConquerChannelMissing()
+
+            base = []
+            for channel_id in channel_ids:
+                channel = self.bot.get_channel(channel_id)
+
+                if channel is None:
+                    base.append(f"Deleted Channel ({channel_id})")
+                else:
+                    base.append(channel.mention)
+
+            msg = "\n".join(base)
+            ephemeral = False
+            no_embed = True
+
+        elif isinstance(error, utils.GameChannelMissing):
+            msg = "Der Server hat noch keinen Game Channel eingerichtet,\n" \
+                  f"dies kann ein Admin mit `/set game` im gewünschten Channel"
+            ephemeral = False
+
+        elif isinstance(error, utils.ConquerChannelMissing):
+            msg = "Der Server hat noch keinen Conquer Channel eingerichtet,\n" \
+                  f"dies kann ein Admin mit `/set conquer` im gewünschten Channel"
+            ephemeral = False
+
+        elif isinstance(error, utils.MissingGucci):
+            base = "Du hast nur `{} Eisen` auf dem Konto"
+            msg = base.format(utils.seperator(error.purse))
+            ephemeral = False
+
+        else:
+            print(f"Command: {interaction.command.name} Args: {interaction.namespace}")
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+            logger.warning(f"uncommon error ({interaction.server}): {interaction.command.name}")
+            return
+
+        if msg is None:
+            msg = "Upps, da ist wohl etwas schief gelaufen..."
+
+        if no_embed:
+            await interaction.response.send_message(msg, ephemeral=True)
+        else:
+            embed = utils.error_embed(msg)
+            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
     @commands.Cog.listener()
     async def on_app_command_completion(self, interaction, command):
         logger.debug(f"command completed [{command.name}]")
 
         if interaction.user.id == self.bot.owner_id:
             if interaction.command.parent is not None:
-                cmd = interaction.command.parent.name
+                cmd_name = interaction.command.parent.name
             else:
-                cmd = interaction.command.name
+                cmd_name = interaction.command.name
 
-            self.cmd_counter[cmd] += 1
+            self.cmd_counter[cmd_name] += 1
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild):

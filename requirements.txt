@@ -9,6 +9,5 @@ dateparser
 pandas
 numpy
 tabulate
-yaml
 xmltodict
 requests

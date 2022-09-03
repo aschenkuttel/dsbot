@@ -14,14 +14,14 @@ world_data = {
     'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"},
     'en': {'domain': "tribalwars.net", 'icon': ":flag_gb:"},
     'nl': {'domain': 'tribalwars.nl', 'icon': ":flag_cz:"},
-    'pl': {'domain': 'plemonia.pl', 'icon': ":flag_pl:"},
+    'pl': {'domain': '.plemiona.pl', 'icon': ":flag_pl:"},
     'br': {'domain': 'tribalwars.com.br', 'icon': ":flag_br:"},
     'pt': {'domain': 'tribalwars.com.pt', 'icon': ":flag_pt:"},
     'cs': {'domain': 'divokekmeny.cz', 'icon': ":flag_cz:"},
     'ro': {'domain': 'triburile.ro', 'icon': ":flag_ro:"},
     'ru': {'domain': 'voynaplemyon.com', 'icon': ":flag_ua:"},
     'gr': {'domain': 'fyletikesmaxes.gr', 'icon': ":flag_gr:"},
-    'sk': {'domain': 'no.tribalwars.com', 'icon': ":flag_sk:"},
+    'sk': {'domain': 'divoke-kmene.sk', 'icon': ":flag_sk:"},
     'hu': {'domain': 'klanhaboru.hu', 'icon': ":flag_hu:"},
     'it': {'domain': 'tribals.it', 'icon': ":flag_it:"},
     'tr': {'domain': 'klanlar.org', 'icon': ":flag_tr:"},
@@ -40,6 +40,14 @@ class DSInteraction:
         self.inter = inter
         self._world = None
         self.server = None
+        self.full_command_name = None
+        self.is_command = inter.type == discord.InteractionType.application_command
+
+        if self.is_command:
+            if self.inter.command.parent:
+                self.full_command_name = f"{self.inter.command.parent.name} {self.inter.command.name}"
+            else:
+                self.full_command_name = self.inter.command.name
 
     # note that this must be getattr, not getattribute
     # this implements the discord.Interaction interface to our class
@@ -70,6 +78,14 @@ class DSTree(app_commands.CommandTree):
         if interaction.type not in self.valid_interactions:
             return True
 
+        if interaction.guild is None:
+            if interaction.is_command:
+                msg = f"Der Bot kann momentan keine privaten Commands"
+                await interaction.response.send_message(embed=utils.error_embed(msg))
+                return False
+            else:
+                return True
+
         interaction.lang = interaction.client.languages['german']
         world_prefix = interaction.client.config.get_world(interaction.channel)
         world = interaction.client.worlds.get(world_prefix)
@@ -78,17 +94,15 @@ class DSTree(app_commands.CommandTree):
             interaction.world = world
             return True
 
-        elif interaction.command.name == "world":
-            if interaction.command.parent is not None:
-                # only allows /set world command on missing world
-                return interaction.command.parent.name == "set"
-            else:
-                return False
+        elif interaction.full_command_name == "set world":
+            return True
 
-        else:
+        elif interaction.is_command:
             msg = f"Der Server hat keine zugeordnete Welt.\nEin Admin kann dies mit `/set world <world>`"
             await interaction.response.send_message(msg)
             return False
+        else:
+            return True
 
     async def _call(self, interaction: discord.Interaction) -> None:
         await super()._call(DSInteraction(interaction))  # noqa (ignore error)
@@ -217,7 +231,7 @@ class Village(DSObject):
         super().__init__(data)
         self.x = data['x']
         self.y = data['y']
-        self.player_id = data['player']
+        self.player_id = data['player_id']
         self.coords = f"{self.x}|{self.y}"
 
 
@@ -226,7 +240,7 @@ class MapVillage:
         self.id = data['id']
         self.x = 1501 + 5 * (data['x'] - 500)
         self.y = 1501 + 5 * (data['y'] - 500)
-        self.player_id = data['player']
+        self.player_id = data['player_id']
         self.rank = data['rank']
 
     def reposition(self, difference):
@@ -453,8 +467,6 @@ class DSGames(commands.Cog):
         else:
             command_name = interaction.command.name
 
-        print(command_name)
-
         if command_name == "bj":
             container_name = "blackjack"
         elif command_name in ("hg", "guess"):
@@ -557,9 +569,9 @@ class DSMember:
 class Language:
     def __init__(self, path, name):
         self.params = None
-        file = open(f"{path}/{name}", encoding='utf-8')
-        self._dict = yaml.load(file, Loader=yaml.FullLoader)
-        file.close()
+
+        with open(f"{path}/{name}", encoding='utf-8') as parameters:
+            self._dict = yaml.safe_load(parameters)
 
         cmds = self._dict.pop('commands')
         iterable = list(self._dict.items()) + list(cmds.items())

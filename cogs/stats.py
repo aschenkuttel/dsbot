@@ -289,7 +289,7 @@ class Stats(commands.Cog):
 
     @app_commands.command(name="top", description="Erhalte unterschiedliche \"An einem Tag\" Ranglisten")
     @app_commands.describe(state="/help state")
-    async def top_(self, interaction, state: str = "kill_att"):
+    async def top_(self, interaction, state: str):
         key = interaction.lang.top_options.get(state.lower())
 
         if key is None:
@@ -313,6 +313,7 @@ class Stats(commands.Cog):
                 datapack[player_id] = points
 
             players = await self.bot.fetch_bulk(interaction.server, datapack.keys(), dictionary=True)
+
             for player_id, points in datapack.items():
                 player = players.get(player_id)
                 if player:
@@ -326,138 +327,88 @@ class Stats(commands.Cog):
             msg = "Aktuell liegen noch keine Daten vor"
             embed = discord.Embed(description=msg, color=discord.Color.red())
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
     async def daily_award(self, interaction, award_type: str, tribe: bool = False):
-        if award_type is not None:
-            award = award_type.lower()
+        award = award_type.lower()
 
-            if award not in interaction.lang.daily_options:
-                raise MissingRequiredKey(interaction.lang.daily_options)
-            else:
-                ds_types = [award]
+        if award not in interaction.lang.daily_options:
+            raise MissingRequiredKey(interaction.lang.daily_options)
 
-        else:
-            ds_types = ("points", "conquerer", "loser", "basher", "defender")
-
-        amount = 3 if award_type is None else 5
         dstype = utils.DSType('tribe' if tribe else 'player')
-        batch = []
-
+        # TODO optimize partitioned table fetch
         async with self.bot.tribal_pool.acquire() as conn:
-            for award in ds_types:
-                award_data = interaction.lang.daily_options.get(award)
+            award_data = interaction.lang.daily_options.get(award)
 
-                if tribe and award == "supporter":
-                    query = '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player ' \
-                            'WHERE world = $1 AND tribe_id != 0 GROUP BY tribe_id ' \
-                            f'ORDER BY sup DESC LIMIT {amount}) ' \
-                            'UNION ALL ' \
-                            '(SELECT tribe_id, SUM(sup_bash) AS sup FROM player1 ' \
-                            'WHERE world = $1 AND tribe_id != 0 GROUP BY tribe_id ' \
-                            f'ORDER BY sup DESC LIMIT {amount})'
+            base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
+                   'WHERE {0}.world = $1 AND {1}.world = $1 ' \
+                   'ORDER BY ({0}.{2} - {1}.{2}) {3} LIMIT 5'
 
-                    cache = await conn.fetch(query, interaction.server)
-                    all_values = {rec['tribe_id']: [] for rec in cache}
+            switch = "ASC" if award in ["loser"] else "DESC"
+            args = [dstype.table, f"{dstype.table}_1",
+                    award_data['value'], switch]
 
-                    for record in cache:
-                        tribe_id, points = list(record.values())
-                        all_values[tribe_id].append(points)
-
-                    value_list = [(k, v) for k, v in all_values.items() if len(v) == 2]
-                    value_list.sort(key=lambda tup: tup[1][0] - tup[1][1], reverse=True)
-
-                    tribe_ids = [tup[0] for tup in value_list]
-                    kwargs = {'table': dstype.table, 'dictionary': True}
-                    tribes = await self.bot.fetch_bulk(interaction.server, tribe_ids, **kwargs)
-                    data = [tribes[idc] for idc in tribe_ids]
-
+            if tribe and award in ("loser", "conquerer"):
+                if award == "loser":
+                    head = " + "
                 else:
-                    base = 'SELECT * FROM {0} INNER JOIN {1} ON {0}.id = {1}.id ' \
-                           'WHERE {0}.world = $1 AND {1}.world = $1 ' \
-                           'ORDER BY ({0}.{2} - {1}.{2}{5}) {3} LIMIT {4}'
+                    head = " - "
 
-                    switch = "ASC" if award in ["loser"] else "DESC"
-                    args = [dstype.table, f"{dstype.table}_1",
-                            award_data['value'], switch, amount]
-
-                    if tribe and award in ("loser", "conquerer"):
-                        if award == "loser":
-                            head = " + "
-                        else:
-                            head = " - "
-
-                        member_loss = f"{head}({dstype.table}.member - {dstype.table}1.member)"
-                        args.append(member_loss)
-                    else:
-                        args.append('')
-
-                    query = base.format(*args)
-                    data = await conn.fetch(query, interaction.server)
-
-                ranking = []
-                for record in data:
-                    if isinstance(record, utils.Tribe):
-                        values = all_values[record.id]
-                        cur_value, old_value = values
-                        dsobj = record
-
-                    else:
-                        records = utils.unpack_join(record)
-                        dsobj = dstype.Class(records[0])
-                        old_dsobj = dstype.Class(records[1])
-                        cur_value = getattr(dsobj, award_data['value'], 0)
-                        old_value = getattr(old_dsobj, award_data['value'], 0)
-
-                    if award in ("loser",):
-                        value = old_value - cur_value
-                    else:
-                        value = cur_value - old_value
-
-                    if tribe and award in ("loser", "conquerer"):
-                        if award == "loser":
-                            value += dsobj.member - old_dsobj.member
-                        else:
-                            value -= dsobj.member - old_dsobj.member
-
-                    if value < 1:
-                        continue
-
-                    item = award_data['item']
-                    if value == 1 and item == "Dörfer":
-                        item = "Dorf"
-
-                    line = f"`{sep(value)} {item}` | {dsobj.guest_mention}"
-                    ranking.append(line)
-
-                if ranking:
-                    title = f"{award_data['title']} des Tages"
-                    body = "\n".join(ranking)
-
-                    if award_type is None:
-                        body = f"**{title}**\n{body}"
-
-                    batch.append(body)
-
-        if batch:
-            world_title = interaction.world.represent(plain=True)
-
-            if award_type is None:
-                batch.insert(0, f"**Ranglisten des Tages der {world_title}**")
+                member_loss = f"{head}({dstype.table}.member - {dstype.table}1.member)"
+                args.append(member_loss)
             else:
-                batch.insert(0, f"**{award_data['title']} des Tages {world_title}**")
+                args.append('')
 
-            description = "\n\n".join(batch)
-            embed = discord.Embed(description=description)
-            footer = "Daten aufgrund von Inno nur stündlich aktualisiert"
-            embed.colour = discord.Color.blue()
-            embed.set_footer(text=footer)
+            query = base.format(*args)
+            data = await conn.fetch(query, interaction.server)
 
-        else:
-            msg = "Aktuell liegen noch keine Daten vor"
-            embed = discord.Embed(description=msg, color=discord.Color.red())
+            ranking = []
+            for record in data:
+                records = utils.unpack_join(record)
+                dsobj = dstype.Class(records[0])
+                old_dsobj = dstype.Class(records[1])
+                cur_value = getattr(dsobj, award_data['value'], 0)
+                old_value = getattr(old_dsobj, award_data['value'], 0)
 
-        await interaction.response.send_message(embed=embed)
+                if award in ("loser",):
+                    value = old_value - cur_value
+                else:
+                    value = cur_value - old_value
+
+                if tribe and award in ("loser", "conquerer"):
+                    if award == "loser":
+                        value += dsobj.member - old_dsobj.member
+                    else:
+                        value -= dsobj.member - old_dsobj.member
+
+                if value < 1:
+                    continue
+
+                item = award_data['item']
+                if value == 1 and item == "Dörfer":
+                    item = "Dorf"
+
+                line = f"`{sep(value)} {item}` | {dsobj.guest_mention}"
+                ranking.append(line)
+
+            if ranking:
+                world_title = interaction.world.represent(plain=True)
+
+                batch = [
+                    f"**{award_data['title']} des Tages {world_title}**",
+                    "\n".join(ranking)
+                ]
+
+                description = "\n\n".join(batch)
+                embed = discord.Embed(description=description)
+                footer = "Daten aufgrund von Inno nur stündlich aktualisiert"
+                embed.colour = discord.Color.blue()
+                embed.set_footer(text=footer)
+            else:
+                msg = "Aktuell liegen noch keine Daten vor"
+                embed = discord.Embed(description=msg, color=discord.Color.red())
+
+            await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="daily", description="Tägliche Spielerawards")
     @app_commands.describe(award="Mehr unter /help award")

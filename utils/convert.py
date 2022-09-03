@@ -7,7 +7,7 @@ import utils.error as error
 import re
 
 
-class MemberConverter(app_commands.Transformer):
+class MemberConverter(app_commands.Transformer, ABC):
     __slots__ = ('id', 'name', 'display_name', 'avatar_url')
 
     async def transform(self, interaction, value):
@@ -25,7 +25,7 @@ class MemberConverter(app_commands.Transformer):
             raise error.MemberNotFound(value)
 
 
-class DSConverter(app_commands.Transformer, ABC):
+class DSConverter(app_commands.Transformer):
 
     def __init__(self, ds_type=None):
         self.ds_type = ds_type
@@ -51,8 +51,9 @@ class DSConverter(app_commands.Transformer, ABC):
                     for k in cached_objects.values() if current.lower() in getattr(k, attribute).lower()][:25]
 
         else:
-            cached_objects = list(cached_objects[0].values())
-            cached_objects.extend(cached_objects[1].values())
+            players, tribes = cached_objects
+            cached_objects = list(players.values())
+            cached_objects.extend(tribes.values())
 
             return [app_commands.Choice(name=getattr(k, 'tag', getattr(k, 'name')), value=f"{k.id}_autocomplete")
                     for k in cached_objects
@@ -61,9 +62,19 @@ class DSConverter(app_commands.Transformer, ABC):
     async def transform(self, interaction: DSInteraction, value):
         if "_autocomplete" in value:
             obj_id = int(value.replace("_autocomplete", ""))
-            cache = getattr(interaction.client, f"{self.ds_type}s")
-            obj_cache = cache.get(interaction.server, {})
-            obj = obj_cache.get(obj_id)
+
+            if self.ds_type is not None:
+                cache = getattr(interaction.client, f"{self.ds_type}s")
+                obj_cache = cache.get(interaction.server, {})
+                obj = obj_cache.get(obj_id)
+
+            else:
+                player_cache = interaction.client.players
+                tribe_cache = interaction.client.tribes
+
+                player_obj_cache = player_cache.get(interaction.server, {})
+                tribe_obj_cache = tribe_cache.get(interaction.server, {})
+                obj = player_obj_cache.get(obj_id, tribe_obj_cache.get(obj_id))
 
         elif self.ds_type is not None:
             func = getattr(interaction.client, f"fetch_{self.ds_type}")
@@ -116,7 +127,4 @@ class CoordinateConverter(app_commands.Transformer, ABC):
 class CoordinatesConverter(app_commands.Transformer, ABC):
     async def transform(self, interaction, value) -> typing.Iterable[str]:
         raw_coords = re.findall(r'\d\d\d\|\d\d\d', value)
-        print(raw_coords)
-        x = [utils.Coordinate.from_known_str(coord) for coord in raw_coords]
-        print(x)
-        return x
+        return [utils.Coordinate.from_known_str(coord) for coord in raw_coords]

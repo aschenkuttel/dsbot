@@ -56,7 +56,6 @@ class DSBot(commands.Bot):
 
         self.config = utils.Config(self)
         self.owner_id = 211836670666997762
-        self.tree.on_error = self.on_app_command_error
         self.activity = discord.Activity(type=0, name=secret.status)
         self.remove_command("help")
 
@@ -65,12 +64,13 @@ class DSBot(commands.Bot):
         self._lock = asyncio.Event()
 
         await self.setup_cogs()
-        self.loop_per_hour.start()
+        self.loop.create_task(self.loop_per_hour())
         self.set_global_param_description()
 
-        guild = discord.Object(id=213992901263228928)
-        self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
+        if secret.dev:
+            guild = discord.Object(id=213992901263228928)
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
 
     async def on_ready(self):
         # db / aiohttp setup
@@ -106,33 +106,6 @@ class DSBot(commands.Bot):
         if message.author.id == self.owner_id:
             await self.process_commands(message)
 
-    async def on_app_command_error(self, interaction, error):
-        ephemeral = False
-        msg = None
-        print(type(error))
-
-        if isinstance(error, app_commands.TransformerError):
-            if isinstance(error.transformer, utils.DSConverter):
-                msg = f"`{error.value}` konnte auf {interaction.world} nicht gefunden werden"
-
-        elif isinstance(error, app_commands.CommandOnCooldown):
-            base = "Cooldown: Versuche es in `{0:.1f}` Sekunden erneut"
-            msg = base.format(error.retry_after)
-        elif isinstance(error, app_commands.CommandInvokeError):
-            if isinstance(error.original, commands.ArgumentParsingError):
-                msg = "Fehlerhaftes Argument"
-            elif isinstance(error.original, utils.SilentError):
-                msg = "Silent Cooldown"
-                ephemeral = True
-            else:
-                raise error.original
-
-        if msg is None:
-            msg = "Upps, da ist wohl etwas schief gelaufen..."
-
-        embed = utils.error_embed(msg)
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-
     async def report_to_owner(self, msg):
         owner = await self.fetch_user(self.owner_id)
         await owner.send(msg)
@@ -162,26 +135,13 @@ class DSBot(commands.Bot):
 
         return result
 
-    @tasks.loop(seconds=0)
+    # get's called after db update
     async def loop_per_hour(self):
         await self._lock.wait()
-        await self.wait_until_ready()
+        await self._update.wait()
 
-        if self.loop_per_hour.seconds is not None:
-            self.set_loop_per_hour_interval()
-            return
-
-        else:
-            self.logger.debug("loop per hour")
-            # task_cog = self.get_cog("Tasks")
-            # await task_cog.task_engine()
-
-        try:
-            async with timeout(120, loop=self.loop):
-                await self._update.wait()
-                await self.update_worlds()
-        except asyncio.TimeoutError:
-            self.logger.error("update timeout")
+        self.logger.debug("loop called")
+        await self.update_worlds()
 
         for cog in self.cogs.values():
             loop = getattr(cog, "called_per_hour", None)
@@ -189,16 +149,11 @@ class DSBot(commands.Bot):
             try:
                 if loop is not None:
                     await loop()
-
             except Exception as error:
                 self.logger.debug(f"{cog.qualified_name} Cog Error: {error}")
 
         self._update.clear()
-        self.set_loop_per_hour_interval()
-
-    def set_loop_per_hour_interval(self):
-        datetime_obj = self.get_seconds(obj=True)
-        self.loop_per_hour.change_interval(time=datetime_obj.time())
+        await self.loop_per_hour()
 
     # return seconds till the next full hour
     def get_seconds(self, added_hours=1, timestamp=False, obj=False):
@@ -512,7 +467,7 @@ class DSBot(commands.Bot):
         attribute = kwargs.get('attribute', 'rank')
         way = "ASC" if attribute == "rank" else "DESC"
 
-        query = f'SELECT * FROM {dsobj.table}' \
+        query = f'SELECT * FROM {dsobj.table} ' \
                 f'ORDER BY {attribute} {way} LIMIT $1'
 
         async with self.tribal_pool.acquire() as conn:
@@ -554,7 +509,7 @@ class DSBot(commands.Bot):
                     query = f'{base} WHERE LOWER(name) = ANY($1)'
 
         async with self.tribal_pool.acquire() as conn:
-            res = await conn.fetch(query, server, iterable)
+            res = await conn.fetch(query, iterable)
             if kwargs.get('dictionary'):
                 return {rec[1]: dsobj.Class(rec) for rec in res}
             else:

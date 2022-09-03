@@ -515,7 +515,7 @@ commands:
     - - hat seit gestern
       - hat in den letzten {} Tagen
 
-  daily:
+  daily_options:
     points:
       title: Wachstum
       value: points
@@ -556,14 +556,14 @@ commands:
       value: villages
       item: Dörfer
 
-    top_options:
-      bash: kill_att
-      def: kill_def
-      sup: kill_sup
-      farm: loot_res
-      villages: loot_vil
-      scavenge: scavenge
-      conquer: conquer
+  top_options:
+    bash: kill_att
+    def: kill_def
+    sup: kill_sup
+    farm: loot_res
+    villages: loot_vil
+    scavenge: scavenge
+    conquer: conquer
 
   config:
     game: Game Channel

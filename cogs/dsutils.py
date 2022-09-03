@@ -229,9 +229,8 @@ class Utils(commands.Cog):
         coordinates = re.findall(r'\d\d\d\|\d\d\d', coordinates)
 
         if not troops or not coordinates:
-            msg = f"Du musst mindestens eine Truppe und ein Dorf angeben\n" \
-                  f"**Erklärung und Beispiele unter:** /help sl"
-            await interaction.response.send_message(msg)
+            msg = f"Du musst mindestens eine Truppe und ein Dorf angeben"
+            await interaction.response.send_message(msg, ephemeral=True)
             return
 
         wiki = list(self.units)
