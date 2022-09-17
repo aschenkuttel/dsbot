@@ -124,7 +124,7 @@ class Villages(commands.Cog):
                            points="Siehe /help points")
     async def barbarian(self, interaction, village: CoordinateConverter,
                         radius: app_commands.Range[int, 1, 25] = 10, points: int = 0):
-        kwargs = {'radius': radius, 'points': points, 'extra': ' AND village.player = 0'}
+        kwargs = {'radius': radius, 'points': points, 'extra': ' AND village.player_id = 0'}
         result = await self.fetch_in_radius(interaction.server, village, **kwargs)
         await self.send_result(interaction, result, "Barbarendörfer")
 

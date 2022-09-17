@@ -89,6 +89,10 @@ class Listen(commands.Cog):
             return
 
         self.active_guilds.add(message.guild.id)
+        inactive = self.bot.config.get('inactive', message.guild.id)
+
+        if inactive:
+            self.bot.config.update('inactive', False, message.guild.id)
 
     async def on_app_command_error(self, interaction, error):
         print(type(error))
@@ -199,13 +203,20 @@ class Listen(commands.Cog):
     async def on_app_command_completion(self, interaction, command):
         logger.debug(f"command completed [{command.name}]")
 
-        if interaction.user.id == self.bot.owner_id:
+        if interaction.user.id != self.bot.owner_id:
             if interaction.command.parent is not None:
                 cmd_name = interaction.command.parent.name
             else:
                 cmd_name = interaction.command.name
 
             self.cmd_counter[cmd_name] += 1
+
+        self.active_guilds.add(interaction.guild.id)
+        inactive = self.bot.config.get('inactive', interaction.guild.id)
+
+        # TODO remove after some time
+        if inactive:
+            self.bot.config.update('inactive', False,  interaction.guild.id)
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild):

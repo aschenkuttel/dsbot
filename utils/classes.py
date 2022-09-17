@@ -14,7 +14,7 @@ world_data = {
     'ch': {'domain': "staemme.ch", 'icon': ":flag_ch:"},
     'en': {'domain': "tribalwars.net", 'icon': ":flag_gb:"},
     'nl': {'domain': 'tribalwars.nl', 'icon': ":flag_cz:"},
-    'pl': {'domain': '.plemiona.pl', 'icon': ":flag_pl:"},
+    'pl': {'domain': 'plemiona.pl', 'icon': ":flag_pl:"},
     'br': {'domain': 'tribalwars.com.br', 'icon': ":flag_br:"},
     'pt': {'domain': 'tribalwars.com.pt', 'icon': ":flag_pt:"},
     'cs': {'domain': 'divokekmeny.cz', 'icon': ":flag_cz:"},
@@ -347,7 +347,10 @@ class DSWorld:
         return self.represent()
 
     def __eq__(self, other):
-        return self.server == other
+        if isinstance(other, DSWorld):
+            return self.server == other.server
+        else:
+            return False
 
     def represent(self, clean=False, plain=True):
         name = f"{self.title} {self.number}"
@@ -380,10 +383,15 @@ class DSType:
         self.arg = arg
         self.Class = None
         self.table = None
-        res = self.try_convers(self.arg)
-        if not res:
+        self.base_table = None
+
+        response = self.try_convers(self.arg)
+        if not response:
             raise ValueError(f"argument: {self.arg} needs to be either enum or tablename")
-        elif archive is not None:
+
+        self.base_table = self.table
+
+        if archive is not None:
             self.table = f"{self.table}_{archive}"
         elif server is not None:
             self.table = f"{self.table}_{server}"

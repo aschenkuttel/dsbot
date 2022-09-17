@@ -30,9 +30,9 @@ class Config(commands.Cog):
     @app_commands.describe(world="Die gewünschte neue Server-Welt")
     @app_commands.checks.has_permissions(administrator=True)
     async def set_world(self, interaction, world: utils.WorldConverter):
-        old_world = self.config.get_related_world(interaction.guild)
+        old_server = self.config.get_related_world(interaction.guild)
 
-        if world == old_world:
+        if world.server == old_server:
             msg = f"Der Server ist bereits mit {world} verbunden"
             await interaction.response.send_message(embed=error_embed(msg))
         else:
@@ -52,9 +52,9 @@ class Config(commands.Cog):
             self.config.update('channel', config, interaction.guild.id)
 
         else:
-            old_world = config.get(str_channel_id)
+            old_server = config.get(str_channel_id)
 
-            if old_world == world:
+            if world.server == old_server:
                 msg = f"Dieser Channel ist bereits mit {world} verbunden"
                 await interaction.response.send_message(embed=error_embed(msg))
                 return

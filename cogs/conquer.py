@@ -36,18 +36,31 @@ class ConquerLoop(commands.Cog):
 
             for channel_id, config in conquer.items():
                 channel = guild.get_channel(int(channel_id))
+
                 if channel is None:
+                    logger.debug(f"skipped unkown channel: {channel_id}")
+                    continue
+
+                permissions = channel.permissions_for(guild.me)
+                if not permissions.send_messages and not permissions.embed_links:
+                    logger.debug(f"skipped forbidden channel {channel_id}")
                     continue
 
                 server = self.bot.config.get_world(channel)
                 world = self.bot.worlds.get(server)
                 if world is None:
+                    logger.debug(f"skipped {server}")
                     continue
 
                 conquer_channels.append((channel, config, world))
 
-        worlds = [e[2] for e in conquer_channels]
+        worlds = []
+        for *_, world in conquer_channels:
+            if world not in worlds:
+                worlds.append(world)
+
         await self.update_conquer(worlds)
+        logger.debug(f"loaded {len(worlds)}")
 
         counter = collections.Counter()
         for channel, config, world in conquer_channels:
@@ -57,7 +70,7 @@ class ConquerLoop(commands.Cog):
 
             await asyncio.sleep(0.5)
 
-        logger.debug(f"conquer feed complete ({len(counter)} guilds / {sum(counter.values())})")
+        logger.debug(f"conquer feed complete ({len(counter)} guilds / {sum(counter.values())} channels)")
 
     async def conquer_feed(self, channel, config, world, date_string):
         data = await self.conquer_parse(world.server, config)

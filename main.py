@@ -497,13 +497,13 @@ class DSBot(commands.Bot):
         if not kwargs.get('name'):
             query = f'{base} WHERE id = ANY($1)'
         else:
-            if dsobj.table == "village":
+            if dsobj.base_table == "village":
                 iterable = [vil.replace("|", "") for vil in iterable]
                 query = f'{base} WHERE CAST(x AS TEXT)||CAST(y as TEXT) = ANY($1)'
 
             else:
                 iterable = [utils.encode(obj) for obj in iterable]
-                if dsobj.table == "tribe":
+                if dsobj.base_table == "tribe":
                     query = f'{base} WHERE ARRAY[LOWER(name), LOWER(tag)] && $1'
                 else:
                     query = f'{base} WHERE LOWER(name) = ANY($1)'

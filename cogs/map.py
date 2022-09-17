@@ -534,8 +534,8 @@ class Map(commands.Cog):
 
                 all_names.extend(fraction_names)
 
-                if len(fractions) == 1 and '&' not in fraction_names:
-                    color_map.extend([obj] for obj in names)
+                if len(fractions) == 1 and '&' not in names:
+                    color_map.extend([obj] for obj in fraction_names)
                 else:
                     color_map.append(names)
 

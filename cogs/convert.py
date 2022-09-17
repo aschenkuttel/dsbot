@@ -54,8 +54,7 @@ class Convert(commands.Cog):
         except (aiohttp.InvalidURL, ValueError):
             return
 
-        file = await self.bot.execute(self.html_to_image, data)
-        return discord.File(file, "report.png")
+        return await self.bot.execute(self.html_to_image, data)
 
     @app_commands.command(name="coords", description="Konvertiert eine oder mehrere Koordinaten in Hyperlinks")
     @app_commands.describe(coordinates="Eine oder mehrere Koordinaten die konvertiert werden sollen")
@@ -104,11 +103,12 @@ class Convert(commands.Cog):
     async def report(self, interaction, report: str):
         await interaction.response.defer()
 
-        report_url = re.match(r'https://.+/public_report/\S*', report)
+        report_url = re.match(r'https://.+/public_report/[^\s\\]*', report)
         if report_url:
-            file = await self.fetch_report(report_url.string)
+            io_file = await self.fetch_report(report_url.string)
 
-            if file is not None:
+            if io_file is not None:
+                file = discord.File(io_file, "report.png")
                 await interaction.followup.send(file=file)
                 logger.debug("report converted")
                 return
