@@ -369,6 +369,20 @@ class DSBot(commands.Bot):
         self.worlds = cache
         self.logger.debug("worlds updated")
 
+    def get_query(self, table_type, server, archive, placeholder_amount=1):
+        placeholders = list(f"${n}" for n in range(1, placeholder_amount + 1))
+
+        if archive is not None:
+            table = f"{table_type}_{archive}"
+            clause = "world = $1 AND"
+            placeholders.remove("$1")
+            placeholders.append(f"${placeholder_amount + 1}")
+        else:
+            table = f"{table_type}_{server}"
+            clause = ""
+
+        return table, clause, placeholders if placeholder_amount > 1 else placeholders[0]
+
     async def fetch_all(self, server, table=0, dictionary=False):
         dsobj = utils.DSType(table, server=server)
 
@@ -411,42 +425,55 @@ class DSBot(commands.Bot):
         return result[0] if amount == 1 else result
 
     async def fetch_player(self, server, searchable, *, name=False, archive=None):
-        table = f"player_{archive}" if archive else f"player_{server}"
+        table, clause, placeholder = self.get_query('player', server, archive)
 
         if name:
             searchable = utils.encode(searchable)
-            query = f'SELECT * FROM {table} WHERE LOWER(name) = $1'
+            query = f'SELECT * FROM {table} WHERE {clause} LOWER(name) = {placeholder}'
         else:
-            query = f'SELECT * FROM {table} WHERE id = $1'
+            query = f'SELECT * FROM {table} WHERE {clause} id = {placeholder}'
+
+        if archive is not None:
+            arguments = (server, searchable)
+        else:
+            arguments = (searchable,)
 
         async with self.tribal_pool.acquire() as conn:
-            result = await conn.fetchrow(query, searchable)
+            result = await conn.fetchrow(query, *arguments)
             return utils.Player(result) if result else None
 
     async def fetch_tribe(self, server, searchable, *, name=False, archive=None):
-        table = f"tribe_{archive}" if archive else f"tribe_{server}"
+        table, clause, placeholder = self.get_query('tribe', server, archive)
 
         if name:
             searchable = utils.encode(searchable)
-            query = f'SELECT * FROM {table} WHERE (LOWER(tag) = $1 OR LOWER(name) = $1)'
+            query = f'SELECT * FROM {table} WHERE {clause} (LOWER(tag) = {placeholder} OR LOWER(name) = {placeholder})'
         else:
-            query = f'SELECT * FROM {table} WHERE id = $1'
+            query = f'SELECT * FROM {table} WHERE {clause} id = {placeholder}'
+
+        if archive is not None:
+            arguments = (server, searchable)
+        else:
+            arguments = (searchable,)
 
         async with self.tribal_pool.acquire() as conn:
-            result = await conn.fetchrow(query, searchable)
+            result = await conn.fetchrow(query, *arguments)
 
         return utils.Tribe(result) if result else None
 
     async def fetch_village(self, server, searchable, *, coord=False, archive=None):
-        table = f"village_{archive}" if archive else f"village_{server}"
+        table, clause, placeholders = self.get_query('village', server, archive, placeholder_amount=2)
 
         if coord:
             x, y = searchable.split('|')
-            query = f'SELECT * FROM {table} WHERE x = $1 AND y = $2'
+            query = f'SELECT * FROM {table} WHERE {clause} x = {placeholders[0]} AND y = {placeholders[1]}'
             searchable = [int(x), int(y)]
         else:
-            query = f'SELECT * FROM {table} WHERE id = $1'
+            query = f'SELECT * FROM {table} WHERE {clause} id = {placeholders}'
             searchable = [searchable]
+
+        if archive is not None:
+            searchable.insert(0, server)
 
         async with self.tribal_pool.acquire() as conn:
             result = await conn.fetchrow(query, *searchable)
@@ -491,29 +518,35 @@ class DSBot(commands.Bot):
             return [utils.Player(rec) for rec in res]
 
     async def fetch_bulk(self, server, iterable, table=None, **kwargs):
-        dsobj = utils.DSType(table or 0, archive=kwargs.get('archive'), server=server)
-        base = f'SELECT * FROM {dsobj.table}'
+        ds_type = utils.DSType(table or 0)
+        table, clause, placeholder = self.get_query(ds_type.base_table, kwargs.get('archive'), server)
+        base = f'SELECT * FROM {table} WHERE {clause} '
 
         if not kwargs.get('name'):
-            query = f'{base} WHERE id = ANY($1)'
+            query = f'{base} id = ANY({placeholder})'
         else:
-            if dsobj.base_table == "village":
+            if ds_type.base_table == "village":
                 iterable = [vil.replace("|", "") for vil in iterable]
-                query = f'{base} WHERE CAST(x AS TEXT)||CAST(y as TEXT) = ANY($1)'
+                query = f'{base} CAST(x AS TEXT)||CAST(y as TEXT) = ANY({placeholder})'
 
             else:
                 iterable = [utils.encode(obj) for obj in iterable]
-                if dsobj.base_table == "tribe":
-                    query = f'{base} WHERE ARRAY[LOWER(name), LOWER(tag)] && $1'
+                if ds_type.base_table == "tribe":
+                    query = f'{base} ARRAY[LOWER(name), LOWER(tag)] && {placeholder}'
                 else:
-                    query = f'{base} WHERE LOWER(name) = ANY($1)'
+                    query = f'{base} LOWER(name) = ANY({placeholder})'
+
+        if kwargs.get('archive') is not None:
+            arguments = (server, iterable)
+        else:
+            arguments = (iterable,)
 
         async with self.tribal_pool.acquire() as conn:
-            res = await conn.fetch(query, iterable)
+            res = await conn.fetch(query, *arguments)
             if kwargs.get('dictionary'):
-                return {rec[1]: dsobj.Class(rec) for rec in res}
+                return {rec[1]: ds_type.Class(rec) for rec in res}
             else:
-                return [dsobj.Class(rec) for rec in res]
+                return [ds_type.Class(rec) for rec in res]
 
     async def fetch_profile_picture(self, dsobj, default_avatar=False):
         async with self.session.get(dsobj.guest_url) as resp:
