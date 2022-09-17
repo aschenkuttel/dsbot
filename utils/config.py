@@ -4,9 +4,8 @@ import json
 
 class Config:
     def __init__(self, bot):
-        self.bot = bot
         self._config = {}
-        self.path = f"{self.bot.data_path}/config.json"
+        self.path = f"{bot.data_path}/config.json"
         self.setup()
 
     def setup(self):
@@ -19,14 +18,16 @@ class Config:
     def get(self, item, guild_id, default=None):
         config = self.get_config(guild_id)
         if config is None:
-            return
+            return default
         else:
             return config.get(item, default)
 
-    def update(self, item, value, guild_id):
+    def update(self, item, value, guild_id, bulk=False):
         config = self.get_config(guild_id, setup=True)
         config[item] = value
-        self.save()
+
+        if bulk is False:
+            self.save()
 
     def remove(self, item, guild_id, bulk=False):
         config = self.get_config(guild_id)
@@ -64,10 +65,7 @@ class Config:
 
         channel_config = config.get('channel', {})
         channel_world = channel_config.get(str(channel.id))
-        if channel_world is None:
-            return main_world
-        else:
-            return channel_world
+        return channel_world or main_world
 
     def get_related_world(self, obj):
         if isinstance(obj, discord.Guild):
@@ -82,9 +80,8 @@ class Config:
             if config is None:
                 return
 
-            chan = config.get('channel')
-            if chan:
-                return chan.get(str(obj.id))
+            chan = config.get('channel', {})
+            return chan.get(str(obj.id))
 
     def remove_world(self, world):
         for config in self._config.values():
@@ -122,16 +119,11 @@ class Config:
 
     def get_prefix(self, guild_id):
         config = self._config.get(guild_id)
-        default = self.bot.default_prefix
+
         if config is None:
-            return default
-        else:
-            return config.get('prefix', default)
-
-    def get_conquer(self, ctx):
-        conquer = self.get('conquer', ctx.guild.id)
-
-        if conquer is None:
             return
         else:
-            return conquer.get(str(ctx.channel.id))
+            return config.get('prefix')
+
+    def get_conquer(self, guild_id):
+        return self.get('conquer', guild_id)

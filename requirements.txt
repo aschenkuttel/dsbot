@@ -1,0 +1,13 @@
+discord.py[voice]
+bs4
+Pillow
+asyncpg
+matplotlib
+imgkit
+aiohttp
+dateparser
+pandas
+numpy
+tabulate
+xmltodict
+requests

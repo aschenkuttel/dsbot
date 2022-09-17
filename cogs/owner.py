@@ -1,4 +1,5 @@
 from discord.ext import commands
+from typing import Optional, Literal
 import discord
 
 
@@ -7,11 +8,40 @@ class Owner(commands.Cog):
         self.bot = bot
         self.config = bot.config
 
-    async def cog_check(self, ctx):
-        if await self.bot.is_owner(ctx.author):
-            return True
+    @commands.command(name="servers")
+    async def servers(self, ctx):
+        counter = 0
+        global_config = self.bot.config._config  # noqa
+
+        for k, v in global_config.items():
+            if v.get('inactive') is None:
+                counter += 1
+
+        await ctx.send(f"{counter}/{len(global_config)} active guilds")
+
+    @commands.command(name="desync")
+    async def desync_(self, ctx):
+        self.bot.tree.clear_commands(guild=None)
+        await self.bot.tree.sync()
+        await ctx.send("DeSync Completed")
+
+    @commands.command(name="sync")
+    async def sync(self, ctx, guild: discord.Object = None, spec: Optional[Literal["~", "*", "^"]] = None):
+        if spec == "~":
+            synced = await ctx.bot.tree.sync(guild=guild)
+        elif spec == "*":
+            ctx.bot.tree.copy_global_to(guild=guild)
+            synced = await ctx.bot.tree.sync(guild=guild)
+        elif spec == "^":
+            ctx.bot.tree.clear_commands(guild=guild)
+            await ctx.bot.tree.sync(guild=guild)
+            synced = []
         else:
-            raise commands.NotOwner()
+            synced = await ctx.bot.tree.sync()
+
+        await ctx.send(
+            f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+        )
 
     @commands.command(name="presence")
     async def presence_(self, ctx, *, args):
@@ -22,7 +52,7 @@ class Owner(commands.Cog):
     @commands.command(name="reload")
     async def reload_(self, ctx, cog):
         try:
-            self.bot.reload_extension(f"cogs.{cog}")
+            await self.bot.reload_extension(f"cogs.{cog}")
             await ctx.send("Extension erfolgreich neu geladen")
             print("-- Extension reloaded --")
         except Exception as error:
@@ -39,8 +69,7 @@ class Owner(commands.Cog):
 
     @commands.command(name="stats")
     async def stats_(self, ctx):
-        async with self.bot.ress.acquire() as conn:
-            cache = await conn.fetch('SELECT * FROM usage')
+        cache = await self.bot.fetch_usage()
 
         data = []
         for record in cache:
@@ -52,7 +81,7 @@ class Owner(commands.Cog):
 
     @commands.command(name="change")
     async def change_(self, ctx, guild_id: int, item, value):
-        if item.lower() not in ['prefix', 'world', 'game']:
+        if item.lower() not in ('prefix', 'world', 'game'):
             await ctx.send("Fehlerhafte Eingabe")
             return
 
@@ -68,7 +97,7 @@ class Owner(commands.Cog):
     @commands.command(name="execute")
     async def sql_(self, ctx, *, query):
         try:
-            async with self.bot.pool.acquire() as conn:
+            async with self.bot.tribal_pool.acquire() as conn:
                 await conn.execute(query)
         except Exception as error:
             await ctx.send(error)
@@ -76,12 +105,12 @@ class Owner(commands.Cog):
     @commands.command(name="fetch")
     async def fetch(self, ctx, *, query):
         try:
-            async with self.bot.pool.acquire() as conn:
+            async with self.bot.tribal_pool.acquire() as conn:
                 response = await conn.fetch(query)
                 await ctx.send(response)
         except Exception as error:
             await ctx.send(error)
 
 
-def setup(bot):
-    bot.add_cog(Owner(bot))
+async def setup(bot):
+    await bot.add_cog(Owner(bot))

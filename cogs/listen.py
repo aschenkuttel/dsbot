@@ -1,18 +1,13 @@
-from PIL import Image, ImageChops
-from discord.ext import commands
+from discord.ext import commands, tasks
+from discord import app_commands
 from collections import Counter
-from datetime import datetime
-from bs4 import BeautifulSoup
 import traceback
 import logging
 import discord
 import aiohttp
-import imgkit
-import random
 import utils
+import math
 import sys
-import io
-import re
 
 logger = logging.getLogger('dsbot')
 
@@ -20,30 +15,44 @@ logger = logging.getLogger('dsbot')
 class Listen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.cap = 10
-        self.blacklist = []
+        self.bot.tree.on_error = self.on_app_command_error
         self.cmd_counter = Counter()
         self.silenced = (commands.UnexpectedQuoteError,
-                         commands.BadArgument,
                          aiohttp.InvalidURL,
                          discord.Forbidden,
-                         utils.IngameError,
                          utils.SilentError)
+        self.active_guilds = set()
+        self.guild_timeout.start()
 
     async def called_per_hour(self):
-        async with self.bot.ress.acquire() as conn:
+        async with self.bot.member_pool.acquire() as conn:
             await self.update_usage(conn)
             await self.update_members(conn)
 
-    async def update_usage(self, conn):
-        query = 'INSERT INTO usage(name, amount) VALUES($1, $2) ' \
-                'ON CONFLICT (name) DO UPDATE SET amount = usage.amount + $2'
-
-        data = [(k, v) for k, v in self.cmd_counter.items()]
-        if not data:
+    @tasks.loop(hours=168)
+    async def guild_timeout(self):
+        if self.bot.is_locked():
             return
 
-        await conn.executemany(query, data)
+        counter = 0
+        for guild in self.bot.guilds:
+            if guild.id not in self.active_guilds:
+                self.bot.config.update('inactive', True, guild.id, bulk=True)
+                counter += 1
+
+        self.bot.config.save()
+        self.active_guilds.clear()
+        logger.debug(f"{counter} inactive guilds")
+
+    async def update_usage(self, conn):
+        if not self.cmd_counter:
+            return
+
+        query = 'INSERT INTO usage(name, amount) ' \
+                'VALUES($1, $2) ' \
+                'ON CONFLICT (name) DO UPDATE SET ' \
+                'amount = usage.amount + $2'
+        await conn.executemany(query, self.cmd_counter.items())
         self.cmd_counter.clear()
 
     async def update_members(self, conn):
@@ -56,233 +65,79 @@ class Listen(commands.Cog):
                 'VALUES ($1, $2, $3, $4, $5) ' \
                 'ON CONFLICT (id, guild_id) DO UPDATE SET ' \
                 'name = $3, nick = $4, last_update = $5'
-
         await conn.executemany(query, args)
 
-    # Report HTML to Image Converter
-    def html_lover(self, raw_data):
-        soup = BeautifulSoup(raw_data, 'html.parser')
-        tiles = soup.body.find_all(class_='vis')
-
-        if len(tiles) < 2:
-            return
-
-        main = f"{utils.whymtl}<head></head>{tiles[1]}"
-        css = f"{self.bot.data_path}/report.css"
-        img_bytes = imgkit.from_string(main, False, options=utils.imgkit, css=css)
-
-        # crops empty background
-        im = Image.open(io.BytesIO(img_bytes))
-        bg = Image.new(im.mode, im.size, im.getpixel((0, 0)))
-        diff = ImageChops.difference(im, bg)
-        diff = ImageChops.add(diff, diff, 2.0, -100)
-        im = im.crop(diff.getbbox())
-
-        # crops border and saves to FileIO
-        result = im.crop((2, 2, im.width - 2, im.height - 2))
-        file = io.BytesIO()
-        result.save(file, 'png')
-        file.seek(0)
-        return file
-
-    async def fetch_report(self, content):
+    async def send_convert(self, message, pkg, file=False, delete=False):
         try:
-            async with self.bot.session.get(content) as res:
-                data = await res.text()
-        except (aiohttp.InvalidURL, ValueError):
-            return
+            if file is True:
+                await message.channel.send(file=pkg)
+            else:
+                await message.channel.send(embed=pkg)
 
-        file = await self.bot.execute(self.html_lover, data)
-        return file
+            if delete is True:
+                await message.delete()
+
+        except (discord.Forbidden, discord.NotFound):
+            pass
+
+        finally:
+            self.bot.update_member(message.author)
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author.bot:
+        if message.author.bot or message.guild is None:
             return
 
-        if not message.guild:
-            return
+        self.active_guilds.add(message.guild.id)
+        inactive = self.bot.config.get('inactive', message.guild.id)
 
-        if message.author.id in self.blacklist:
-            return
+        if inactive:
+            self.bot.config.update('inactive', False, message.guild.id)
 
-        guild_id = message.guild.id
-        self.bot.active_guilds.add(guild_id)
+    async def on_app_command_error(self, interaction, error):
+        print(type(error))
+        logger.debug(f"command error [{interaction.full_command_name}]: {error}")
+        ephemeral = True
+        no_embed = False
 
-        world = self.bot.config.get_world(message.channel)
-        if world is None:
-            return
+        if isinstance(error, app_commands.CommandOnCooldown):
+            base = "Cooldown: Versuche es in `{0:.1f}` Sekunden erneut"
+            msg = base.format(error.retry_after)
+            ephemeral = False
 
-        pre = self.bot.config.get_prefix(guild_id)
-        if message.content.lower().startswith(pre.lower()):
-            return
-
-        content = message.clean_content
-
-        # report conversion
-        report_urls = re.findall(r'https://.+/public_report/\S*', content)
-        if report_urls and self.bot.config.get_switch('report', guild_id):
-            file = await self.fetch_report(report_urls[0])
-
-            if file is None:
-                await utils.silencer(message.add_reaction('❌'))
-                return
-
-            try:
-                await message.channel.send(file=discord.File(file, "report.png"))
-                await message.delete()
-            except discord.Forbidden:
-                pass
-            finally:
-                self.bot.update_member(message.author)
-                logger.debug("report converted")
-                return
-
-        # coordinate conversion
-        coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
-        if coordinates and self.bot.config.get_switch('coord', guild_id):
-            coords = set(coordinates)
-            villages = await self.bot.fetch_bulk(world, coords, 2, name=True)
-            player_ids = [obj.player_id for obj in villages]
-            players = await self.bot.fetch_bulk(world, player_ids, dictionary=True)
-            good = []
-
-            for village in villages:
-                player = players.get(village.player_id)
-
-                if player:
-                    owner = f"[{player.name}]"
-                else:
-                    owner = "[Barbarendorf]"
-
-                good.append(f"{village.mention} {owner}")
-                coords.remove(village.coords)
-
-            found = '\n'.join(good)
-            lost = ', '.join(coords)
-            if found:
-                found = f"**Gefundene Koordinaten:**\n{found}"
-            if lost:
-                lost = f"**Nicht gefunden:**\n{lost}"
-            em = discord.Embed(description=f"{found}\n{lost}")
-
-            try:
-                await message.channel.send(embed=em)
-            except discord.Forbidden:
-                pass
-            finally:
-                self.bot.update_member(message.author)
-                logger.debug("coord converted")
-                return
-
-        # ds mention converter
-        names = re.findall(r'(?<!\|)\|([\S][^|]*?)\|(?!\|)', content)
-        if names and self.bot.config.get_switch('mention', guild_id):
-            parsed_msg = message.clean_content.replace("`", "")
-            ds_objects = await self.bot.fetch_bulk(world, names[:10], name=True)
-            cache = await self.bot.fetch_bulk(world, names[:10], 1, name=True)
-            ds_objects.extend(cache)
-
-            mentions = message.mentions.copy()
-            mentions.extend(message.role_mentions)
-            mentions.extend(message.channel_mentions)
-
-            found_names = {}
-            for dsobj in ds_objects:
-                found_names[dsobj.name.lower()] = dsobj
-                if not dsobj.alone:
-                    found_names[dsobj.tag.lower()] = dsobj
-
-            for name in names:
-                dsobj = found_names.get(name.lower())
-
-                if not dsobj:
-                    failed = f"**{name}**<:failed:708982292630077450>"
-                    parsed_msg = parsed_msg.replace(f"|{name}|", failed)
-                else:
-                    parsed_msg = parsed_msg.replace(f"|{name}|", dsobj.mention)
-
-            current = datetime.now()
-            time = current.strftime("%H:%M Uhr")
-            title = f"{message.author.display_name} um {time}"
-            embed = discord.Embed(description=parsed_msg)
-            embed.set_author(name=title, icon_url=message.author.avatar_url)
-
-            try:
-                await message.channel.send(embed=embed)
-                if not mentions:
-                    await message.delete()
-            except (discord.Forbidden, discord.NotFound):
-                pass
-            finally:
-                self.bot.update_member(message.author)
-                logger.debug("bbcode converted")
-
-    @commands.Cog.listener()
-    async def on_command(self, ctx):
-        cid, cmd = (ctx.message.id, ctx.message.content)
-        logger.debug(f"command invoked [{cid}]: {cmd}")
-
-    @commands.Cog.listener()
-    async def on_command_completion(self, ctx):
-        logger.debug(f"command completed [{ctx.message.id}]")
-
-        if ctx.author.id != self.bot.owner_id:
-            if ctx.command.parent is not None:
-                cmd = str(ctx.command.parent)
-            else:
-                cmd = str(ctx.command)
-
-            self.cmd_counter[cmd] += 1
-
-    @commands.Cog.listener()
-    async def on_guild_remove(self, guild):
-        self.bot.config.remove_config(guild.id)
-
-    @commands.Cog.listener()
-    async def on_command_error(self, ctx, error):
-        cmd = ctx.invoked_with
-        msg, tip = None, None
-
-        error = getattr(error, 'original', error)
-        if isinstance(error, self.silenced):
-            return
-
-        logger.debug(f"command error [{ctx.message.id}]: {error}")
-
-        if isinstance(error, commands.CommandNotFound):
-            if len(cmd) == cmd.count(ctx.prefix):
-                return
-            else:
-                data = random.choice(self.bot.msg["noCommand"])
-                await ctx.send(data.format(f"{ctx.prefix}{cmd}"))
-                return
-
-        elif isinstance(error, commands.MissingRequiredArgument):
-            msg = "Dem Command fehlt ein benötigtes Argument"
-            tip = True
-
-        elif isinstance(error, utils.MissingRequiredKey):
-            msg = f"`{ctx.prefix}{cmd.lower()} <{'|'.join(error.keys)}>`"
-            tip = True
-
-        elif isinstance(error, commands.NoPrivateMessage):
-            msg = "Der Command ist leider nur auf einem Server möglich"
-
-        elif isinstance(error, commands.PrivateMessageOnly):
-            msg = "Der Command ist leider nur per private Message möglich"
+        elif isinstance(error, app_commands.MissingPermissions):
+            msg = "Diesen Command kann nur ein Server-Admin ausführen"
 
         elif isinstance(error, utils.DontPingMe):
             msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
-            tip = True
 
-        elif isinstance(error, utils.WorldMissing):
-            msg = "Der Server hat noch keine zugeordnete Welt\n" \
-                  f"Dies kann nur der Admin mit `{ctx.prefix}set world`"
+        elif isinstance(error, utils.MemberNotFound):
+            msg = f"`{error.name}` konnte nicht gefunden werden"
+
+        elif isinstance(error, utils.DSUserNotFound):
+            msg = f"`{error.name}` konnte auf {interaction.world} nicht gefunden werden"
+            ephemeral = False
+
+        elif isinstance(error, utils.SilentError):
+            msg = "Silent Cooldown"
+
+        elif isinstance(error, utils.MissingRequiredKey):
+            title = f"Es fehlt einer folgender Keys:"
+
+            result = [title]
+            if len(error.keys) < 5:
+                batches = ["|".join(error.keys)]
+            else:
+                index = math.ceil(len(error.keys) / 2)
+                batches = utils.show_list(error.keys, "|", index, return_iter=True)
+
+            for batch in batches:
+                result.append(f"`<{batch}>`")
+
+            msg = "\n".join(result)
 
         elif isinstance(error, utils.UnknownWorld):
-            msg = "Diese Welt existiert leider nicht."
-            tip = True
+            msg = "Diese Welt existiert leider nicht"
 
             if error.possible_world:
                 msg += f"\nMeinst du möglicherweise: `{error.possible_world}`"
@@ -292,62 +147,249 @@ class Listen(commands.Cog):
 
         elif isinstance(error, utils.WrongChannel):
             if error.type == 'game':
-                channel_id = self.bot.config.get('game', ctx.guild.id)
-                await ctx.send(f"<#{channel_id}>")
-                return
+                channel_ids = [self.bot.config.get('game', interaction.guild.id)]
 
-            elif error.type == 'conquer':
-                msg = "Du befindest dich nicht in einem Eroberungschannel"
+            else:
+                raw_ids = self.bot.config.get('conquer', interaction.guild.id)
+                channel_ids = [int(channel_id) for channel_id in raw_ids]
+
+            if not channel_ids:
+                raise utils.ConquerChannelMissing()
+
+            base = []
+            for channel_id in channel_ids:
+                channel = self.bot.get_channel(channel_id)
+
+                if channel is None:
+                    base.append(f"Deleted Channel ({channel_id})")
+                else:
+                    base.append(channel.mention)
+
+            msg = "\n".join(base)
+            ephemeral = False
+            no_embed = True
 
         elif isinstance(error, utils.GameChannelMissing):
-            msg = "Der Server hat keinen Game-Channel\n" \
-                  f"Nutze `{ctx.prefix}set game` um einen festzulegen"
+            msg = "Der Server hat noch keinen Game Channel eingerichtet,\n" \
+                  f"dies kann ein Admin mit `/set game` im gewünschten Channel"
+            ephemeral = False
+
+        elif isinstance(error, utils.ConquerChannelMissing):
+            msg = "Der Server hat noch keinen Conquer Channel eingerichtet,\n" \
+                  f"dies kann ein Admin mit `/set conquer` im gewünschten Channel"
+            ephemeral = False
 
         elif isinstance(error, utils.MissingGucci):
             base = "Du hast nur `{} Eisen` auf dem Konto"
             msg = base.format(utils.seperator(error.purse))
-
-        elif isinstance(error, utils.InvalidBet):
-            base = "Der Einsatz muss zwischen {} und {} Eisen liegen"
-            msg = base.format(error.min, error.max)
-
-        elif isinstance(error, commands.NotOwner):
-            msg = "Diesen Command kann nur der Bot-Owner ausführen"
-
-        elif isinstance(error, commands.MissingPermissions):
-            msg = "Diesen Command kann nur ein Server-Admin ausführen"
-
-        elif isinstance(error, commands.CommandOnCooldown):
-            raw = "Command Cooldown: Versuche es in {0:.1f} Sekunden erneut"
-            msg = raw.format(error.retry_after)
-
-        elif isinstance(error, utils.DSUserNotFound):
-            msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
-
-        elif isinstance(error, utils.MemberNotFound):
-            msg = f"`{error.name}` konnte nicht gefunden werden"
-
-        elif isinstance(error, commands.BotMissingPermissions):
-            base = "Dem Bot fehlen folgende Rechte auf diesem Server:\n`{}`"
-            msg = base.format(', '.join(error.missing_perms))
-
-        elif isinstance(error, commands.ExpectedClosingQuoteError):
-            msg = "Ein Argument wurde mit einem Anführungszeichen begonnen und nicht geschlossen"
-
-        if msg:
-            try:
-                context = ctx if tip is True else None
-                embed = utils.error_embed(msg, ctx=context)
-                await ctx.send(embed=embed)
-            except discord.Forbidden:
-                msg = "Dem Bot fehlen benötigte Rechte: `Embed Links`"
-                await ctx.safe_send(msg)
+            ephemeral = False
 
         else:
-            print(f"Command Message: {ctx.message.content}")
+            print(f"Command: {interaction.command.name} Args: {interaction.namespace}")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-            logger.warning(f"uncommon error ({ctx.server}): {ctx.message.content}")
+            logger.warning(f"uncommon error ({interaction.server}): {interaction.command.name}")
+            return
+
+        if msg is None:
+            msg = "Upps, da ist wohl etwas schief gelaufen..."
+
+        if no_embed:
+            await interaction.response.send_message(msg, ephemeral=True)
+        else:
+            embed = utils.error_embed(msg)
+            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+    @commands.Cog.listener()
+    async def on_app_command_completion(self, interaction, command):
+        logger.debug(f"command completed [{command.name}]")
+
+        if interaction.user.id != self.bot.owner_id:
+            if interaction.command.parent is not None:
+                cmd_name = interaction.command.parent.name
+            else:
+                cmd_name = interaction.command.name
+
+            self.cmd_counter[cmd_name] += 1
+
+        self.active_guilds.add(interaction.guild.id)
+        inactive = self.bot.config.get('inactive', interaction.guild.id)
+
+        # TODO remove after some time
+        if inactive:
+            self.bot.config.update('inactive', False,  interaction.guild.id)
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        self.active_guilds.add(guild.id)
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild):
+        self.bot.config.remove_config(guild.id)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel):
+        for config in ('conquer', 'channel'):
+            subconfig = self.bot.config.get(config, channel.guild.id)
+            if subconfig and str(channel.id) in subconfig:
+                subconfig.pop(str(channel.id))
+
+        game_channel_id = self.bot.config.get('game', channel.guild.id)
+        if game_channel_id == channel.id:
+            self.bot.config.remove('game', channel.guild.id, bulk=True)
+
+        self.bot.config.save()
+
+    # @commands.Cog.listener()
+    # async def on_command_error(self, ctx, error):
+    #     error = getattr(error, 'original', error)
+    #     if isinstance(error, self.silenced):
+    #         return
+    #     elif isinstance(error, commands.MissingRequiredArgument):
+    #         error = utils.MissingRequiredArgument()
+    #     elif isinstance(error, commands.BadArgument):
+    #         error = utils.BadArgument()
+    #
+    #     logger.debug(f"command error [{ctx.message.id}]: {error}")
+    #     cmd = ctx.invoked_with
+    #
+    #     if isinstance(error, commands.CommandNotFound):
+    #         if len(cmd) == cmd.count(ctx.prefix):
+    #             return
+    #         else:
+    #             # data = random.choice(ctx.lang.unknown_command)
+    #             print("yes")
+    #             msg = "Commands sind seit dem letzten Update nun nur noch mit / auszuführen"
+    #
+    #     elif isinstance(error, utils.MissingRequiredArgument):
+    #         msg = f"Dem Command fehlt ein benötigtes Argument"
+    #
+    #     elif isinstance(error, utils.BadArgument):
+    #         msg = "Ein Argument war nicht vom erwarteten Typ"
+    #
+    #     elif isinstance(error, utils.MissingRequiredKey):
+    #         cmd = f"{ctx.prefix}{cmd.lower()}"
+    #
+    #         if error.pos_arg:
+    #             cmd += f" <{error.pos_arg}>"
+    #
+    #         title = f"**{cmd}** fehlt ein benötigter Key:"
+    #
+    #         result = [title]
+    #         if len(error.keys) < 5:
+    #             batches = ["|".join(error.keys)]
+    #         else:
+    #             index = math.ceil(len(error.keys) / 2)
+    #             batches = utils.show_list(error.keys, "|", index, return_iter=True)
+    #
+    #         for batch in batches:
+    #             result.append(f"`<{batch}>`")
+    #
+    #         msg = "\n".join(result)
+    #
+    #     elif isinstance(error, commands.NoPrivateMessage):
+    #         msg = "Der Command ist leider nur auf einem Server möglich"
+    #
+    #     elif isinstance(error, commands.PrivateMessageOnly):
+    #         msg = "Der Command ist leider nur per private Message möglich"
+    #
+    #     elif isinstance(error, utils.DontPingMe):
+    #         msg = "Schreibe anstatt eines Pings den Usernamen oder Nickname"
+    #
+    #     elif isinstance(error, utils.WorldMissing):
+    #         msg = "Der Server hat keine zugeordnete Welt\n" \
+    #               f"Dies kann ein Admin mit `{ctx.prefix}set world <world>`"
+    #
+    #     elif isinstance(error, utils.UnknownWorld):
+    #         msg = "Diese Welt existiert leider nicht"
+    #
+    #         if error.possible_world:
+    #             msg += f"\nMeinst du möglicherweise: `{error.possible_world}`"
+    #
+    #     elif isinstance(error, utils.InvalidCoordinate):
+    #         msg = "Du musst eine gültige Koordinate angeben"
+    #
+    #     elif isinstance(error, utils.WrongChannel):
+    #         if error.type == 'game':
+    #             channel_ids = [self.bot.config.get('game', ctx.guild.id)]
+    #
+    #         else:
+    #             raw_ids = self.bot.config.get('conquer', ctx.guild.id)
+    #             channel_ids = [int(channel_id) for channel_id in raw_ids]
+    #
+    #         if not channel_ids:
+    #             raise utils.ConquerChannelMissing()
+    #
+    #         base = []
+    #         for channel_id in channel_ids:
+    #             channel = self.bot.get_channel(channel_id)
+    #
+    #             if channel is None:
+    #                 base.append(f"Deleted Channel ({channel_id})")
+    #             else:
+    #                 base.append(channel.mention)
+    #
+    #         msg = "\n".join(base)
+    #
+    #     elif isinstance(error, utils.GameChannelMissing):
+    #         msg = "Der Server hat noch keinen Game Channel eingerichtet,\n" \
+    #               f"dies kann ein Admin mit `{ctx.prefix}set game` im gewünschten Channel"
+    #
+    #     elif isinstance(error, utils.ConquerChannelMissing):
+    #         msg = "Der Server hat noch keinen Conquer Channel eingerichtet,\n" \
+    #               f"dies kann ein Admin mit `{ctx.prefix}set conquer` im gewünschten Channel"
+    #
+    #     elif isinstance(error, utils.MissingGucci):
+    #         base = "Du hast nur `{} Eisen` auf dem Konto"
+    #         msg = base.format(utils.seperator(error.purse))
+    #
+    #     elif isinstance(error, utils.ArgumentOutOfRange):
+    #         item = ctx.lang.error['out_of_range'][error.item]
+    #         base = "{} darf nur einen Wert zwischen `{}` und `{}` haben"
+    #         msg = base.format(item, error.min, error.max)
+    #
+    #     elif isinstance(error, commands.NotOwner):
+    #         msg = "Diesen Command kann nur der Bot-Owner ausführen"
+    #
+    #     elif isinstance(error, commands.MissingPermissions):
+    #         msg = "Diesen Command kann nur ein Server-Admin ausführen"
+    #
+    #     elif isinstance(error, commands.CommandOnCooldown):
+    #         base = "Cooldown: Versuche es in `{0:.1f}` Sekunden erneut"
+    #         msg = base.format(error.retry_after)
+    #
+    #     elif isinstance(error, utils.DSUserNotFound):
+    #         msg = f"`{error.name}` konnte auf {ctx.world} nicht gefunden werden"
+    #
+    #     elif isinstance(error, utils.MemberNotFound):
+    #         msg = f"`{error.name}` konnte nicht gefunden werden"
+    #
+    #     elif isinstance(error, commands.BotMissingPermissions):
+    #         base = "Dem Bot fehlen folgende Rechte auf diesem Server:\n`{}`"
+    #         msg = base.format(', '.join(error.missing_perms))
+    #
+    #     elif isinstance(error, commands.ExpectedClosingQuoteError):
+    #         msg = "Ein Argument wurde mit einem Anführungszeichen begonnen und nicht geschlossen"
+    #
+    #     else:
+    #         print(f"Command Message: {ctx.message.content}")
+    #         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+    #         logger.warning(f"uncommon error ({ctx.server}): {ctx.message.content}")
+    #         return
+    #
+    #     try:
+    #         if isinstance(error, utils.HelpFailure):
+    #             embed = utils.error_embed(msg, ctx=ctx)
+    #             await ctx.send(embed=embed)
+    #         elif isinstance(error, utils.EmbedFailure):
+    #             embed = utils.error_embed(msg)
+    #             await ctx.send(embed=embed)
+    #         else:
+    #             await ctx.send(msg)
+    #
+    #     except discord.Forbidden:
+    #         msg = "Dem Bot fehlen benötigte Rechte: `Embed Links`"
+    #         await ctx.safe_send(msg)
 
 
-def setup(bot):
-    bot.add_cog(Listen(bot))
+async def setup(bot):
+    await bot.add_cog(Listen(bot))
