@@ -1,7 +1,6 @@
-from async_timeout import timeout
 import data.credentials as secret
 from utils import DSTree
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord import app_commands
 from bs4 import BeautifulSoup
 import concurrent.futures
@@ -519,7 +518,7 @@ class DSBot(commands.Bot):
 
     async def fetch_bulk(self, server, iterable, table=None, **kwargs):
         ds_type = utils.DSType(table or 0)
-        table, clause, placeholder = self.get_query(ds_type.base_table, kwargs.get('archive'), server)
+        table, clause, placeholder = self.get_query(ds_type.base_table, server, kwargs.get('archive'))
         base = f'SELECT * FROM {table} WHERE {clause} '
 
         if not kwargs.get('name'):
