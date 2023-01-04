@@ -91,6 +91,7 @@ class DSBot(commands.Bot):
             # loads active worlds from database
             await self.update_worlds()
             await self.load_members()
+            self.logger.debug("Initiaton Done")
             self._lock.set()
 
         print("Erfolgreich Verbunden!")
@@ -111,6 +112,7 @@ class DSBot(commands.Bot):
 
     def callback(self, *args):
         payload = args[-1]
+        self.logger.debug(f"payload received: {payload}")
 
         if payload == "200":
             self._update.set()
@@ -123,7 +125,6 @@ class DSBot(commands.Bot):
         else:
             msg = "unknown payload"
 
-        self.logger.debug(f"payload received: {payload}")
         self.loop.create_task(self.report_to_owner(msg))
 
     # defaul executor somehow leaks RAM

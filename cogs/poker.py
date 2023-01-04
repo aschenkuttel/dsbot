@@ -143,8 +143,8 @@ class Poker(utils.DSGames):
             self.videopoker[interaction.guild.id] = data
             return data['hand'], stamp
 
-    async def player_wins(self, interaction, game, bj=False):
-        price = int(game.iron * (2.5 if bj else 1))
+    async def player_wins(self, game, bj=False):
+        price = int(game.iron * (2.5 if bj else 2))
 
         greet = "Blackjack" if bj else "Glückwunsch"
         msg = f"{greet}, du gewinnst {utils.seperator(price)} Eisen!"
@@ -153,12 +153,12 @@ class Poker(utils.DSGames):
 
         async with self.end_game(game.interaction):
             await self.bot.update_iron(game.interaction.user.id, price)
-            await interaction.edit_original_response(embed=embed, view=None)
+            await game.interaction.edit_original_response(embed=embed, view=None)
 
-    async def dealer_wins(self, interaction, game, tie=False, bj=False):
+    async def dealer_wins(self, game, tie=False, bj=False):
         if tie:
             base = "Unentschieden, du erhältst deinen Einsatz zurück"
-            await self.bot.update_iron(interaction.user.id, game.iron)
+            await self.bot.update_iron(game.interaction.user.id, game.iron)
 
         else:
             word = "Blackjack" if bj else "RIP"
@@ -168,7 +168,7 @@ class Poker(utils.DSGames):
         embed.colour = discord.Color.red()
 
         async with self.end_game(game.interaction):
-            await interaction.edit_original_response(embed=embed, view=None)
+            await game.interaction.edit_original_response(embed=embed, view=None)
 
     def check_result(self, cards):
         card_numbers = [c[:-1] for c in cards]
@@ -219,7 +219,7 @@ class Poker(utils.DSGames):
         possible_moves = ["hit", "stand", "double"]
         game = self.blackjack.get(interaction.guild.id)
 
-        if game is None:
+        if not game:
             return
 
         if move in ("hit", "double"):
@@ -242,7 +242,7 @@ class Poker(utils.DSGames):
 
             if score is False:
                 game.calculate_entity(player=False)
-                await self.dealer_wins(interaction, game)
+                await self.dealer_wins(game)
                 return
 
             elif score < 21:
@@ -257,19 +257,19 @@ class Poker(utils.DSGames):
 
             while True:
                 if dealer_score == 21 and len(game.dealer_hand) == 2:
-                    await self.dealer_wins(interaction, game, bj=True)
+                    await self.dealer_wins(game, bj=True)
                     return
 
                 elif dealer_score is False:
-                    await self.player_wins(interaction, game)
+                    await self.player_wins(game)
                     return
 
                 elif dealer_score >= 17:
                     if game.player_score > dealer_score:
-                        await self.player_wins(interaction, game)
+                        await self.player_wins(game)
                     else:
                         tie = game.player_score == dealer_score
-                        await self.dealer_wins(interaction, game, tie=tie)
+                        await self.dealer_wins(game, tie=tie)
                     return
 
                 dealer_score = game.draw_card(player=False)
@@ -375,9 +375,9 @@ class Poker(utils.DSGames):
             dealer_score = game.calculate_entity(player=False)
 
             if dealer_score == 21:
-                await self.dealer_wins(interaction, game, tie=True)
+                await self.dealer_wins(game, tie=True)
             else:
-                await self.player_wins(interaction, game, bj=True)
+                await self.player_wins(game, bj=True)
 
         else:
             view = View()

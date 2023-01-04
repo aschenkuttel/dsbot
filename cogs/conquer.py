@@ -70,6 +70,7 @@ class ConquerLoop(commands.Cog):
 
             await asyncio.sleep(0.5)
 
+        self._conquer.clear()
         logger.debug(f"conquer feed complete ({len(counter)} guilds / {sum(counter.values())} channels)")
 
     async def conquer_feed(self, channel, config, world, date_string):

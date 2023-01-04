@@ -46,7 +46,9 @@ class MemberMenue:
 
             self.view.add_item(button)
 
-    async def update(self, index, interaction):
+    async def update(self, raw_index, interaction):
+        index = int(raw_index)
+
         if index - 1 == self.current_index:
             return
 

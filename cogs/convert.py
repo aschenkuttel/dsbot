@@ -59,6 +59,7 @@ class Convert(commands.Cog):
     @app_commands.command(name="coords", description="Konvertiert eine oder mehrere Koordinaten in Hyperlinks")
     @app_commands.describe(coordinates="Eine oder mehrere Koordinaten die konvertiert werden sollen")
     async def coords(self, interaction, coordinates: utils.CoordinatesConverter):
+        await interaction.response.defer()
         # set imitation workaround to preserve order of coordinates
         coords = list(dict.fromkeys(str(c) for c in coordinates))  # noqa (due transformer)
 
@@ -95,7 +96,7 @@ class Convert(commands.Cog):
             remaining = f"**Nicht gefunden:**\n{remaining}"
 
         embed = discord.Embed(description=f"{existing}\n{remaining}")
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
         logger.debug("coord converted")
 
     @app_commands.command(name="report", description="Konvertiert einen Bericht Link in ein Bild")
