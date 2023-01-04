@@ -16,11 +16,16 @@ class Villages(commands.Cog):
         self.type = 1
         self.base_options = {'radius': [1, 10, 25], 'points': None}
 
-    async def send_result(self, interaction, result, object_name):
+    async def send(self, interaction, message=None, defer=False, **kwargs):
+        if defer is True:
+            await interaction.followup.send(message, **kwargs)
+        else:
+            await interaction.response.send_message(message, **kwargs)
+
+    async def send_result(self, interaction, result, object_name, defer=False):
         if not result:
             msg = f"Es sind keine {object_name} in Reichweite"
-            await interaction.response.send_message(msg)
-            return
+            return await self.send(interaction, msg, defer)
 
         represent = ["```"]
         for index, obj in enumerate(result, 1):
@@ -31,28 +36,22 @@ class Villages(commands.Cog):
         msg = "\n".join(represent)
 
         if len(msg) <= 2000:
-            await interaction.response.send_message(msg, ephemeral=True)
+            await self.send(interaction, msg, defer, ephemeral=True)
 
         else:
             text = io.StringIO()
             text.write(f"{os.linesep}".join(represent))
             text.seek(0)
-            file = discord.File(text, "villages.txt") # noqa
-            await interaction.response.send_message(file=file, ephemeral=True)
+            file = discord.File(text, "villages.txt")  # noqa
+            await self.send(interaction, defer=defer, file=file, ephemeral=True)
 
     async def fetch_in_radius(self, world, village, **kwargs):
-        radius = kwargs.get('radius')
-        points = kwargs.get('points')
+        radius = kwargs.get('radius', 0)
         extra_query = kwargs.get('extra')
 
-        arguments = [world, village.x, village.y, radius]
-
-        query = 'SELECT * FROM village WHERE world = $1 AND ' \
-                'SQRT(POWER(ABS($2 - x), 2) + POWER(ABS($3 - y), 2)) <= $4'
-
-        if points != 0:
-            query += f' AND points >= $5'
-            arguments.append(points)
+        arguments = [village.x, village.y, radius]
+        query = f'SELECT * FROM village_{world} WHERE ' \
+                f'SQRT(POWER(ABS($1 - x), 2) + POWER(ABS($2 - y), 2)) <= $3'
 
         if extra_query:
             query += extra_query
@@ -78,8 +77,8 @@ class Villages(commands.Cog):
         else:
             conti_str = None
 
-        arguments = [interaction.server, ids]
-        query = 'SELECT * FROM village WHERE world = $1 AND player_id = ANY($2)'
+        arguments = [ids]
+        query = f'SELECT * FROM village_{interaction.server} WHERE player_id = ANY($2)'
 
         if conti_str is not None:
             query = query + ' AND LEFT(CAST(x AS TEXT), 1) = $3' \
@@ -123,9 +122,15 @@ class Villages(commands.Cog):
                            radius="Radius in welchem sich die Barbarendörfer befinden müssen",
                            points="Siehe /help points")
     async def barbarian(self, interaction, village: CoordinateConverter,
-                        radius: app_commands.Range[int, 1, 25] = 10, points: int = 0):
-        kwargs = {'radius': radius, 'points': points, 'extra': ' AND village.player_id = 0'}
+                        radius: app_commands.Range[int, 1, 25] = 10, points: str = ""):
+        kwargs = {'radius': radius, 'extra': f' AND player_id = 0'}
         result = await self.fetch_in_radius(interaction.server, village, **kwargs)
+
+        if points := utils.Keyword.from_str(points) is not None:
+            for vil in result.copy():
+                if not points.compare(vil.points):
+                    result.remove(vil)
+
         await self.send_result(interaction, result, "Barbarendörfer")
 
     @app_commands.command(name="inactive", description="Alle inaktiven Spieler im Umkreis um eine Koordinate")
@@ -135,13 +140,15 @@ class Villages(commands.Cog):
                            tribe="True falls die Spieler einen Stamm haben sollen, False falls nicht")
     async def graveyard_(self, interaction, village: CoordinateConverter, radius: app_commands.Range[int, 1, 25] = 10,
                          points: str = "", since: app_commands.Range[int, 1, 14] = 3, tribe: bool = None):
+        await interaction.response.defer()
 
         all_villages = await self.fetch_in_radius(interaction.server, village, radius=radius)
         player_ids = set(vil.player_id for vil in all_villages)
 
         base = []
         for num in range(since + 1):
-            table = f"player{num or ''}"
+            table = f"player_{interaction.server}" if num == 0 else f"player_{num}"
+
             query_part = f'SELECT * FROM {table} ' \
                          f'WHERE {table}.world = $1 ' \
                          f'AND {table}.id = ANY($2)'
@@ -155,6 +162,7 @@ class Villages(commands.Cog):
             base.append(query_part)
 
         query = ' UNION ALL '.join(base)
+
         async with self.bot.tribal_pool.acquire() as conn:
             cache = await conn.fetch(query, interaction.server, player_ids)
             result = [utils.Player(rec) for rec in cache]
@@ -192,7 +200,7 @@ class Villages(commands.Cog):
             if day_counter[player_id] >= since:
                 result.extend(vil_dict[player_id])
 
-        await self.send_result(interaction, result, "inaktiven Spielerdörfer")
+        await self.send_result(interaction, result, "inaktiven Spielerdörfer", defer=True)
 
 
 async def setup(bot):

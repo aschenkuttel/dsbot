@@ -542,6 +542,8 @@ class Keyword:
     def __bool__(self):
         return bool(self.value)
 
+    def to_sql(self, placeholder):
+        return f"{self.sign} {self.sign}"
 
 class DSMember:
     def __init__(self, record):

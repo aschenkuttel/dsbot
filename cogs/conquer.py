@@ -70,6 +70,7 @@ class ConquerLoop(commands.Cog):
 
             await asyncio.sleep(0.5)
 
+        self._conquer.clear()
         logger.debug(f"conquer feed complete ({len(counter)} guilds / {sum(counter.values())} channels)")
 
     async def conquer_feed(self, channel, config, world, date_string):
@@ -166,7 +167,7 @@ class ConquerLoop(commands.Cog):
 
             # Make all the API Calls
             players = await self.bot.fetch_bulk(world.server, player_ids, dictionary=True)
-            tribe_ids = [obj.tribe_id for obj in players.values() if obj.tribe_id]
+            tribe_ids = list(set([obj.tribe_id for obj in players.values() if obj.tribe_id]))
             tribes = await self.bot.fetch_bulk(world.server, tribe_ids, 'tribe', dictionary=True)
             villages = await self.bot.fetch_bulk(world.server, village_ids, 'village', dictionary=True)
 
@@ -213,7 +214,11 @@ class ConquerLoop(commands.Cog):
 
         bb_conquer = config.get('bb')
         tribe_filter = config.get('tribe', [])
-        filter_ids = tribe_filter
+        filter_ids = []
+
+        if tribe_filter:
+            members = await self.bot.fetch_tribe_member(server, tribe_filter)
+            filter_ids.extend([player.id for player in members])
 
         player_filter = config.get('player', [])
         filter_ids.extend(player_filter)
