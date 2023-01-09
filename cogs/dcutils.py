@@ -63,7 +63,7 @@ class DCUtils(commands.Cog):
 
             result = points % 101
             index = 9 if result >= 90 else int(result / 10)
-            answer = interaction.lang.duali_message[index]
+            answer = interaction.lang.duali[index]
             msg = f"Ihr passt zu `{result}%` zusammen.\n{answer}"
             await interaction.response.send_message(msg)
 
@@ -90,6 +90,8 @@ class DCUtils(commands.Cog):
     @app_commands.command(name="emoji", description="Fügt dem Server eine Reihe an DS Emojis hinzu")
     @app_commands.checks.bot_has_permissions(manage_emojis=True)
     async def emoji(self, interaction):
+        await interaction.response.defer()
+
         counter = 0
         for name, emoji in self.emojis.items():
             if name in [e.name for e in interaction.guild.emojis]:
@@ -99,7 +101,7 @@ class DCUtils(commands.Cog):
             counter += 1
 
         msg = f"`{counter}/{len(self.emojis)}` Emojis wurden hinzugefügt"
-        await interaction.response.send_message(msg)
+        await interaction.followup.send(msg)
 
 
 async def setup(bot):

@@ -172,20 +172,21 @@ class Utils(commands.Cog):
 
     @app_commands.command(name="rm", description="Alle Mitglieder mehrerer Stämme für das Schreiben einer Rundmail")
     async def rundmail_(self, interaction, tribes: str):
+        await interaction.response.defer()
         tribes = tribes.split(" ")
 
         if len(tribes) > 10:
             msg = "Nur bis zu `10 Stämme` aufgrund der maximalen Zeichenlänge"
-            await interaction.response.send_message(msg)
+            await interaction.followup.send(msg)
             return
 
         data = await self.bot.fetch_tribe_member(interaction.server, tribes, name=True)
         if not data:
-            await interaction.response.send_message("Die angegebenen Stämme haben keine Mitglieder")
+            await interaction.followup.send("Die angegebenen Stämme haben keine Mitglieder")
 
         else:
             result = [obj.name for obj in data]
-            await interaction.response.send_message(';'.join(result), ephemeral=True)
+            await interaction.followup.send(';'.join(result), ephemeral=True)
 
     @app_commands.command(name="nude", description="Ein zufälliges Profilbild oder das eines Spielers/Stammes")
     @app_commands.checks.cooldown(1, 10, key=lambda i: i.guild_id)

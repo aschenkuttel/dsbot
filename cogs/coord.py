@@ -78,11 +78,11 @@ class Villages(commands.Cog):
             conti_str = None
 
         arguments = [ids]
-        query = f'SELECT * FROM village_{interaction.server} WHERE player_id = ANY($2)'
+        query = f'SELECT * FROM village_{interaction.server} WHERE player_id = ANY($1)'
 
         if conti_str is not None:
-            query = query + ' AND LEFT(CAST(x AS TEXT), 1) = $3' \
-                            ' AND LEFT(CAST(y AS TEXT), 1) = $4'
+            query = query + ' AND LEFT(CAST(x AS TEXT), 1) = $2' \
+                            ' AND LEFT(CAST(y AS TEXT), 1) = $3'
             arguments.extend([conti_str[2], conti_str[1]])
 
         async with self.bot.tribal_pool.acquire() as conn:

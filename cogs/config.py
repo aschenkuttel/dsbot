@@ -202,11 +202,12 @@ class Config(commands.Cog):
     @conquer.command(name="list", description="Zeigt den Conquer Filter des Channels")
     @app_commands.checks.has_permissions(administrator=True)
     async def conquer_list(self, interaction):
+        await interaction.response.defer()
         conquer = self.get_conquer_data(interaction)
 
         if not conquer['tribe'] and not conquer['player']:
             msg = "Du hast noch keinen Stamm oder Spieler in den Filter eingetragen"
-            await interaction.response.send_message(embed=error_embed(msg))
+            await interaction.followup.send(embed=error_embed(msg))
 
         else:
             world = self.config.get_world(interaction.channel)
@@ -226,7 +227,7 @@ class Config(commands.Cog):
 
             name = "Element" if counter == 1 else "Elemente"
             embed.title = f"{counter} {name} insgesamt:"
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
 
     @conquer.command(name="clear", description="Setzt den Conquer Filter zurück")
     @app_commands.checks.has_permissions(administrator=True)
