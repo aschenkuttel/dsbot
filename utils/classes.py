@@ -80,6 +80,8 @@ class DSTree(app_commands.CommandTree):
 
         if interaction.guild is None:
             if interaction.is_command:
+                print(interaction)
+
                 msg = f"Der Bot kann momentan keine privaten Commands"
                 await interaction.response.send_message(embed=utils.error_embed(msg))
                 return False
@@ -127,6 +129,7 @@ class DSButton(discord.ui.Button):
 
     async def callback(self, interaction):
         await self._callback(self.custom_id, interaction)
+
 
 # default tribal wars classes
 class DSObject:
@@ -544,6 +547,7 @@ class Keyword:
 
     def to_sql(self, placeholder):
         return f"{self.sign} {self.sign}"
+
 
 class DSMember:
     def __init__(self, record):

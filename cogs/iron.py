@@ -64,7 +64,7 @@ class Iron(commands.GroupCog, name="iron"):
 
     @app_commands.command(name="top", description="Die Top 5 des Servers")
     async def top_(self, ctx):
-        member_list = self.bot.member.get(ctx.guild.id)
+        member_list = self.bot.members.get(ctx.guild.id)
         if member_list is None:
             return
 

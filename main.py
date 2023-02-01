@@ -304,6 +304,7 @@ class DSBot(commands.Bot):
             self.members[member.guild.id] = {member.id: dc_member}
         else:
             old = cache.get(member.id)
+            # __eq__ checks for name/nick
             if not old or old != member:
                 cache[member.id] = dc_member
 
