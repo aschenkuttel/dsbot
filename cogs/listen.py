@@ -211,6 +211,9 @@ class Listen(commands.Cog):
 
             self.cmd_counter[cmd_name] += 1
 
+        if interaction.guild is None:
+            return
+
         self.active_guilds.add(interaction.guild.id)
         inactive = self.bot.config.get('inactive', interaction.guild.id)
 

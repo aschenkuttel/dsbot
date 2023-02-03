@@ -127,6 +127,26 @@ def game_channel_only():
     return app_commands.check(predicate)
 
 
+def bot_has_permissions(**perms):
+    invalid = set(perms) - set(app_commands.checks.Permissions.VALID_FLAGS)
+    if invalid:
+        raise TypeError(f"Invalid permission(s): {', '.join(invalid)}")
+
+    def predicate(interaction) -> bool:
+        if interaction.guild is None:
+            return True
+
+        permissions = interaction.app_permissions
+        missing = [perm for perm, value in perms.items() if getattr(permissions, perm) != value]
+
+        if not missing:
+            return True
+
+        raise app_commands.BotMissingPermissions(missing)
+
+    return app_commands.check(predicate)
+
+
 def create_logger(name, datapath):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
@@ -160,8 +180,3 @@ def sort_list(iterable):
             cache.append(value)
 
     return result
-
-
-def valid_range(value, low, high, item):
-    if not low <= value <= high:
-        raise ArgumentOutOfRange(low, high, item)

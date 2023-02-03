@@ -59,8 +59,8 @@ class ReminderModal(Modal):
         super().__init__(title="Reminder")
         self.callback = callback
 
-    time_input = TextInput(label="Erinner mich an/in", required=True)
-    reason_input = TextInput(label="Grund", style=discord.TextStyle.long)
+    time_input = TextInput(label="Erinner mich an/in")
+    reason_input = TextInput(label="Grund", style=discord.TextStyle.long, required=False)
 
     async def on_submit(self, interaction):
         await self.callback(interaction, self.time_input.value, self.reason_input.value)
@@ -181,7 +181,7 @@ class Reminder(commands.Cog):
             await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="remind", description="Lass dich vom Bot zu einer gewünschten Zeit erinnern")
-    @app_commands.checks.bot_has_permissions(send_messages=True, embed_links=True)
+    @utils.bot_has_permissions(send_messages=True, embed_links=True)
     async def remind(self, interaction):
         modal = ReminderModal(self.save_reminder)
         await interaction.response.send_modal(modal)
