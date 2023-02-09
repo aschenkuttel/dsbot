@@ -523,6 +523,7 @@ class Map(commands.Cog):
             for index, team in enumerate(fractions):
                 fraction_names = []
                 quoted = re.findall(r'\"(.+)\"', team)
+
                 for res in quoted:
                     team = team.replace(f'"{res}"', ' ')
                     fraction_names.append(res)
@@ -537,7 +538,7 @@ class Map(commands.Cog):
                 if len(fractions) == 1 and '&' not in names:
                     color_map.extend([obj] for obj in fraction_names)
                 else:
-                    color_map.append(names)
+                    color_map.append(fraction_names)
 
             ds_objects = await self.bot.fetch_bulk(interaction.server, all_names, 1, name=True)
 
