@@ -295,6 +295,8 @@ class Stats(commands.Cog):
         if key is None:
             raise MissingRequiredKey(interaction.lang.top_options)
 
+        await interaction.response.defer()
+
         url = self.in_a_day.format(interaction.world.url, key)
         async with self.bot.session.get(url) as r:
             soup = BeautifulSoup(await r.read(), "html.parser")
