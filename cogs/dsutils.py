@@ -287,7 +287,7 @@ class Utils(commands.Cog):
         await self.scavenge(interaction, units)
 
     async def scavenge(self, interaction, raw_units, factor=4, best=False):
-        if best is False:
+        if best is True:
             factors = getattr(self, "best_scavenge_4")
         else:
             factors = getattr(self, f"same_scavenge_{factor}")
