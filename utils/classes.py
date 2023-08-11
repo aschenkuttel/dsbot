@@ -449,7 +449,7 @@ class DSGames(commands.Cog):
     def command_check(self, interaction):
         container = self.get_container(interaction)
 
-        # if its a list it is a simple cooldown container and we need to check
+        # if it's a list it is a simple cooldown container, and we need to check
         # it since commands with dictionarys need to grab their data on begin
         if isinstance(container, list):
             self.get_game_data(interaction, container)

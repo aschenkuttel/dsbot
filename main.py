@@ -74,9 +74,8 @@ class DSBot(commands.Bot):
     async def on_ready(self):
         # db / aiohttp setup
         if not self._lock.is_set():
-
             # initiates session object and db conns
-            self.session = aiohttp.ClientSession(loop=self.loop)
+            self.session = aiohttp.ClientSession()
             self.tribal_pool, self.member_pool = await self.db_connect()
             await self.setup_tables()
 
@@ -272,6 +271,8 @@ class DSBot(commands.Bot):
                 if member.guild_id in self.members:
                     self.members[member.guild_id][member.id] = member
 
+        print("Members loaded")
+
     def get_member(self, member_id):
         for members in self.members.values():
             member = members.get(member_id)
@@ -356,6 +357,7 @@ class DSBot(commands.Bot):
             data = await conn.fetch(query)
 
         if not data:
+            print("NO DATA")
             return
 
         cache = {}

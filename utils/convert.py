@@ -99,7 +99,6 @@ class WorldConverter(app_commands.Transformer):
         return [app_commands.Choice(name=k, value=k)
                 for k in worlds
                 if current.lower() in k.lower()][:25]
-
     async def transform(self, interaction: DSInteraction, value):
         argument = value.lower()
         world = interaction.client.worlds.get(argument)
