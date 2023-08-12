@@ -269,13 +269,11 @@ class Map(commands.Cog):
             result.append(rgb)
         return result
 
-    def overlap(self, reservation, x, y, width, height):
-        zone = [(x, y), (x + width, y + height)]
-
+    def overlap(self, reservation, zone):
         for area in reservation:
-            if zone[0][0] > area[1][0] or area[0][0] > zone[1][0]:
+            if zone[0] > area[2] or area[0] > zone[2]:
                 continue
-            elif zone[0][1] > area[1][1] or area[0][1] > zone[1][1]:
+            elif zone[1] > area[3] or area[1] > zone[3]:
                 continue
             else:
                 return True
@@ -378,7 +376,7 @@ class Map(commands.Cog):
         sorted_cache = sorted(village_cache.items(), key=lambda l: len(l[1]))
         most_villages = len(sorted_cache[-1][1])
 
-        bound_size = tuple([int(c * 1.5) for c in result.size])
+        bound_size = (int(result.size[0] * 1.5), int(result.size[1] * 1.5))
         legacy = Image.new('RGBA', bound_size, (255, 255, 255, 0))
         image = ImageDraw.Draw(legacy)
 
@@ -397,21 +395,20 @@ class Map(commands.Cog):
             factor = len(villages) / most_villages * font_size / 4
             size = int(font_size - (font_size / 4) + factor + (zoom * 3.5))
             font = ImageFont.truetype(f'{self.bot.data_path}/bebas.ttf', size)
-            font_width, font_height = image.textsize(str(dsobj), font=font)
-            position = [int(centroid[0] - font_width / 2), int(centroid[1] - font_height / 2)]
+            font_bbox = image.textbbox(centroid, str(dsobj), font, anchor='mm')
+            current_position = list(font_bbox)
 
             fwd = True
             while True:
-                args = [*position, font_width, font_height]
-                response = self.overlap(reservation, *args)
+                response = self.overlap(reservation, current_position)
 
                 if response is True:
                     if fwd:
-                        position[1] -= 5
+                        current_position[1] -= 5
                     else:
-                        position[1] += 5
+                        current_position[1] += 5
 
-                    if position[1] < self.minimum_size:
+                    if current_position[1] < self.minimum_size:
                         fwd = False
 
                 else:
@@ -420,8 +417,8 @@ class Map(commands.Cog):
 
             # draw title and shadow / index tribe color
             dist = int((result.size[0] / self.maximum_size) * 10 + 1)
-            image.text([position[0] + dist, position[1] + dist], str(dsobj), (0, 0, 0, 255), font)
-            image.text(position, str(dsobj), tuple(dsobj.color + [255]), font)
+            image.text((current_position[0] + dist, current_position[1] + dist), str(dsobj), (0, 0, 0, 255), font)
+            image.text((current_position[0], current_position[1]), str(dsobj), tuple(dsobj.color + [255]), font)
 
         legacy = legacy.resize(result.size, Image.LANCZOS)
         result.paste(legacy, mask=legacy)

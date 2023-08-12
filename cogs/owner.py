@@ -8,6 +8,9 @@ class Owner(commands.Cog):
         self.bot = bot
         self.config = bot.config
 
+    async def cog_check(self, ctx):
+        return await self.bot.is_owner(ctx.author)
+
     @commands.command(name="servers")
     async def servers(self, ctx):
         counter = 0
@@ -26,22 +29,38 @@ class Owner(commands.Cog):
         await ctx.send("DeSync Completed")
 
     @commands.command(name="sync")
-    async def sync(self, ctx, guild: discord.Object = None, spec: Optional[Literal["~", "*", "^"]] = None):
-        if spec == "~":
-            synced = await ctx.bot.tree.sync(guild=guild)
-        elif spec == "*":
-            ctx.bot.tree.copy_global_to(guild=guild)
-            synced = await ctx.bot.tree.sync(guild=guild)
-        elif spec == "^":
-            ctx.bot.tree.clear_commands(guild=guild)
-            await ctx.bot.tree.sync(guild=guild)
-            synced = []
-        else:
-            synced = await ctx.bot.tree.sync()
+    async def sync(self, ctx, guilds: commands.Greedy[discord.Object],
+                   spec: Optional[Literal["~", "*", "^"]] = None) -> None:
+        await ctx.trigger_typing()
 
-        await ctx.send(
-            f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
-        )
+        if not guilds:
+            if spec == "~":
+                synced = await ctx.bot.tree.sync(guild=ctx.guild)
+            elif spec == "*":
+                ctx.bot.tree.copy_global_to(guild=ctx.guild)
+                synced = await ctx.bot.tree.sync(guild=ctx.guild)
+            elif spec == "^":
+                ctx.bot.tree.clear_commands(guild=ctx.guild)
+                await ctx.bot.tree.sync(guild=ctx.guild)
+                synced = []
+            else:
+                synced = await ctx.bot.tree.sync()
+
+            await ctx.send(
+                f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+            )
+            return
+
+        ret = 0
+        for guild in guilds:
+            try:
+                await ctx.bot.tree.sync(guild=guild)
+            except discord.HTTPException:
+                pass
+            else:
+                ret += 1
+
+        await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
 
     @commands.command(name="presence")
     async def presence_(self, ctx, *, args):

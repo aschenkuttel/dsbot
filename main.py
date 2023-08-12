@@ -271,8 +271,6 @@ class DSBot(commands.Bot):
                 if member.guild_id in self.members:
                     self.members[member.guild_id][member.id] = member
 
-        print("Members loaded")
-
     def get_member(self, member_id):
         for members in self.members.values():
             member = members.get(member_id)
@@ -602,6 +600,7 @@ intents = discord.Intents.default()
 intents.presences = False
 intents.typing = False
 intents.messages = True
+intents.message_content = True
 
 dsbot = DSBot(command_prefix="!", intents=intents, tree_cls=DSTree)
 dsbot.run(secret.TOKEN)
