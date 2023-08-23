@@ -2,8 +2,10 @@ import data.credentials as secret
 from utils import DSTree
 from discord.ext import commands
 from discord import app_commands
+from datetime import timezone
 from bs4 import BeautifulSoup
 import concurrent.futures
+import dateutil.tz
 import functools
 import datetime
 import discord
@@ -153,25 +155,6 @@ class DSBot(commands.Bot):
 
         self._update.clear()
         await self.loop_per_hour()
-
-    # return seconds till the next full hour
-    def get_seconds(self, added_hours=1, timestamp=False, obj=False):
-        now = datetime.datetime.now()
-        clean = now + datetime.timedelta(hours=added_hours)
-        goal_time = clean.replace(minute=0, second=0, microsecond=0)
-
-        if obj is True:
-            return goal_time
-
-        start_time = now.replace(microsecond=0)
-
-        if added_hours < 1:
-            goal_time, start_time = start_time, goal_time
-
-        if timestamp is True:
-            return start_time.timestamp()
-        else:
-            return (goal_time - start_time).seconds
 
     async def get_tribal_cache(self, interaction, ds_type=None):
         timestamp = interaction.created_at.timestamp()
@@ -600,7 +583,6 @@ intents = discord.Intents.default()
 intents.presences = False
 intents.typing = False
 intents.messages = True
-intents.message_content = True
 
 dsbot = DSBot(command_prefix="!", intents=intents, tree_cls=DSTree)
 dsbot.run(secret.TOKEN)

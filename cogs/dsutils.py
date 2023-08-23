@@ -86,7 +86,6 @@ class Utils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 1
-        self.active_pager = {}
         self.base = "javascript: var settings = Array" \
                     "({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}," \
                     " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
@@ -110,17 +109,6 @@ class Utils(commands.Cog):
         self.same_scavenge_4 = (0.5765, 0.231, 0.1155, 0.077)
         self.best_scavenge_4 = (0.223, 0.244, 0.261, 0.272)
         # (((factor * loot) ** 2 * 100) ** 0.45 + 1800) * 0.8845033719
-
-    async def called_per_hour(self):
-        now = datetime.utcnow()
-        tmp = self.active_pager.copy()
-        for message_id, pager in tmp.items():
-            if (now - pager.last).total_seconds() > 6:
-                self.active_pager.pop(message_id)
-                try:
-                    await pager.msg.clear_reactions()
-                except (discord.Forbidden, discord.NotFound):
-                    pass
 
     # temporary fix
     async def fetch_oldest_tableday(self, conn):

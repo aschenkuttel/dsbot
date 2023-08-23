@@ -94,8 +94,11 @@ class Listen(commands.Cog):
         if inactive:
             self.bot.config.update('inactive', False, message.guild.id)
 
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        logger.debug(f"command error [{ctx.command.name}]: {error}")
+
     async def on_app_command_error(self, interaction, error):
-        print(type(error))
         logger.debug(f"command error [{interaction.full_command_name}]: {error}")
         ephemeral = True
         no_embed = False

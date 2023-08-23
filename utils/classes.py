@@ -2,7 +2,8 @@ from data.credentials import allowed_pm_commands
 from contextlib import asynccontextmanager
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime
+from datetime import datetime, timezone
+from dateutil import tz
 import asyncio
 import discord
 import utils
@@ -265,7 +266,7 @@ class Conquer:
 
     @property
     def time(self):
-        return datetime.fromtimestamp(self.unix)
+        return utils.from_timestamp(self.unix)
 
     @property
     def player_ids(self):
@@ -569,7 +570,7 @@ class DSMember:
         self.guild_id = member.guild.id
         self.name = member.name
         self.nick = member.nick
-        self.last_update = datetime.now()
+        self.last_update = datetime.now()  # timezone doesn't matter
         return self
 
     @property
