@@ -1,7 +1,9 @@
+from data.credentials import allowed_pm_commands
 from contextlib import asynccontextmanager
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime
+from datetime import datetime, timezone
+from dateutil import tz
 import asyncio
 import discord
 import utils
@@ -36,23 +38,26 @@ world_data = {
 
 # custom interaction for simple world implementation
 class DSInteraction:
-    def __init__(self, inter: discord.Interaction):
-        self.inter = inter
+    def __init__(self, _interaction: discord.Interaction):
+        self._interaction = _interaction
         self._world = None
         self.server = None
         self.full_command_name = None
-        self.is_command = inter.type == discord.InteractionType.application_command
+        self.command_name = None
+        self.is_command = self._interaction.type == discord.InteractionType.application_command
 
         if self.is_command:
-            if self.inter.command.parent:
-                self.full_command_name = f"{self.inter.command.parent.name} {self.inter.command.name}"
+            if self._interaction.command.parent:
+                self.command_name = self._interaction.command.parent.name
+                self.full_command_name = f"{self._interaction.command.parent.name} {self._interaction.command.name}"
             else:
-                self.full_command_name = self.inter.command.name
+                self.command_name = self._interaction.command.name
+                self.full_command_name = self._interaction.command.name
 
     # note that this must be getattr, not getattribute
     # this implements the discord.Interaction interface to our class
     def __getattr__(self, attr: str):
-        return getattr(self.inter, attr)
+        return getattr(self._interaction, attr)
 
     @property
     def world(self):
@@ -79,7 +84,7 @@ class DSTree(app_commands.CommandTree):
             return True
 
         if interaction.guild is None:
-            if interaction.is_command:
+            if interaction.is_command and interaction.command_name not in allowed_pm_commands:
                 msg = f"Der Bot kann momentan keine privaten Commands"
                 await interaction.response.send_message(embed=utils.error_embed(msg))
                 return False
@@ -127,6 +132,7 @@ class DSButton(discord.ui.Button):
 
     async def callback(self, interaction):
         await self._callback(self.custom_id, interaction)
+
 
 # default tribal wars classes
 class DSObject:
@@ -260,7 +266,7 @@ class Conquer:
 
     @property
     def time(self):
-        return datetime.fromtimestamp(self.unix)
+        return utils.from_timestamp(self.unix)
 
     @property
     def player_ids(self):
@@ -444,7 +450,7 @@ class DSGames(commands.Cog):
     def command_check(self, interaction):
         container = self.get_container(interaction)
 
-        # if its a list it is a simple cooldown container and we need to check
+        # if it's a list it is a simple cooldown container, and we need to check
         # it since commands with dictionarys need to grab their data on begin
         if isinstance(container, list):
             self.get_game_data(interaction, container)
@@ -542,8 +548,9 @@ class Keyword:
     def __bool__(self):
         return bool(self.value)
 
-    def to_sql(self, placeholder):
+    def to_sql(self, _):
         return f"{self.sign} {self.sign}"
+
 
 class DSMember:
     def __init__(self, record):
@@ -563,7 +570,7 @@ class DSMember:
         self.guild_id = member.guild.id
         self.name = member.name
         self.nick = member.nick
-        self.last_update = datetime.now()
+        self.last_update = datetime.now()  # timezone doesn't matter
         return self
 
     @property

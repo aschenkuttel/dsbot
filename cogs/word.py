@@ -70,7 +70,7 @@ class Word(utils.DSGames):
                     random.shuffle(word_list)
 
                 anagram = " ".join(word_list).upper()
-                data = {'id': interaction.id, 'word': word, 'anagram': anagram, 'time': datetime.datetime.now()}
+                data = {'id': interaction.id, 'word': word, 'anagram': anagram, 'time': datetime.datetime.utcnow()}
                 self.anagram[interaction.guild.id] = data
 
                 await interaction.response.send_message(f"`{anagram}` (60s Timeout)")
@@ -99,12 +99,12 @@ class Word(utils.DSGames):
 
             if guess is None:
                 comment = f"| `{hint}` " if hint else ""
-                now = (datetime.datetime.now() - time).seconds
+                now = (datetime.datetime.utcnow() - time).seconds
                 msg = f"`{anagram}` {comment}*(noch {60 - now}s)*"
                 await interaction.response.send_message(msg, ephemeral=True)
 
             elif guess.lower() == word.lower():
-                end_time = datetime.datetime.now()
+                end_time = datetime.datetime.utcnow()
                 raw_diff = (end_time - time).total_seconds()
                 float_diff = float("%.1f" % raw_diff)
                 percent = (1 - float_diff / 60 + 1)

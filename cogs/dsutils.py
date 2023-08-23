@@ -86,7 +86,6 @@ class Utils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.type = 1
-        self.active_pager = {}
         self.base = "javascript: var settings = Array" \
                     "({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}," \
                     " {10}, {11}, {12}, {13}, 'attack'); $.getScript" \
@@ -110,17 +109,6 @@ class Utils(commands.Cog):
         self.same_scavenge_4 = (0.5765, 0.231, 0.1155, 0.077)
         self.best_scavenge_4 = (0.223, 0.244, 0.261, 0.272)
         # (((factor * loot) ** 2 * 100) ** 0.45 + 1800) * 0.8845033719
-
-    async def called_per_hour(self):
-        now = datetime.utcnow()
-        tmp = self.active_pager.copy()
-        for message_id, pager in tmp.items():
-            if (now - pager.last).total_seconds() > 6:
-                self.active_pager.pop(message_id)
-                try:
-                    await pager.msg.clear_reactions()
-                except (discord.Forbidden, discord.NotFound):
-                    pass
 
     # temporary fix
     async def fetch_oldest_tableday(self, conn):
@@ -172,20 +160,21 @@ class Utils(commands.Cog):
 
     @app_commands.command(name="rm", description="Alle Mitglieder mehrerer Stämme für das Schreiben einer Rundmail")
     async def rundmail_(self, interaction, tribes: str):
+        await interaction.response.defer()
         tribes = tribes.split(" ")
 
         if len(tribes) > 10:
             msg = "Nur bis zu `10 Stämme` aufgrund der maximalen Zeichenlänge"
-            await interaction.response.send_message(msg)
+            await interaction.followup.send(msg)
             return
 
         data = await self.bot.fetch_tribe_member(interaction.server, tribes, name=True)
         if not data:
-            await interaction.response.send_message("Die angegebenen Stämme haben keine Mitglieder")
+            await interaction.followup.send("Die angegebenen Stämme haben keine Mitglieder")
 
         else:
             result = [obj.name for obj in data]
-            await interaction.response.send_message(';'.join(result), ephemeral=True)
+            await interaction.followup.send(';'.join(result), ephemeral=True)
 
     @app_commands.command(name="nude", description="Ein zufälliges Profilbild oder das eines Spielers/Stammes")
     @app_commands.checks.cooldown(1, 10, key=lambda i: i.guild_id)
@@ -286,7 +275,7 @@ class Utils(commands.Cog):
         await self.scavenge(interaction, units)
 
     async def scavenge(self, interaction, raw_units, factor=4, best=False):
-        if best is False:
+        if best is True:
             factors = getattr(self, "best_scavenge_4")
         else:
             factors = getattr(self, f"same_scavenge_{factor}")

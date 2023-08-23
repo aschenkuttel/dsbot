@@ -232,9 +232,13 @@ class Stats(commands.Cog):
         await interaction.followup.send(embed=profile, file=file)
 
     @app_commands.command(name="recap", description="Fasst die letzten X Tage eines Spielers oder Stammes zusammen")
-    @app_commands.describe(dsobj="Spieler oder Stamm", time="Dauer des Recaps in Tagen")
+    @app_commands.describe(dsobj="Spieler oder Stamm",
+                           time="Dauer des Recaps in Tagen",
+                           extensive="Bashpunkte werden komplett angezeigt")
     @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild.id, i.user.id))
-    async def recap(self, interaction, dsobj: utils.DSConverter, time: app_commands.Range[int, 1, 30] = 7):
+    async def recap(self, interaction, dsobj: utils.DSConverter,
+                    time: app_commands.Range[int, 1, 30] = 7,
+                    extensive: bool = False):
         try:
             dsobj8 = await self.bot.fetch_both(interaction.server, dsobj.id, name=False, archive=time)
 
@@ -244,39 +248,37 @@ class Stats(commands.Cog):
                 await interaction.response.send_message(msg)
                 return
 
-            current_day = dsobj.points, dsobj.villages, dsobj.all_bash
-            day_in_past = dsobj8.points, dsobj8.villages, dsobj8.all_bash
+            differences = (
+                dsobj.points - dsobj8.points, dsobj.villages - dsobj8.villages,
+                (
+                    dsobj.att_bash - dsobj8.att_bash, dsobj.def_bash - dsobj8.def_bash,
+                    dsobj.sup_bash - dsobj8.sup_bash, dsobj.all_bash - dsobj8.all_bash
+                )
+            )
 
         # upon database reset we use twstats as temporary workaround
         except asyncpg.UndefinedTableError:
-            history_url = f"{dsobj.twstats_url}&mode=history"
-            async with self.bot.session.get(history_url) as r:
-                soup = BeautifulSoup(await r.read(), "html.parser")
-
-            try:
-                data = soup.find(id='export').text.split("\n")
-                current_day = data[0].split(",")[4:7]
-                day_in_past = data[time].split(",")[4:7]
-
-            except (IndexError, ValueError, AttributeError):
-                obj = "Spieler" if dsobj.alone else "Stamm"
-                msg = f"Der {obj}: `{dsobj.name}` ist noch keine {time} Tage auf der Welt!"
-                await interaction.response.send_message(msg)
-                return
+            self.bot.logger.warning(f"Recap failed for {dsobj.name} on {interaction.server}")
+            await interaction.response.send_message("Der Befehl ist aufgrund eines Datenbankfehlers fehlgeschlage.")
+            return
 
         result = []
 
-        for index, current in enumerate(current_day):
-            past = int(day_in_past[index])
-            value = sep(int(current) - past)
+        for index, difference in enumerate(differences):
+            is_bash = index == len(differences) - 1
 
             if index == 1:
                 result[-1] += ","
 
                 # preregister accounts have no villages
                 # hence we ignore the first "conquer"
-                if past == 0:
-                    value = sep(int(current) - past - 1)
+                if dsobj8.villages == 0:
+                    difference -= 1
+
+            if is_bash:
+                value = sep(difference[-1])
+            else:
+                value = sep(difference)
 
             if value.startswith("-"):
                 result.append(f"`{value[1:]}` {interaction.lang.recap[index][0]}")
@@ -284,7 +286,12 @@ class Stats(commands.Cog):
                 result.append(f"`{value}` {interaction.lang.recap[index][1]}")
 
         since = "seit gestern" if time == 1 else f"in den letzten {time} Tagen"
-        answer = f"`{dsobj.name}` hat {since} {' '.join(result)}"
+        answer = f"`{dsobj.name}` hat {since} {' '.join(result)}."
+
+        if extensive:
+            att_diff, def_diff, sup_diff, all_diff = differences[-1]
+            answer += f" `(ATT: {sep(att_diff)}, DEF: {sep(def_diff)}, SUP: {sep(sup_diff)})`"
+
         await interaction.response.send_message(answer)
 
     @app_commands.command(name="top", description="Erhalte unterschiedliche \"An einem Tag\" Ranglisten")
@@ -294,6 +301,8 @@ class Stats(commands.Cog):
 
         if key is None:
             raise MissingRequiredKey(interaction.lang.top_options)
+
+        await interaction.response.defer()
 
         url = self.in_a_day.format(interaction.world.url, key)
         async with self.bot.session.get(url) as r:

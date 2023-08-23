@@ -10,6 +10,7 @@ import os
 class BlackJack:
     def __init__(self, interaction, iron, deal):
         self.interaction = interaction
+        self.player_id = interaction.user.id
         self.player_hand, self.dealer_hand, self.card_cache = deal
         self.player_score = self.calculate_result(self.player_hand)
         self.dealer_score = self.calculate_result(self.dealer_hand[:1])
@@ -215,12 +216,17 @@ class Poker(utils.DSGames):
             return hands.get("".join(occurs))
 
     async def blackjack_callback(self, move, interaction):
-        await interaction.response.defer()
-        possible_moves = ["hit", "stand", "double"]
         game = self.blackjack.get(interaction.guild.id)
 
         if not game:
             return
+
+        if game.player_id != interaction.user.id:
+            await interaction.response.send_message("Dies ist nicht dein Spiel", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        possible_moves = ["hit", "stand", "double"]
 
         if move in ("hit", "double"):
 

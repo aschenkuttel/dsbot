@@ -1,4 +1,4 @@
-from utils import Conquer, silencer
+from utils import Conquer, silencer, get_seconds, get_local_now
 from discord.ext import commands
 import collections
 import datetime
@@ -22,7 +22,7 @@ class ConquerLoop(commands.Cog):
 
     # main loop called from main
     async def called_per_hour(self):
-        unix = self.bot.get_seconds(added_hours=-1, timestamp=True)
+        unix = get_seconds(added_hours=-1, timestamp=True)
         date = datetime.datetime.fromtimestamp(unix)
         date_string = date.strftime('%d.%m.%Y')
 
@@ -125,8 +125,8 @@ class ConquerLoop(commands.Cog):
         return True
 
     async def update_conquer(self, worlds):
-        old_unix = self.bot.get_seconds(added_hours=0, timestamp=True)
-        sec = self.bot.get_seconds(added_hours=-1)
+        old_unix = get_seconds(added_hours=0, timestamp=True)
+        sec = get_seconds(added_hours=-1)
 
         for world in worlds:
             if world.type == "s":
@@ -199,7 +199,7 @@ class ConquerLoop(commands.Cog):
             self._conquer[world.server] = conquer_cache
 
     async def fetch_conquer(self, world, sec=3600):
-        now = datetime.datetime.now()
+        now = get_local_now()
         base = "https://{}/interface.php?func=get_conquer&since={}"
         url = base.format(world.url, now.timestamp() - sec)
 

@@ -59,14 +59,16 @@ class ReminderModal(Modal):
         super().__init__(title="Reminder")
         self.callback = callback
 
-    time_input = TextInput(label="Erinner mich an/in", required=True)
-    reason_input = TextInput(label="Grund", style=discord.TextStyle.long)
+    time_input = TextInput(label="Erinner mich an/in")
+    reason_input = TextInput(label="Grund", style=discord.TextStyle.long, required=False)
 
     async def on_submit(self, interaction):
         await self.callback(interaction, self.time_input.value, self.reason_input.value)
 
     async def on_error(self, interaction, error):
-        pass
+        logger.debug(f"reminder error: {error}")
+        embed = utils.error_embed("Es ist ein Fehler aufgetreten")
+        await interaction.response.send_message(embed=embed)
 
 
 class Reminder(commands.Cog):
@@ -74,10 +76,10 @@ class Reminder(commands.Cog):
         self.bot = bot
         self.type = 2
         self.char_limit = 200
-        self.set = {'PREFER_DATES_FROM': "future"}
+        self.set = {'PREFER_DATES_FROM': "future", 'TIMEZONE': "Europe/Berlin", 'TO_TIMEZONE': "UTC"}
         self.preset = "%d.%m.%Y | %H:%M:%S Uhr"
         self._task = self.bot.loop.create_task(self.remind_loop())
-        self._lock = asyncio.Event(loop=bot.loop)
+        self._lock = asyncio.Event()
         self.current_reminder = None
 
     def cog_unload(self):
@@ -107,7 +109,7 @@ class Reminder(commands.Cog):
             if self.current_reminder:
                 logger.debug(f"reminder {self.current_reminder.id}: sleeping")
 
-                difference = (self.current_reminder.expiration - datetime.now())
+                difference = (self.current_reminder.expiration - datetime.utcnow())
                 seconds = difference.total_seconds()
                 await asyncio.sleep(seconds)
 
@@ -125,7 +127,7 @@ class Reminder(commands.Cog):
             else:
                 await self._lock.wait()
 
-    async def save_reminder(self, interaction: discord.Interaction, raw_time, raw_reason):
+    async def save_reminder(self, interaction, raw_time, raw_reason):
         if raw_reason:
             reason = raw_reason.strip()[:self.char_limit]
         else:
@@ -139,18 +141,18 @@ class Reminder(commands.Cog):
             await interaction.response.send_message(embed=utils.error_embed(msg))
             return
 
-        current_date = datetime.now()
+        current_date = datetime.utcnow()
         difference = (expected_date - current_date).total_seconds()
+
+        if difference < 0:
+            embed = utils.error_embed("Der Zeitpunkt ist bereits vergangen")
+            await interaction.response.send_message(embed=embed)
+            return
 
         embed = discord.Embed(colour=discord.Color.green())
         embed.description = "**Erinnerung registriert:**"
-        represent = expected_date.strftime(self.preset)
+        represent = utils.get_local_strftime(expected_date, self.preset)
         embed.set_footer(text=represent)
-
-        if difference < 0:
-            msg = "Der Zeitpunkt ist bereits vergangen"
-            await interaction.response.send_message(embed=utils.error_embed(msg))
-            return
 
         arguments = [interaction.user.id, interaction.channel.id, current_date, expected_date, reason]
         reminder = Timer.from_arguments(self.bot, arguments)
@@ -181,12 +183,12 @@ class Reminder(commands.Cog):
             await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="remind", description="Lass dich vom Bot zu einer gewünschten Zeit erinnern")
-    @app_commands.checks.bot_has_permissions(send_messages=True, embed_links=True)
+    @utils.bot_has_permissions(send_messages=True, embed_links=True)
     async def remind(self, interaction):
         modal = ReminderModal(self.save_reminder)
         await interaction.response.send_modal(modal)
 
-    reminder = app_commands.Group(name="reminder", description="xd")
+    reminder = app_commands.Group(name="reminder", description="DSBot Reminder Commands")
 
     @reminder.command(name="list", description="All deine aktiven Reminder")
     async def list(self, interaction):
@@ -202,7 +204,7 @@ class Reminder(commands.Cog):
             reminders = []
             for row in data[:10]:
                 timer = Timer(self.bot, row)
-                date = timer.expiration.strftime(self.preset)
+                date = utils.get_local_strftime(timer.expiration, self.preset)
                 reminders.append(f"`ID {timer.id}` | **{date}**")
 
             title = f"Deine Reminder ({len(data)} Insgesamt):"
