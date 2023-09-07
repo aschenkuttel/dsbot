@@ -174,7 +174,8 @@ class Utils(commands.Cog):
 
         else:
             result = [obj.name for obj in data]
-            await interaction.followup.send(';'.join(result), ephemeral=True)
+            msg = f"```{';'.join(result)}```"
+            await interaction.followup.send(msg, ephemeral=True)
 
     @app_commands.command(name="nude", description="Ein zufälliges Profilbild oder das eines Spielers/Stammes")
     @app_commands.checks.cooldown(1, 10, key=lambda i: i.guild_id)
