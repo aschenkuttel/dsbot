@@ -22,7 +22,7 @@ class ConquerLoop(commands.Cog):
 
     # main loop called from main
     async def called_per_hour(self):
-        unix = get_seconds(added_hours=-1, timestamp=True)
+        unix = get_seconds(added_hours=-1, starting_timestamp=True)
         date = datetime.datetime.fromtimestamp(unix)
         date_string = date.strftime('%d.%m.%Y')
 
@@ -59,7 +59,7 @@ class ConquerLoop(commands.Cog):
             if world not in worlds:
                 worlds.append(world)
 
-        await self.update_conquer(worlds)
+        await self.update_conquer(worlds, unix)
         logger.debug(f"loaded {len(worlds)}")
 
         counter = collections.Counter()
@@ -124,16 +124,15 @@ class ConquerLoop(commands.Cog):
 
         return True
 
-    async def update_conquer(self, worlds):
-        old_unix = get_seconds(added_hours=0, timestamp=True)
-        sec = get_seconds(added_hours=-1)
+    async def update_conquer(self, worlds, unix):
+        old_unix = get_seconds(added_hours=0, starting_timestamp=True)
 
         for world in worlds:
             if world.type == "s":
                 continue
 
             try:
-                data = await self.fetch_conquer(world, sec)
+                data = await self.fetch_conquer(world, unix)
             except Exception as error:
                 logger.warning(f"{world.server} skipped: {error}")
                 continue
@@ -198,10 +197,9 @@ class ConquerLoop(commands.Cog):
             conquer_cache.reverse()
             self._conquer[world.server] = conquer_cache
 
-    async def fetch_conquer(self, world, sec=3600):
-        now = get_local_now()
+    async def fetch_conquer(self, world, unix):
         base = "https://{}/interface.php?func=get_conquer&since={}"
-        url = base.format(world.url, now.timestamp() - sec)
+        url = base.format(world.url, unix)
 
         async with self.bot.session.get(url) as resp:
             data = await resp.text('utf-8')

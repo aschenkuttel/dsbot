@@ -23,20 +23,16 @@ def get_local_strftime(utc_date, str_format):
 
 
 # get seconds until next hour (or x hours)
-def get_seconds(added_hours=1, timestamp=False, obj=False):
+def get_seconds(added_hours=1, starting_timestamp=False):
     now = get_local_now()
     clean = now + timedelta(hours=added_hours)
     goal_time = clean.replace(minute=0, second=0, microsecond=0)
-
-    if obj is True:
-        return goal_time
-
     start_time = now.replace(microsecond=0)
 
     if added_hours < 1:
         goal_time, start_time = start_time, goal_time
 
-    if timestamp is True:
+    if starting_timestamp is True:
         return start_time.timestamp()
     else:
         return (goal_time - start_time).seconds

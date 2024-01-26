@@ -2,12 +2,9 @@ import data.credentials as secret
 from utils import DSTree
 from discord.ext import commands
 from discord import app_commands
-from datetime import timezone
 from bs4 import BeautifulSoup
 import concurrent.futures
-import dateutil.tz
 import functools
-import datetime
 import discord
 import asyncpg
 import aiohttp
@@ -19,6 +16,7 @@ import os
 
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
+        kwargs['intents'] = discord.Intents.default()
         super().__init__(*args, **kwargs)
 
         path = os.path.dirname(__file__)
@@ -51,21 +49,16 @@ class DSBot(commands.Bot):
             name = filename.split(".")[0]
             self.languages[name] = utils.Language(path, filename)
 
-        # update lock which waits for external database script and setup lock
-        self._update = None
         self._lock = None
-
         self.config = utils.Config(self)
         self.owner_id = 211836670666997762
         self.activity = discord.Activity(type=0, name=secret.status)
         self.remove_command("help")
 
     async def setup_hook(self):
-        self._update = asyncio.Event()
         self._lock = asyncio.Event()
 
         await self.setup_cogs()
-        self.loop.create_task(self.loop_per_hour())
         self.set_global_param_description()
 
         if secret.dev:
@@ -111,14 +104,13 @@ class DSBot(commands.Bot):
         owner = await self.fetch_user(self.owner_id)
         await owner.send(msg)
 
-    def callback(self, *args):
+    async def callback(self, *args):
         payload = args[-1]
         self.logger.debug(f"payload received: {payload}")
 
         if payload == "200":
-            self._update.set()
+            await self.loop_per_hour()
             return
-
         elif payload == "400":
             msg = "engine broke once, restarting"
         elif payload == "404":
@@ -126,7 +118,7 @@ class DSBot(commands.Bot):
         else:
             msg = "unknown payload"
 
-        self.loop.create_task(self.report_to_owner(msg))
+        await self.loop.create_task(self.report_to_owner(msg))
 
     # defaul executor somehow leaks RAM
     async def execute(self, func, *args, **kwargs):
@@ -139,7 +131,6 @@ class DSBot(commands.Bot):
     # get's called after db update
     async def loop_per_hour(self):
         await self._lock.wait()
-        await self._update.wait()
 
         self.logger.debug("loop called")
         await self.update_worlds()
@@ -152,9 +143,6 @@ class DSBot(commands.Bot):
                     await loop()
             except Exception as error:
                 self.logger.debug(f"{cog.qualified_name} Cog Error: {error}")
-
-        self._update.clear()
-        await self.loop_per_hour()
 
     async def get_tribal_cache(self, interaction, ds_type=None):
         timestamp = interaction.created_at.timestamp()
@@ -338,7 +326,7 @@ class DSBot(commands.Bot):
             data = await conn.fetch(query)
 
         if not data:
-            print("NO DATA")
+            self.logger.error("no worlds found in database")
             return
 
         cache = {}
@@ -579,10 +567,5 @@ class DSBot(commands.Bot):
         await self.close()
 
 
-intents = discord.Intents.default()
-intents.presences = False
-intents.typing = False
-intents.messages = True
-
-dsbot = DSBot(command_prefix="!", intents=intents, tree_cls=DSTree)
+dsbot = DSBot(command_prefix="!", tree_cls=DSTree)
 dsbot.run(secret.TOKEN)
