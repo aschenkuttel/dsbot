@@ -138,14 +138,15 @@ class Config(commands.Cog):
     @remove.command(name="conquer", description="Entfernt den Conquer Channel")
     @app_commands.checks.has_permissions(administrator=True)
     async def remove_conquer(self, interaction, channel_id: int = None):
+        # conquer channel ids are stored as strings, hence the parsing
         config = self.config.get('conquer', interaction.guild.id)
-        channel_id = channel_id or interaction.channel.id
+        channel_id = str(channel_id or interaction.channel.id)
 
         if config and channel_id in config:
-            config.pop(str(channel_id))
+            config.pop(channel_id)
             self.config.save()
 
-            channel = interaction.guild.get_channel(channel_id)
+            channel = interaction.guild.get_channel(int(channel_id))
             mention = channel.mention if channel else f"{channel_id}"
             msg = f"{mention} ist nun kein Eroberungs-Channel mehr"
             await interaction.response.send_message(embed=complete_embed(msg))
