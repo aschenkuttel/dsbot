@@ -31,7 +31,7 @@ class Owner(commands.Cog):
     @commands.command(name="sync")
     async def sync(self, ctx, guilds: commands.Greedy[discord.Object],
                    spec: Optional[Literal["~", "*", "^"]] = None) -> None:
-        await ctx.trigger_typing()
+        await ctx.typing()
 
         if not guilds:
             if spec == "~":
