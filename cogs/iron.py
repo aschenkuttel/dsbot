@@ -9,6 +9,7 @@ class Iron(commands.GroupCog, name="iron"):
     def __init__(self, bot):
         self.bot = bot
         self.type = 3
+        self.luke_id = 249673750142779392
 
     async def send_ranking(self, interaction, iterable, guild_data=None):
         data = []
@@ -46,7 +47,11 @@ class Iron(commands.GroupCog, name="iron"):
 
     @app_commands.command(name="balance", description="Erhalte deinen aktuellen Eisenspeicher und deinen globalen Rang")
     async def balance_(self, interaction):
-        money, rank = await self.bot.fetch_iron(interaction.user.id, True)
+        if interaction.user.id == self.luke_id:
+            money, rank = '∞', 0  # infinite symbol =  ∞
+        else:
+            money, rank = await self.bot.fetch_iron(interaction.user.id, True)
+
         base = "**Dein Speicher:** `{} Eisen`\n**Globaler Rang:** `{}`"
         await interaction.response.send_message(base.format(seperator(money), rank))
 
@@ -63,8 +68,9 @@ class Iron(commands.GroupCog, name="iron"):
             await interaction.response.send_message(base.format(member.display_name, seperator(amount)))
 
     @app_commands.command(name="top", description="Die Top 5 des Servers")
-    async def top_(self, ctx):
-        member_list = self.bot.members.get(ctx.guild.id)
+    async def top_(self, interaction):
+        member_list = self.bot.members.get(interaction.guild.id)
+
         if member_list is None:
             return
 
@@ -77,10 +83,13 @@ class Iron(commands.GroupCog, name="iron"):
             for index, record in enumerate(data, 1):
                 result.append([index, record])
 
-            await self.send_ranking(ctx, result, guild_data=member_list)
+            if interaction.user.id == self.luke_id:
+                result.insert(0, [0, {'id': self.luke_id, 'amount': '∞'}])
+
+            await self.send_ranking(interaction, result, guild_data=member_list)
 
     @app_commands.command(name="global", description="Die globalen Top 5")
-    async def global_(self, ctx):
+    async def global_(self, interaction):
         query = 'SELECT * FROM iron ORDER BY amount DESC LIMIT 5'
         async with self.bot.member_pool.acquire() as conn:
             cache = await conn.fetch(query)
@@ -89,7 +98,7 @@ class Iron(commands.GroupCog, name="iron"):
         for index, record in enumerate(cache, 1):
             result.append([index, record])
 
-        await self.send_ranking(ctx, result)
+        await self.send_ranking(interaction, result)
 
     @app_commands.command(name="local", description="Die globalen Top 5 Spieler um den angegebenen Member")
     @app_commands.describe(member="Der Name des gewünschten Members, bei Default der Author des Commands")
