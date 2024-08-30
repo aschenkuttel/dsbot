@@ -363,7 +363,7 @@ class Poker(utils.DSGames):
             await interaction.response.send_message(msg)
 
     @utils.game_channel_only()
-    @app_commands.command(name="bj", description="Blackjack gegen den Bot")
+    @app_commands.command(name="bl", description="Blackjack gegen den Bot (Rename aufg. Discord)")
     async def blackjack(self, interaction, iron: app_commands.Range[int, 100, 50000] = 50000):
         game = self.get_game_data(interaction)
 
