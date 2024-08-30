@@ -45,6 +45,7 @@ class DSBot(commands.Bot):
 
         self.languages = {}
         path = f"{self.data_path}/language"
+
         for filename in os.listdir(path):
             name = filename.split(".")[0]
             self.languages[name] = utils.Language(path, filename)
@@ -67,7 +68,7 @@ class DSBot(commands.Bot):
             await self.tree.sync(guild=guild)
 
     async def on_ready(self):
-        # db / aiohttp setup
+        # db / aiohttp setup todo: move everything to setup hook
         if not self._lock.is_set():
             # initiates session object and db conns
             self.session = aiohttp.ClientSession()
@@ -118,7 +119,7 @@ class DSBot(commands.Bot):
         else:
             msg = "unknown payload"
 
-        await self.loop.create_task(self.report_to_owner(msg))
+        await self.report_to_owner(msg)
 
     # defaul executor somehow leaks RAM
     async def execute(self, func, *args, **kwargs):

@@ -18,7 +18,10 @@ whymtl = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "' \
 
 
 def seperator(number):
-    return "{0:,}".format(int(number)).replace(",", ".")
+    if isinstance(number, str):
+        return number
+    else:
+        return "{0:,}".format(int(number)).replace(",", ".")
 
 
 # ignores missing perm error
