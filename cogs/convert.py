@@ -53,7 +53,7 @@ class Convert(commands.Cog):
         file.seek(0)
         return file
 
-    async def fetch_report(self, content):
+    async def report_to_img(self, content):
         try:
             async with self.bot.session.get(content) as res:
                 data = await res.text()
@@ -62,24 +62,13 @@ class Convert(commands.Cog):
 
         return await self.bot.execute(self.html_to_image, data)
 
-    @app_commands.command(name="coords", description="Konvertiert eine oder mehrere Koordinaten in Hyperlinks")
-    @app_commands.describe(coordinates="Eine oder mehrere Koordinaten die konvertiert werden sollen")
-    async def coords(self, interaction, coordinates: utils.CoordinatesConverter):
-        await interaction.response.defer()
-        # set imitation workaround to preserve the order of coordinates
-        coords = list(dict.fromkeys(str(c) for c in coordinates))  # noqa (due transformer)
+    async def parse_coords(self, coords, server):
+        found_villages = []
 
-        if not coords:
-            embed = utils.error_embed(text="Keine gültige Koordinate gefunden")
-            await interaction.response.send_message(embed=embed)
-            return
-
-        villages = await self.bot.fetch_bulk(interaction.server, coords, 2, name=True)
+        villages = await self.bot.fetch_bulk(server, coords, 2, name=True)
         village_dict = {str(vil): vil for vil in villages}
         player_ids = [obj.player_id for obj in villages]
-        players = await self.bot.fetch_bulk(interaction.server, player_ids, dictionary=True)
-
-        found_villages = []
+        players = await self.bot.fetch_bulk(server, player_ids, dictionary=True)
 
         for coord in coords.copy():
             village = village_dict.get(coord)
@@ -101,7 +90,22 @@ class Convert(commands.Cog):
         if remaining := ', '.join(coords):
             remaining = f"**Nicht gefunden:**\n{remaining}"
 
-        embed = discord.Embed(description=f"{existing}\n{remaining}")
+        return f"{existing}\n{remaining}"
+
+    @app_commands.command(name="coords", description="Konvertiert eine oder mehrere Koordinaten in Hyperlinks")
+    @app_commands.describe(coordinates="Eine oder mehrere Koordinaten die konvertiert werden sollen")
+    async def coords(self, interaction, coordinates: utils.CoordinatesConverter):
+        await interaction.response.defer()
+        # set imitation workaround to preserve the order of coordinates
+        coords = list(dict.fromkeys(str(c) for c in coordinates))  # noqa (due transformer)
+
+        if not coords:
+            embed = utils.error_embed(text="Keine gültige Koordinate gefunden")
+            await interaction.response.send_message(embed=embed)
+            return
+
+        content = await self.parse_coords(coords, interaction.server)
+        embed = discord.Embed(description=content)
         await interaction.followup.send(embed=embed)
         logger.debug("coord converted")
 
@@ -111,8 +115,9 @@ class Convert(commands.Cog):
         await interaction.response.defer()
 
         report_url = re.match(r'https://.+/public_report/[^\s\\]*', report)
+
         if report_url:
-            io_file = await self.fetch_report(report_url.string)
+            io_file = await self.report_to_img(report_url.string)
 
             if io_file is not None:
                 file = discord.File(io_file, "report.png")
@@ -120,8 +125,9 @@ class Convert(commands.Cog):
                 logger.debug("report converted")
                 return
 
-        embed = utils.error_embed("Invalid Report")
-        await interaction.followup.send(embed=embed)
+        else:
+            embed = utils.error_embed("Invalid Report")
+            await interaction.followup.send(embed=embed)
 
 
 async def setup(bot):

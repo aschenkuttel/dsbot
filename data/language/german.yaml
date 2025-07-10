@@ -504,6 +504,11 @@ settings:
       - Zeitalter der Aufklärung
       - Große Belagerung
 
+converter_title:
+  coord: Koordinaten
+  report: Berichte
+  mention: BB-Codes
+
 commands:
   recap:
     - - Punkte verloren

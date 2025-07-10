@@ -2,8 +2,7 @@ from data.credentials import allowed_pm_commands
 from contextlib import asynccontextmanager
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime, timezone
-from dateutil import tz
+from datetime import datetime
 import asyncio
 import discord
 import utils

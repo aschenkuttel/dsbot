@@ -1,6 +1,7 @@
 from discord.ext import commands, tasks
 from discord import app_commands
 from collections import Counter
+from datetime import datetime
 import traceback
 import logging
 import discord
@@ -8,6 +9,7 @@ import aiohttp
 import utils
 import math
 import sys
+import re
 
 logger = logging.getLogger('dsbot')
 
@@ -93,6 +95,84 @@ class Listen(commands.Cog):
 
         if inactive:
             self.bot.config.update('inactive', False, message.guild.id)
+
+        server = self.bot.config.get_world(message.channel)
+
+        if server is None:
+            return
+
+        content = message.clean_content
+        convert_cog = self.bot.get_cog('Convert')
+
+        if convert_cog is None:
+            raise Exception("convert cog not found")
+
+        # report conversion
+        report_urls = re.findall(r'https://.+/public_report/\S*', content)
+
+        if report_urls and self.bot.config.get_switch('report', message.guild.id):
+            io_file = await convert_cog.report_to_img(report_urls[0])
+
+            if io_file is None:
+                await utils.silencer(message.add_reaction('❌'))
+                logger.debug(f"report could not be converted: {report_urls[0]}")
+            else:
+                file = discord.File(io_file, "report.png")
+                await self.send_convert(message, file, file=True, delete=True)
+                logger.debug("report converted")
+
+            return
+
+        # coordinate conversion
+        coordinates = re.findall(r'\d\d\d\|\d\d\d', content)
+
+        if coordinates and self.bot.config.get_switch('coord', message.guild.id):
+            # set imitation workaround to preserve the order of coordinates
+            coords = list(dict.fromkeys(c for c in coordinates))
+            content = await convert_cog.parse_coords(coords, server)
+            embed = discord.Embed(description=content, color=0xcbba99)
+            await self.send_convert(message, embed)
+            logger.debug("coord converted")
+            return
+
+        # ds mention converter
+        names = re.findall(r'(?<!\|)\|(\S[^|]*?)\|(?!\|)', content)
+
+        if names and self.bot.config.get_switch('mention', message.guild.id):
+            parsed_msg = content.replace("`", "")
+
+            ds_objects = await self.bot.fetch_bulk(server, names[:10], name=True)
+            cache = await self.bot.fetch_bulk(server, names[:10], 1, name=True)
+            ds_objects.extend(cache)
+
+            mentions = message.mentions.copy()
+            mentions.extend(message.role_mentions)
+            mentions.extend(message.channel_mentions)
+
+            found_names = {}
+
+            for dsobj in ds_objects:
+                found_names[dsobj.name.lower()] = dsobj
+
+                if not dsobj.alone:
+                    found_names[dsobj.tag.lower()] = dsobj
+
+            for name in names:
+                dsobj = found_names.get(name.lower())
+
+                if not dsobj:
+                    failed = f"**{name}**<:failed:708982292630077450>"
+                    parsed_msg = parsed_msg.replace(f"|{name}|", failed)
+                else:
+                    parsed_msg = parsed_msg.replace(f"|{name}|", dsobj.mention)
+
+            time = datetime.now().strftime("%H:%M Uhr")
+            title = f"{message.author.display_name} um {time}"
+            embed = discord.Embed(description=parsed_msg, color=0xcbba99)
+            embed.set_author(name=title, icon_url=message.author.display_avatar.url)
+            await self.send_convert(message, embed, delete=not mentions)
+            logger.debug("bbcode converted")
+
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):

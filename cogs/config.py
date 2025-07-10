@@ -10,6 +10,7 @@ logger = logging.getLogger('dsbot')
 
 class Config(commands.Cog):
     def __init__(self, bot):
+        self.bot = bot
         self.type = 0
         self.config = bot.config
 
@@ -239,6 +240,33 @@ class Config(commands.Cog):
         self.config.save()
 
         msg = "Der Filter wurde zurückgesetzt"
+        await interaction.response.send_message(embed=complete_embed(msg))
+
+    convert = app_commands.Group(name="convert", description="Einstellungen der Message Converter")
+
+    @convert.command(name="list", description="Zeigt die aktuellen Converter Einstellungen")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def convert_list(self, interaction):
+        listed = []
+
+        switches = self.bot.config.get_switches(interaction.guild.id)
+
+        for key, value in interaction.lang.converter_title.items():
+            state = switches.get(key, True)
+            represent = "aktiv" if state else "inaktiv"
+            listed.append(f"**{value} ({key}):** `{represent}`")
+
+        msg = "\n".join(listed)
+        await interaction.response.send_message(embed=complete_embed(msg))
+
+    @convert.command(name="toggle", description="Toggled den gewünschten Konverter AN/AUS")
+    @app_commands.describe(key="Der gewünschte Konverter")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def convert_toggle(self, interaction, key: utils.ConversionKeyConverter):
+        name, value = key
+        new_value = self.bot.config.update_switch(value, interaction.guild.id)
+        state = "aktiv" if new_value else "inaktiv"
+        msg = f"Die Konvertierung der {name} ist nun {state}"
         await interaction.response.send_message(embed=complete_embed(msg))
 
 
