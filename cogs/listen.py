@@ -96,7 +96,7 @@ class Listen(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        logger.debug(f"command error [{ctx.command.name}]: {error}")
+        logger.debug(f"command error: {error}")
 
     async def on_app_command_error(self, interaction, error):
         logger.debug(f"command error [{interaction.full_command_name}]: {error}")

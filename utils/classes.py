@@ -243,6 +243,7 @@ class Village(DSObject):
 
 class MapVillage:
     def __init__(self, data):
+        self.data = data
         self.id = data['id']
         self.x = 1501 + 5 * (data['x'] - 500)
         self.y = 1501 + 5 * (data['y'] - 500)
@@ -481,7 +482,7 @@ class DSGames(commands.Cog):
         else:
             command_name = interaction.command.name
 
-        if command_name == "bj":
+        if command_name == "bl":
             container_name = "blackjack"
         elif command_name in ("hg", "guess"):
             container_name = "hangman"

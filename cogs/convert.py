@@ -23,9 +23,12 @@ class Convert(commands.Cog):
         tiles = soup.body.find_all(class_='vis')
 
         if len(tiles) < 2:
-            return
+            return None
 
-        main = f"{utils.whymtl}<head></head>{tiles[1]}"
+        # bugfix since inno serves webp files now which wkhtml doesn't support
+        # since inno serves still pngs aswell we just replace the suffix
+        content = str(tiles[1]).replace(".webp", ".png")
+        main = f"{utils.whymtl}<head></head>{content}"
         css = f"{self.bot.data_path}/report.css"
 
         try:
@@ -35,6 +38,9 @@ class Convert(commands.Cog):
 
         # crops empty background
         im = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+
+        im.save(f"{self.bot.data_path}/report.png")
+
         bg = Image.new(im.mode, im.size, im.getpixel((0, 0)))
         diff = ImageChops.difference(im, bg)
         diff = ImageChops.add(diff, diff, 2.0, -10)
@@ -52,7 +58,7 @@ class Convert(commands.Cog):
             async with self.bot.session.get(content) as res:
                 data = await res.text()
         except (aiohttp.InvalidURL, ValueError):
-            return
+            return None
 
         return await self.bot.execute(self.html_to_image, data)
 
@@ -60,7 +66,7 @@ class Convert(commands.Cog):
     @app_commands.describe(coordinates="Eine oder mehrere Koordinaten die konvertiert werden sollen")
     async def coords(self, interaction, coordinates: utils.CoordinatesConverter):
         await interaction.response.defer()
-        # set imitation workaround to preserve order of coordinates
+        # set imitation workaround to preserve the order of coordinates
         coords = list(dict.fromkeys(str(c) for c in coordinates))  # noqa (due transformer)
 
         if not coords:
