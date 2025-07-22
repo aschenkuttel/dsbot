@@ -37,6 +37,7 @@ class Villages(commands.Cog):
 
         if len(msg) <= 2000:
             await self.send(interaction, msg, defer, ephemeral=True)
+            return None
 
         else:
             text = io.StringIO()
@@ -44,6 +45,7 @@ class Villages(commands.Cog):
             text.seek(0)
             file = discord.File(text, "villages.txt")  # noqa
             await self.send(interaction, defer=defer, file=file, ephemeral=True)
+            return None
 
     async def fetch_in_radius(self, world, village, **kwargs):
         radius = kwargs.get('radius', 0)

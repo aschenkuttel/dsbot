@@ -121,10 +121,33 @@ class CoordinateConverter(app_commands.Transformer, ABC):
     __slots__ = ('x', 'y')
 
     async def transform(self, interaction, value):
-        return utils.Coordinate.from_str(value)
+        coords = utils.Coordinate.from_str(value)
 
+        if coords is None:
+            raise error.InvalidCoordinate()
+        else:
+            return coords
 
 class CoordinatesConverter(app_commands.Transformer, ABC):
     async def transform(self, interaction, value) -> typing.Iterable[str]:
         raw_coords = re.findall(r'\d\d\d\|\d\d\d', value)
         return [utils.Coordinate.from_known_str(coord) for coord in raw_coords]
+
+
+class ConversionKeyConverter(app_commands.Transformer, ABC):
+    __slots__ = ('lower',)
+
+    async def autocomplete(self, interaction: DSInteraction, current):
+        keys = interaction.lang.converter_title.keys()
+
+        return [app_commands.Choice(name=k, value=k)
+                for k in keys
+                if current.lower() in k.lower()]
+
+    async def transform(self, interaction: DSInteraction, value):
+        name = interaction.lang.converter_title.get(value.lower())
+
+        if name is None:
+            raise utils.MissingRequiredKey(interaction.lang.converter_title.keys())
+        else:
+            return name, value

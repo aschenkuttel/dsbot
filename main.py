@@ -17,6 +17,10 @@ import os
 class DSBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         kwargs['intents'] = discord.Intents.default()
+
+        # used for coord and report converter
+        kwargs['intents'].message_content = True
+
         super().__init__(*args, **kwargs)
 
         path = os.path.dirname(__file__)
@@ -79,7 +83,7 @@ class DSBot(commands.Bot):
             self._conn = await self.tribal_pool.acquire()
             await self._conn.add_listener("log", self.callback)
 
-            # adds needed option for vps
+            # adds a necessary option for vps
             if os.name != "nt":
                 utils.imgkit['xvfb'] = ""
 
@@ -129,7 +133,7 @@ class DSBot(commands.Bot):
 
         return result
 
-    # get's called after db update
+    # gets called after db update
     async def loop_per_hour(self):
         await self._lock.wait()
 

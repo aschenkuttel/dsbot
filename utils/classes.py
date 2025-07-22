@@ -2,8 +2,7 @@ from data.credentials import allowed_pm_commands
 from contextlib import asynccontextmanager
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime, timezone
-from dateutil import tz
+from datetime import datetime
 import asyncio
 import discord
 import utils
@@ -243,6 +242,7 @@ class Village(DSObject):
 
 class MapVillage:
     def __init__(self, data):
+        self.data = data
         self.id = data['id']
         self.x = 1501 + 5 * (data['x'] - 500)
         self.y = 1501 + 5 * (data['y'] - 500)
@@ -481,7 +481,7 @@ class DSGames(commands.Cog):
         else:
             command_name = interaction.command.name
 
-        if command_name == "bj":
+        if command_name == "bl":
             container_name = "blackjack"
         elif command_name in ("hg", "guess"):
             container_name = "hangman"
@@ -610,7 +610,7 @@ class Coordinate:
         coord = re.match(r'\d\d\d\|\d\d\d', value)
 
         if not coord:
-            return
+            return None
 
         self = cls.__new__(cls)
         raw_x, raw_y = coord.string.split("|")

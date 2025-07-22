@@ -53,15 +53,17 @@ class Config:
         if response is not None:
             self.save()
             return True
+        else:
+            return False
 
     def get_world(self, channel):
         config = self._config.get(channel.guild.id)
         if config is None:
-            return
+            return None
 
         main_world = config.get('world')
         if main_world is None:
-            return
+            return None
 
         channel_config = config.get('channel', {})
         channel_world = channel_config.get(str(channel.id))
@@ -71,17 +73,19 @@ class Config:
         if isinstance(obj, discord.Guild):
             config = self._config.get(obj.id)
             if config is None:
-                return
+                return None
 
             return config.get('world')
 
         if isinstance(obj, discord.TextChannel):
             config = self._config.get(obj.guild.id)
             if config is None:
-                return
+                return None
 
             chan = config.get('channel', {})
             return chan.get(str(obj.id))
+        else:
+            return None
 
     def remove_world(self, world):
         for config in self._config.values():
@@ -95,13 +99,17 @@ class Config:
 
         self.save()
 
-    def get_switch(self, key, guild_id):
+    # converter switches, per default true
+    def get_switch(self, key, guild_id) -> bool :
         config = self._config.get(guild_id)
         if not config:
             return True
 
         switches = config.get('switches', {})
         return switches.get(key, True)
+
+    def get_switches(self, guild_id) -> dict:
+        return self._config.get(guild_id) or {}
 
     def update_switch(self, key, guild_id, bulk=False):
         config = self.get_config(guild_id, setup=True)
@@ -121,7 +129,7 @@ class Config:
         config = self._config.get(guild_id)
 
         if config is None:
-            return
+            return None
         else:
             return config.get('prefix')
 
