@@ -121,8 +121,12 @@ class CoordinateConverter(app_commands.Transformer, ABC):
     __slots__ = ('x', 'y')
 
     async def transform(self, interaction, value):
-        return utils.Coordinate.from_str(value)
+        coords = utils.Coordinate.from_str(value)
 
+        if coords is None:
+            raise error.InvalidCoordinate()
+        else:
+            return coords
 
 class CoordinatesConverter(app_commands.Transformer, ABC):
     async def transform(self, interaction, value) -> typing.Iterable[str]:

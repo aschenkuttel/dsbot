@@ -610,7 +610,7 @@ class Coordinate:
         coord = re.match(r'\d\d\d\|\d\d\d', value)
 
         if not coord:
-            return
+            return None
 
         self = cls.__new__(cls)
         raw_x, raw_y = coord.string.split("|")
