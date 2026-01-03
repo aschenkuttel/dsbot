@@ -14,7 +14,7 @@ import utils
 import os
 
 
-class DSBot(commands.Bot):
+class DSBot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         kwargs['intents'] = discord.Intents.default()
 
